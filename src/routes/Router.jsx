@@ -9,10 +9,15 @@ import AdminUserSection from "../components/adminUser/AdminUserSection";
 import Setting from "../pages/Setting";
 import DriverList from "../pages/DriverList";
 import AddNewAdmin from "../pages/AddNewAdmin";
+import Login from "../pages/Login";
 
 
 
 const Router = createBrowserRouter([
+   {
+      path: "/login",
+      Component: Login,
+   },
     {
         path : '/',
         Component : App,
