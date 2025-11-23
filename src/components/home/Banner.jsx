@@ -1,13 +1,16 @@
-// src/components/home/Banner.jsx
-import { useEffect, useState } from "react";
-import { getBanners, uploadBanner } from "../../api/dashboardAPI";
+import React, { useRef, useState, useEffect } from "react";
+import { Trash } from 'lucide-react'; // Importing Lucide's trash icon
+import { deleteBanner, getBanners, uploadBanner } from "../../api/dashboardAPI";
+import Modal from "../Modal/Modal";
 
 const Banner = () => {
   const [mainBanner, setMainBanner] = useState(null); // {id, image_url}
   const [otherBanners, setOtherBanners] = useState([]); // array of {id, image_url}
   const [uploading, setUploading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState(""); // State for success message
+  const thumbRef = useRef(null);
 
-
+  // Fetch banners on load
   useEffect(() => {
     async function fetchBanners() {
       try {
@@ -22,6 +25,7 @@ const Banner = () => {
     fetchBanners();
   }, []);
 
+  // Handle file change (uploading banner)
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -30,19 +34,51 @@ const Banner = () => {
     try {
       const formData = new FormData();
       formData.append("image", file);
-      formData.append("type", "main"); 
+      formData.append("type", "main");
 
       const res = await uploadBanner(formData);
       const saved = res.data?.data;
 
       setMainBanner(saved || null);
-      setOtherBanners(prev => [saved, ...prev]);
-      
+      setOtherBanners((prev) => [saved, ...prev]);
     } catch (err) {
       console.error("Banner upload failed", err);
       alert("Failed to upload banner");
     } finally {
       setUploading(false);
+    }
+  };
+
+  // Scroll banners horizontally
+  const scrollThumbs = (direction) => {
+    const el = thumbRef.current;
+    if (!el) return;
+
+    const cardWidth = 100 + 8; // width + gap (px)
+    const scrollAmount = cardWidth * 3;
+
+    el.scrollBy({
+      left: direction === "next" ? scrollAmount : -scrollAmount,
+      behavior: "smooth",
+    });
+  };
+
+  // Handle banner delete
+  const handleDelete = async (bannerId) => {
+    try {
+      await deleteBanner(bannerId); // Call API to delete the banner
+      setOtherBanners((prev) => prev.filter((banner) => banner.id !== bannerId));
+      
+      // Show success message
+      setSuccessMessage("Banner deleted successfully!");
+      
+      // Hide the success message after 3 seconds
+      setTimeout(() => {
+        setSuccessMessage(""); // Reset the message
+      }, 3000);
+    } catch (err) {
+      console.error("Failed to delete banner", err);
+      alert("Failed to delete banner");
     }
   };
 
@@ -56,34 +92,15 @@ const Banner = () => {
         className="cursor-pointer w-full h-[460px] rounded-[15px] relative mb-3 overflow-hidden block"
       >
         <img
-          src={
-            mainBanner?.image ||
-            "https://i.ibb.co.com/chzBwTyK/Rectangle-206-1.png"
-          }
+          src={mainBanner?.image || "https://i.ibb.co.com/chzBwTyK/Rectangle-206-1.png"}
           alt="Top Banner"
           className="w-full h-full object-cover rounded-md"
         />
         <div className="flex items-center justify-center absolute inset-0 bg-black/40">
           <div className="flex flex-col items-center gap-2">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#fff"
-              strokeWidth="1"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="w-13 h-12"
-            >
-              <path d="M12 16C13.6569 16 15 14.6569 15 13C15 11.3431 13.6569 10 12 10C10.3431 10 9 11.3431 9 13C9 14.6569 10.3431 16 12 16Z" />
-              <path d="M3 16.8V9.2C3 8.0799 3 7.51984 3.21799 7.09202C3.40973 6.71569 3.71569 6.40973 4.09202 6.21799C4.51984 6 5.0799 6 6.2 6H7.25464C7.37758 6 7.43905 6 7.49576 5.9935C7.79166 5.95961 8.05705 5.79559 8.21969 5.54609C8.25086 5.49827 8.27836 5.44328 8.33333 5.33333C8.44329 5.11342 8.49827 5.00346 8.56062 4.90782C8.8859 4.40882 9.41668 4.08078 10.0085 4.01299C10.1219 4 10.2448 4 10.4907 4H13.5093C13.7552 4 13.8781 4 13.9915 4.01299C14.5833 4.08078 15.1141 4.40882 15.4394 4.90782C15.5017 5.00345 15.5567 5.11345 15.6667 5.33333C15.7216 5.44329 15.7491 5.49827 15.7803 5.54609C15.943 5.79559 16.2083 5.95961 16.5042 5.9935C16.561 6 16.6224 6 16.7454 6H17.8C18.9201 6 19.4802 6 19.908 6.21799C20.2843 6.40973 20.5903 6.71569 20.782 7.09202C21 7.51984 21 8.0799 21 9.2V16.8C21 17.9201 21 18.4802 20.782 18.908C20.5903 19.2843 20.2843 19.5903 19.908 19.782C19.4802 20 18.9201 20 17.8 20H6.2C5.0799 20 4.51984 20 4.09202 19.782C3.71569 19.5903 3.40973 19.2843 3.21799 18.908C3 18.4802 3 17.9201 3 16.8Z" />
-            </svg>
-            <span className="text-white text-sm">
-              {uploading ? "Uploading..." : "Click to upload banner"}
-            </span>
+            <span className="text-white text-sm">{uploading ? "Uploading..." : "Click to upload banner"}</span>
           </div>
         </div>
-
         <input
           type="file"
           id="bannerUpload"
@@ -93,21 +110,44 @@ const Banner = () => {
         />
       </label>
 
-      {/* Other banners (preview from DB) */}
-      <div className="flex gap-2 overflow-x-hidden mt-2">
-        {otherBanners.map((b) => (
-          <div
-            key={b.id}
-            className="w-[170px] h-[95px] rounded-[8px] relative overflow-hidden"
-          >
-            <img
-              src={b.image}
-              alt="Banner"
-              className="w-full h-full object-cover "
-            />
-          </div>
-        ))}
+      {/* Other banners (with delete button and slider) */}
+      <div className="mt-2 relative overflow-x-hidden">
+        <button
+          type="button"
+          onClick={() => scrollThumbs("prev")}
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white shadow flex items-center justify-center"
+        >
+          ‹
+        </button>
+
+        {/* Thumbnails */}
+        <div ref={thumbRef} className="flex gap-2 overflow-x-auto scroll-smooth scrollbar-hide px-10">
+          {otherBanners.map((b) => (
+            <div key={b.id} className="w-[170px] h-[95px] rounded-[8px] relative overflow-hidden shrink-0">
+              <img src={b.image} alt="Banner" className="w-full h-full object-cover" />
+
+              {/* Delete Icon */}
+              <button
+                onClick={() => handleDelete(b.id)}
+                className="absolute top-2 right-2 bg-gray-700 text-white p-2 rounded-full opacity-80 hover:opacity-100"
+              >
+                <Trash size={18} />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => scrollThumbs("next")}
+          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white shadow flex items-center justify-center"
+        >
+          ›
+        </button>
       </div>
+
+      {/* Success Modal */}
+      <Modal message={successMessage} onClose={() => setSuccessMessage('')} />
     </div>
   );
 };

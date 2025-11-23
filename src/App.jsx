@@ -15,7 +15,7 @@ function App() {
          
 
         {/* Main Content */}
-        <main className="flex-1 ">
+        <main className="flex-1 w-[80%]">
           {/* Fixed Navbar */}
           <header className="fixed top-0 left-[20%] right-0 z-40">
             <Navbar />

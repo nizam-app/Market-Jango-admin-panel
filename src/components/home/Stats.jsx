@@ -17,6 +17,7 @@ const Stats = () => {
     async function fetchStats() {
       try {
         const data = await getDashboardStats();
+        console.log(data, "pitam");
         setStats((prev) =>
           prev.map((item) => ({
             ...item,

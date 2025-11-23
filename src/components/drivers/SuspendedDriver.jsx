@@ -70,7 +70,7 @@ const SuspendedDriver = () => {
     <div class="my-5">
 
     <div class="mb-2">
-      <h2 class="text-[26px] font-semibold  md:mb-0">Suspended Vendor</h2>
+      <h2 class="text-[26px] font-semibold  md:mb-0">Suspended Driver</h2>
     </div>
 
     <div class="overflow-x-auto rounded-lg ">
