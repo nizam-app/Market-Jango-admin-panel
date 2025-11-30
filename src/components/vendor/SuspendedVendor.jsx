@@ -36,56 +36,59 @@ const SuspendedVendor = () => {
     loadSuspended(1);
   }, []);
 
-  // ✅ Restore (Approved)
+  
   const handleRestore = async (vendor) => {
-    const result = await Swal.fire({
-      title: "Restore vendor?",
-      text: `Do you want to restore ${vendor.user?.name || "this vendor"}?`,
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonText: "Yes, restore",
-      cancelButtonText: "Cancel",
-      confirmButtonColor: "#55A946",
-    });
+  const result = await Swal.fire({
+    title: "Restore vendor?",
+    text: `Do you want to restore ${vendor.user?.name || "this vendor"}?`,
+    icon: "question",
+    showCancelButton: true,
+    confirmButtonText: "Yes, restore",
+    cancelButtonText: "Cancel",
+    confirmButtonColor: "#55A946",
+  });
 
-    if (!result.isConfirmed) return;
+  if (!result.isConfirmed) return;
 
-    try {
-      await updateVendorStatus(vendor.id, "Approved");
-      setVendors((prev) => prev.filter((v) => v.id !== vendor.id));
-      Swal.fire("Restored", "Vendor has been restored successfully.", "success");
-    } catch (err) {
-      console.error("Failed to restore vendor", err);
-      Swal.fire("Error", "Failed to restore vendor.", "error");
-    }
-  };
+  try {
+    await updateVendorStatus(vendor.id, "Approved");
+    await loadSuspended(page);
 
-  // ❌ Delete status
-  const handleDelete = async (vendor) => {
-    const result = await Swal.fire({
-      title: "Delete vendor?",
-      text: "This action will delete vendor status. Are you sure?",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: "Yes, delete",
-      cancelButtonText: "Cancel",
-      confirmButtonColor: "#EA0C0C",
-    });
+    Swal.fire("Restored", "Vendor has been restored successfully.", "success");
+  } catch (err) {
+    console.error("Failed to restore vendor", err);
+    Swal.fire("Error", "Failed to restore vendor.", "error");
+  }
+};
 
-    if (!result.isConfirmed) return;
+const handleDelete = async (vendor) => {
+  const result = await Swal.fire({
+    title: "Delete vendor?",
+    text: "This action will delete vendor status. Are you sure?",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonText: "Yes, delete",
+    cancelButtonText: "Cancel",
+    confirmButtonColor: "#EA0C0C",
+  });
 
-    try {
-      // NOTE: jodi backend e onno status use kore (e.g. "Rejected"),
-      // ekhane "Deleted" er jaygay oita boshao.
-      await deleteVendor(vendor.id);
+  if (!result.isConfirmed) return;
 
-      setVendors((prev) => prev.filter((v) => v.id !== vendor.id));
-      Swal.fire("Deleted", "Vendor has been deleted successfully.", "success");
-    } catch (err) {
-      console.error("Failed to delete vendor", err);
-      Swal.fire("Error", "Failed to delete vendor.", "error");
-    }
-  };
+  try {
+    await deleteVendor(vendor?.user?.id);
+
+    // optional: immediate UI update
+    // setVendors((prev) => prev.filter((v) => v.id !== vendor.id));
+
+    // ✅ abar oi page-er data reload
+    await loadSuspended(page);
+    Swal.fire("Deleted", "Vendor has been deleted successfully.", "success");
+  } catch (err) {
+    console.error("Failed to delete vendor", err);
+    Swal.fire("Error", "Failed to delete vendor.", "error");
+  }
+};
+
 
   const hasPrev = pagination && page > 1;
   const hasNext = pagination && page < pagination.last_page;

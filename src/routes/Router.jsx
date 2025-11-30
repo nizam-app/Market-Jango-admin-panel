@@ -1,3 +1,4 @@
+// src/routes/router.jsx
 import { createBrowserRouter } from "react-router";
 import Home from "../pages/Home";
 import App from "../App";
@@ -11,54 +12,74 @@ import DriverList from "../pages/DriverList";
 import AddNewAdmin from "../pages/AddNewAdmin";
 import Login from "../pages/Login";
 
-
+import ProtectedRoute from "./ProtectedRoute";
+import AssignOrderPage from "../pages/AssignOrderPage";
+import AdminResetPasswordPage from "../pages/AdminResetPasswordPage";
 
 const Router = createBrowserRouter([
-   {
-      path: "/login",
-      Component: Login,
-   },
-    {
-        path : '/',
-        Component : App,
-        children :[
-            { 
-               index : true,
-               Component : Home ,
-            },
-            { 
-               path : 'products',
-               Component : Products ,
-            },
-            { 
-               path : 'vendors',
-               Component : Vendor,
-            },
-            { 
-               path : 'drivers',
-               Component : Drivers  ,
-            },
-            { 
-               path : 'track-order',
-               Component : TrackOrder,
-            },
-            { 
-               path : 'admin-user',
-               Component : AdminUserSection,
-            },
-            { 
-               path : 'setting',
-               Component : Setting,
-            },
-            { 
-               path : 'drivers-list',
-               Component : DriverList,
-            },
-            { 
-               path : 'create-role',
-               Component : AddNewAdmin,
-            },
-        ]
-    }
-]) 
+  // 🔓 Public route
+  {
+    path: "/login",
+    Component: Login,
+  },
+  {
+    path: 'admin-reset-password',
+    Component: AdminResetPasswordPage
+  },
+
+  // 🔐 Sob private/admin route ekhane
+  {
+    // ekhane path ditei hobe na, sudhu ekta layout wrapper
+    element: <ProtectedRoute />,
+    children: [
+      {
+        path: "/",
+        Component: App, // App er vitore Sidebar + <Outlet /> thakar kotha
+        children: [
+          {
+            index: true,
+            Component: Home,
+          },
+          {
+            path: "products",
+            Component: Products,
+          },
+          {
+            path: "vendors",
+            Component: Vendor,
+          },
+          {
+            path: "drivers",
+            Component: Drivers,
+          },
+          {
+            path: "track-order",
+            Component: TrackOrder,
+          },
+          {
+            path: "admin-user",
+            Component: AdminUserSection,
+          },
+          {
+            path: "setting",
+            Component: Setting,
+          },
+          {
+            path: "drivers-list",
+            Component: DriverList,
+          },
+          {
+            path: "create-role",
+            Component: AddNewAdmin,
+          },
+          {
+            path: 'drivers/:driverId/assign-order',
+            Component: AssignOrderPage
+          }
+        ],
+      },
+    ],
+  },
+]);
+
 export default Router;

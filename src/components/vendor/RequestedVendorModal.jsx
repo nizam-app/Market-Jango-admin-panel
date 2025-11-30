@@ -1,6 +1,8 @@
 // src/components/vendor/RequestedVendorModal.jsx
-import React from "react";
+import React from "react";  
+import Swal from "sweetalert2";      // ⬅️ eta add korো
 import { updateVendorStatus } from "../../api/vendorAPI";
+
 
 const RequestedVendorModal = ({ vendor, closeModal, onStatusChange }) => {
   const user = vendor.user || {};
@@ -14,17 +16,47 @@ const RequestedVendorModal = ({ vendor, closeModal, onStatusChange }) => {
   // Trade license / docs হিসেবে সব vendor-type image দেখাচ্ছি
   const docImages = images.filter((img) => img.file_type === "image");
 
+  
   const handleUpdateStatus = async (status) => {
-    try {
-      await updateVendorStatus(vendor.id, status);
-      onStatusChange(vendor.id, status);
-      alert(`Vendor status updated to ${status}`);
-      closeModal();
-    } catch (error) {
-      console.error("Failed to update vendor status", error);
-      alert("Failed to update vendor status. Please try again.");
-    }
-  };
+  const isApprove = status === "Approved";
+
+  // confirm popup
+  const result = await Swal.fire({
+    title: isApprove ? "Approve this vendor?" : "Reject this vendor?",
+    text: isApprove
+      ? "This vendor will be approved and can start using the platform."
+      : "This vendor will be rejected and cannot use the platform.",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: isApprove ? "#55A946" : "#EA0C0C",
+    cancelButtonColor: "#3085d6",
+    confirmButtonText: isApprove ? "Yes, approve" : "Yes, reject",
+  });
+
+  if (!result.isConfirmed) return;
+
+  try {
+    await updateVendorStatus(vendor.id, status);
+    // list theke remove korar jonno
+    onStatusChange(vendor.id, status);
+
+    await Swal.fire({
+      title: "Success",
+      text: `Vendor status updated to ${status}.`,
+      icon: "success",
+    });
+
+    closeModal();
+  } catch (error) {
+    console.error("Failed to update vendor status", error);
+    Swal.fire({
+      title: "Error",
+      text: "Failed to update vendor status. Please try again.",
+      icon: "error",
+    });
+  }
+};
+
 
   return (
     <div

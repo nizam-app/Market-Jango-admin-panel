@@ -211,6 +211,10 @@ const AllVendor = () => {
         <VendorModal
           vendor={selectedVendor}
           onClose={() => setSelectedVendor(null)}
+          onStatusChange={() => {
+            // current page er data abar load korbo
+            loadVendors(page);
+          }}
         />
       )}
     </>

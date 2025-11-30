@@ -37,8 +37,10 @@ const RequestedVendor = () => {
   };
 
   const closeModal = () => {
-    setSelectedVendor(null);
-  };
+  setSelectedVendor(null);
+  // modal bondho holেই current page এর data আবার load করব
+  loadVendors(page);   // চাইলে সব সময় প্রথম পেজ চাইলে loadVendors(1)
+};
 
   // approve / cancel এর পরে list থেকে ওই vendor remove করব
   const handleStatusChange = (vendorId) => {

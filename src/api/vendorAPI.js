@@ -12,10 +12,10 @@ export function getActiveVendors(page = 1) {
 }
 
 // Accept / Reject / Cancel vendor
-export function updateVendorStatus(vendorId, status) {
-  // status: "Approved", "Rejected" / "Cancelled" etc. backend অনুযায়ী string use করবে
-  return axiosClient.post(`/accept-reject/vendor/${vendorId}`, { status });
-}
+  export function updateVendorStatus(vendorId, status) {
+    // status: "Approved", "Rejected" / "Cancelled" etc. backend অনুযায়ী string use করবে
+    return axiosClient.put(`/vendor/status-update/${vendorId}`, { status });
+  }
 
 // Suspended vendor list (paginated)
 export function getSuspendedVendors(page = 1) {

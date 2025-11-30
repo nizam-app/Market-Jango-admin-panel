@@ -1,60 +1,71 @@
-import React, { useRef, useState } from 'react';
-const AvatarImage = () => {
-    const [image, setImage] = useState("https://i.ibb.co.com/p66Z5YMH/pexels-christina-morillo-1181690-1.png");
+// src/components/setting/AvatarImage.jsx
+import React, { useRef } from "react";
+
+const DEFAULT_AVATAR =
+  "https://via.placeholder.com/120x120.png?text=User";
+
+const AvatarImage = ({ imageUrl, editable = false, onImageChange }) => {
   const fileInputRef = useRef(null);
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const imageURL = URL.createObjectURL(file);
-      setImage(imageURL);
+  const handleEditClick = () => {
+    if (!editable) return;
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
     }
   };
 
-  const handleEditClick = () => {
-    fileInputRef.current.click();
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file && onImageChange) {
+      onImageChange(file);
+    }
   };
+
   return (
-    <div className="relative w-32 h-32">
-      <div className="w-32 h-32 rounded-full overflow-hidden">
-        <img
-          src={image || 'path_to_your_image.jpg'}
-          alt="Profile"
-          className="w-full h-full object-cover bg-green-400"
-        />
-      </div>
-
-      {/* Edit Button */}
-      <div
-        className="absolute z-10 bottom-1 right-1 bg-[#FF8C00] rounded-full p-2 cursor-pointer shadow"
-        onClick={handleEditClick}
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="20px"
-          height="20px"
-          viewBox="0 0 512 512"
-          fill="#fff"
-        >
-          <g>
-            <path d="M504.262,66.75L445.226,7.706c-10.291-10.284-26.938-10.267-37.222,0l-38.278,38.278l96.282,96.266 
-              l38.254-38.295C514.537,93.672,514.554,77.017,504.262,66.75z" />
-            <path d="M32.815,382.921L0.025,512l129.055-32.83l319.398-319.431l-96.249-96.265L32.815,382.921z 
-              M93.179,404.792l-21.871-21.871l278.289-278.289l21.887,21.887L93.179,404.792z" />
-          </g>
-        </svg>
-      </div>
-
-      {/* Hidden File Input */}
-      <input
-        type="file"
-        accept="image/*"
-        ref={fileInputRef}
-        onChange={handleImageChange}
-        className="hidden"
+    <div className="relative w-[120px] h-[120px]">
+      <img
+        src={imageUrl || DEFAULT_AVATAR}
+        alt="Profile"
+        className="w-full h-full rounded-full object-cover border border-[#DFEAF2]"
       />
-    </div>
-  )
-}
 
-export default AvatarImage
+      {editable && (
+        <>
+          <button
+            type="button"
+            onClick={handleEditClick}
+            className="absolute bottom-1 right-1 w-9 h-9 rounded-full bg-[#FF8C00]
+                       flex items-center justify-center cursor-pointer shadow-md"
+          >
+            {/* pencil icon */}
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+            >
+              <path
+                d="M4 20H5.41421C5.87678 20 6.10802 20 6.32599 19.9473C6.51721 19.9019 6.7003 19.8261 6.86745 19.7229C7.05615 19.6062 7.21747 19.4449 7.5401 19.1223L19 7.66241C20.1046 6.55786 20.1046 4.76164 19 3.65709C17.8954 2.55254 16.0992 2.55254 14.9946 3.65709L3.53476 15.1169C3.21213 15.4396 3.05081 15.6009 2.9341 15.7896C2.8309 15.9568 2.75508 16.1399 2.70966 16.3311C2.65698 16.5491 2.65698 16.7803 2.65698 17.2429V18.6571C2.65698 19.4002 3.25681 20 4 20Z"
+                stroke="#ffffff"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+        </>
+      )}
+    </div>
+  );
+};
+
+export default AvatarImage;

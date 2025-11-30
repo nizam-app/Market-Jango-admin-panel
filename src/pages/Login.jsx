@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { loginAdmin } from "../api/authApi";
 import appLogo from "../assets/app-logo.png"; // তোমার লোগো আছে already
+import { setAuthUser } from "../utils/authUser";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -23,13 +24,15 @@ export default function Login() {
       // ধরে নিচ্ছি response:
       // { status: "success", data: { token: "..." , user: {...}} }
       const token = res?.data?.data?.token || res?.data?.token;
+      const user = res?.data?.data?.user || res?.data?.user;
       if (!token) {
         throw new Error("Invalid response: token not found");
       }
-
       localStorage.setItem("token", token);
-     
 
+      if (user) {
+        setAuthUser(user)
+      }
       navigate("/", { replace: true }); // সফল হলে dashboard এ নেবে
     } catch (err) {
       console.error(err);
@@ -46,10 +49,10 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#F5F7FA] px-4">
       <div className="w-full max-w-4xl bg-white shadow-xl rounded-2xl overflow-hidden flex flex-col md:flex-row">
-        
+
         {/* Left side – Branding */}
         <div className="hidden md:flex md:w-1/2 bg-orange-100 text-black flex-col justify-center p-10">
-            <img src={appLogo} alt="Logo" className="rounded-lg w-28" />
+          <img src={appLogo} alt="Logo" className="rounded-lg w-28" />
           <div className="flex items-center gap-3 mb-6">
             <h1 className="text-2xl font-semibold">Admin Portal</h1>
           </div>

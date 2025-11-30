@@ -1,11 +1,46 @@
 // src/components/vendor/VendorModal.jsx
 import React from "react";
+import Swal from "sweetalert2";
+import { updateVendorStatus } from "../../api/vendorAPI";
 
-const VendorModal = ({ vendor, onClose }) => {
+const VendorModal = ({ vendor, onClose , onStatusChange}) => {
   if (!vendor) return null;
 
   const user = vendor.user || {};
   const images = vendor.images || [];
+
+  const handleBlockVendor = async () => {
+    const result = await Swal.fire({
+      title: "Block this vendor?",
+      text: "This vendor will be marked as Rejected.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Yes, block",
+    });
+    if(!result.isConfirmed)return;
+    try {
+      await updateVendorStatus(vendor.id, 'Rejected');
+      await Swal.fire(
+        "Blocked!",
+        "Vendor has been blocked successfully.",
+        "success"
+      );
+      if (onStatusChange) {
+        onStatusChange("Rejected");
+      }
+      onClose();
+
+    } catch (error) {
+      console.error("Failed to block vendor", error);
+      Swal.fire(
+        "Error",
+        "Failed to block vendor. Please try again.",
+        "error"
+      );
+    }
+  }
 
   const formatPhoneVerified = () => {
     if (!user.phone_verified_at) return "-";
@@ -27,9 +62,9 @@ const VendorModal = ({ vendor, onClose }) => {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden"
+        className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col"
       >
-        <div className="h-full overflow-y-auto custom-scroll">
+        
           {/* Header: avatar + basic info */}
           <div className="p-6 border-b border-gray-200 flex items-start gap-4">
             <img
@@ -74,7 +109,7 @@ const VendorModal = ({ vendor, onClose }) => {
           </div>
 
           {/* Body */}
-          <div className="p-6 space-y-6">
+          <div className="p-6 space-y-6 overflow-y-auto">
             {/* About */}
             <div>
               <h3 className="text-lg font-semibold mb-2">
@@ -122,8 +157,11 @@ const VendorModal = ({ vendor, onClose }) => {
                 </div>
               )}
             </div>
+            <button onClick={handleBlockVendor} className="px-4 py-2 cursor-pointer font-medium text-xs bg-[#FF8C00] rounded-[10px] text-white">block vendor</button>
           </div>
-        </div>
+          
+        
+        
       </div>
     </div>
   );

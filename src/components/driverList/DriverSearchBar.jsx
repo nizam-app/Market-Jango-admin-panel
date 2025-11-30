@@ -1,6 +1,18 @@
+// src/components/drivers/DriverSearchBar.jsx
 import React from 'react';
 
-const DriverSearchBar = () => {
+const DriverSearchBar = ({
+  pickup,
+  drop,
+  onPickupChange,
+  onDropChange,
+  onSubmit,
+  loading,
+}) => {
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') onSubmit();
+  };
+
   return (
     <div className="flex  
     items-center justify-center p-4 bg-[#37526D]
@@ -26,6 +38,9 @@ const DriverSearchBar = () => {
             placeholder="Pick up location"
             className="w-full px-3 py-1 font-normal text-[#676767]
              placeholder-gray-400 bg-white rounded-full focus:outline-none"
+            value={pickup}
+            onChange={(e) => onPickupChange(e.target.value)}
+            onKeyDown={handleKeyDown}
           />
         </div>
 
@@ -48,15 +63,22 @@ const DriverSearchBar = () => {
             placeholder="Destination"
             className="w-full px-3 py-1 font-normal text-[#676767]
              placeholder-gray-400 bg-white rounded-full focus:outline-none"
+            value={drop}
+            onChange={(e) => onDropChange(e.target.value)}
+            onKeyDown={handleKeyDown}
           />
         </div>
       </div>
 
       {/* Search Button */}
-      <button className="flex-shrink-0   cursor-pointer
+      <button
+        onClick={onSubmit}
+        disabled={loading}
+        className="flex-shrink-0   cursor-pointer
       px-6 py-3.5   font-medium bg-[#FF8C00] text-[#002440]
-       rounded-[100px] transition-colors duration-200">
-        Search
+       rounded-[100px] transition-colors duration-200 disabled:opacity-60"
+      >
+        {loading ? 'Searching...' : 'Search'}
       </button>
     </div>
   );

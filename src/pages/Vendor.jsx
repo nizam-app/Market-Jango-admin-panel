@@ -7,7 +7,7 @@ import SuspendedVendor from '../components/vendor/SuspendedVendor'
 const Vendor = () => {
   return (
     <>
-      <ChartSection />
+      {/* <ChartSection /> */}
       <AllVendor />
       <RequestedVendor />
       <SuspendedVendor />

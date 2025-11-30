@@ -1,121 +1,224 @@
-import React from 'react'
-const vendorData = [
-  {
-    date: 'Jul 5, 2025',
-    name: 'Guy Hawkins',
-    location: '6391 Elgin St. Celina',
-    number: '(303) 555-0105',
-    action: 'See Details'
-  },
-  {
-    date: 'Jul 7, 2025',
-    name: 'Ronald Richards',
-    location: '6391 Elgin St. Celina',
-    number: '(239) 555-0108',
-    action: 'See Details'
-  },
-  {
-    date: 'Jul 8, 2025',
-    name: 'Kristin Watson',
-    location: '6391 Elgin St. Celina',
-    number: '(316) 555-0116',
-    action: 'See Details'
-  },
-  {
-    date: 'Jul 9, 2025',
-    name: 'Theresa Webb',
-    location: '6391 Elgin St. Celina',
-    number: '(270) 555-0117',
-    action: 'See Details'
-  },
-  {
-    date: 'Jul 10, 2025',
-    name: 'Floyd Miles',
-    location: '6391 Elgin St. Celina',
-    number: '(603) 555-0123',
-    action: 'See Details'
-  },
-  {
-    date: 'Jul 12, 2025',
-    name: 'Brooklyn Simmons',
-    location: '6391 Elgin St. Celina',
-    number: '(319) 555-0115',
-    action: 'See Details'
-  },
-  {
-    date: 'Jul 14, 2025',
-    name: 'Esther Howard',
-    location: '6391 Elgin St. Celina',
-    number: '(405) 555-0128',
-    action: 'See Details'
-  },
-  {
-    date: 'Jul 15, 2025',
-    name: 'Dianne Russell',
-    location: '6391 Elgin St. Celina',
-    number: '(207) 555-0119',
-    action: 'See Details'
-  },
-  {
-    date: 'Jul 15, 2025',
-    name: 'Kathryn Murphy',
-    location: '6391 Elgin St. Celina',
-    number: '(629) 555-0129',
-    action: 'See Details'
-  }
-];
+// src/components/drivers/NotDeliveredOrder.jsx
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
+
+import { getNotDeliveredOrders } from "../../api/orderApi";
+import NotDeliveredOrderModal from "./NotDeliveredOrderModal";
+
 const NotDeliveredOrder = () => {
-    
+  const navigate = useNavigate();
+
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({
+    current_page: 1,
+    last_page: 1,
+    total: 0,
+    from: 0,
+    to: 0,
+  });
+
+  const [selectedOrder, setSelectedOrder] = useState(null);
+
+  const loadOrders = async (pageNumber = 1) => {
+    try {
+      setLoading(true);
+      const res = await getNotDeliveredOrders(pageNumber);
+
+      // response: { status, message, data: { current_page, data: [...] } }
+      const paginationData = res.data?.data;
+      const list = paginationData?.data ?? [];
+
+      setOrders(list);
+      setPagination({
+        current_page: paginationData?.current_page ?? pageNumber,
+        last_page: paginationData?.last_page ?? 1,
+        total: paginationData?.total ?? list.length,
+        from: paginationData?.from ?? 0,
+        to: paginationData?.to ?? list.length,
+      });
+    } catch (error) {
+      console.error("Failed to load not delivered orders", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadOrders(page);
+  }, [page]);
+
+  const handlePrevPage = () => {
+    if (page > 1) setPage((prev) => prev - 1);
+  };
+
+  const handleNextPage = () => {
+    if (page < pagination.last_page) setPage((prev) => prev + 1);
+  };
+
+  const openDetails = (order) => {
+    setSelectedOrder(order);
+  };
+
+  const closeDetails = () => {
+    setSelectedOrder(null);
+  };
+
+  const handleAssignOrder = () => {
+    navigate("/drivers-list");
+  };
+
+  const formatDate = (value) => {
+    if (!value) return "-";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "-";
+    return d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
   return (
-  <div className='my-5'>  
-  <div class="mb-2">
-      <h2 class="text-[26px] font-semibold  md:mb-0">Not Delivered Order</h2>
+    <div className="my-5">
+      <div className="mb-2">
+        <h2 className="text-[26px] font-semibold md:mb-0">
+          Not delivered order
+        </h2>
+      </div>
+
+      <div className="overflow-x-auto rounded-lg">
+        <table className="min-w-full">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-2 py-3 text-left font-normal uppercase tracking-wider">
+                Date
+              </th>
+              <th className="px-2 py-3 text-left font-normal uppercase tracking-wider">
+                Customer name
+              </th>
+              <th className="px-2 py-3 text-left font-normal uppercase tracking-wider">
+                Pickup location
+              </th>
+              <th className="px-2 py-3 text-left font-normal uppercase tracking-wider">
+                Order Id
+              </th>
+              <th className="px-2 py-3 text-left font-normal uppercase tracking-wider">
+                Action
+              </th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {loading ? (
+              <tr>
+                <td
+                  colSpan={5}
+                  className="px-3 py-6 text-center text-sm text-gray-500"
+                >
+                  Loading not delivered orders...
+                </td>
+              </tr>
+            ) : orders.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={5}
+                  className="px-3 py-6 text-center text-sm text-gray-500"
+                >
+                  No not delivered order found.
+                </td>
+              </tr>
+            ) : (
+              orders.map((order) => (
+                <tr
+                  key={order.id}
+                  className="odd:bg-transparent even:bg-white"
+                >
+                  <td className="px-3 py-4 whitespace-nowrap text-sm font-medium">
+                    {formatDate(order.created_at)}
+                  </td>
+
+                  <td className="px-3 py-4 whitespace-nowrap text-sm">
+                    {order.cus_name || "-"}
+                  </td>
+
+                  <td className="px-3 py-4 whitespace-nowrap text-sm">
+                    {order.pickup_address ||
+                      order.ship_address ||
+                      order.current_address ||
+                      "-"}
+                  </td>
+
+                  <td className="px-3 py-4 whitespace-nowrap text-sm">
+                    {order.id
+                      ? `#${order.id}`
+                      : "-"}
+                  </td>
+
+                  <td className="px-3 py-4 whitespace-nowrap text-sm font-medium max-w-[260px]">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => openDetails(order)}
+                        className="px-4 py-2 cursor-pointer font-medium text-xs bg-[#FF8C00] text-white rounded-[10px]"
+                      >
+                        Order Details
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleAssignOrder}
+                        className="px-4 py-2 cursor-pointer font-medium text-xs bg-[#FF8C00] text-white rounded-[10px]"
+                      >
+                        Assigned Order
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination bar */}
+      {!loading && (
+        <div className="flex items-center justify-between mt-4 text-sm">
+          <p className="text-gray-600">
+            Showing {pagination.from || 0}–{pagination.to || 0} of{" "}
+            {pagination.total || 0} orders
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handlePrevPage}
+              disabled={page <= 1}
+              className="px-3 py-1 rounded-[8px] border text-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            <span className="text-gray-700">
+              Page {page} of {pagination.last_page}
+            </span>
+            <button
+              type="button"
+              onClick={handleNextPage}
+              disabled={page >= pagination.last_page}
+              className="px-3 py-1 rounded-[8px] border text-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+
+      {selectedOrder && (
+        <NotDeliveredOrderModal order={selectedOrder} onClose={closeDetails} />
+      )}
     </div>
-   <div class="overflow-x-auto rounded-lg">
-      <table class="min-w-full">
-        <thead class="bg-gray-50">
-          <tr>
-            <th scope="col" class="px-2 py-3 text-left  font-normal uppercase tracking-wider">Date</th>
-            <th scope="col" class="px-2 py-3 text-left  font-normal uppercase tracking-wider">Name</th>
-            <th scope="col" class="px-2 py-3 text-left  font-normal uppercase tracking-wider">Location</th>
-            <th scope="col" class="px-2 py-3 text-left  font-normal uppercase tracking-wider">Number</th>
-            <th scope="col" class="px-2 py-3 text-left  font-normal uppercase tracking-wider">Action</th>
-          </tr>
-        </thead>
-        <tbody >
-  {vendorData.map((item, index) => (
-    <tr
-      key={index}
-      class="odd:bg-transparent even:bg-white"
-    >
-      <td class="px-3 py-4 whitespace-nowrap text-sm font-medium">{item.date}</td>
-      <td class="px-3 py-4 whitespace-nowrap text-sm">{item.name}</td>
-      <td class="px-3 py-4 whitespace-nowrap text-sm">{item.location}</td>
-      <td class="px-3 py-4 whitespace-nowrap text-sm">{item.number}</td>
-      <td className="px-3 py-4 whitespace-nowrap text-sm font-medium max-w-[200px]">
-  <div className="flex items-center space-x-2 flex-wrap">
-                    <span className="text-red-500">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" 
-                      fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
-                      </span>
-                      <span className="text-green-500"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg></span>
-                    {/* onClick={openModal} */}
-                    <button  
-                    className="px-4 py-2 cursor-pointer font-medium text-xs  bg-[#FF8C00] 
-                    rounded-[10px]">
-                       See Details
-                    </button>
-                    
-                  </div>
-      </td>
-    </tr>
-  ))}
-</tbody>
-      </table>
-    </div>
-    
-    </div>
-  )
-}
+  );
+};
 
 export default NotDeliveredOrder;

@@ -1,13 +1,23 @@
+// src/components/drivers/DriverCard.jsx
 import React from 'react';
 
-const DriverCard = ({ name, phone, address, price, isOnline, image }) => {
+const DriverCard = ({
+  name,
+  phone,
+  address,
+  price,
+  isOnline,
+  image,
+  onAssignOrder,
+  onViewDetails,
+}) => {
   return (
     <div className="bg-[#FFFFFF] rounded-[10px]  
     px-4 py-3 flex flex-col relative">
       {/* upper content */}
       <div className="flex items-center space-x-4">
-        {/* Profile Image with Status Indicator */}
-        <div className="">
+        {/* Profile Image */}
+        <div>
           <img
             src={image}
             alt={name}
@@ -23,35 +33,41 @@ const DriverCard = ({ name, phone, address, price, isOnline, image }) => {
         </div>
 
         {/* Price Tag */}
-        <div className="flex-shrink-0">
-          <span className="text-2xl font-medium text-[#1F1F1F]">{price}</span>
+        <div className="flex  -shrink-0">
+          <span className="text-2xl font-medium text-[#1F1F1F]">
+            {price}
+          </span>
         </div>
       </div>
 
       {/* Action Buttons */}
       <div className="flex justify-between space-x-4 mt-4">
-        <button className="flex-grow px-4 py-2 font-medium 
+        <button
+          className="flex-grow px-4 py-2 font-medium 
         text-[#051522] bg-[#FF8C00] rounded-[8px] 
-        transition-colors duration-200 cursor-pointer">
+        transition-colors duration-200 cursor-pointer"
+          onClick={onAssignOrder}
+        >
           Assign order
         </button>
-        <button className="flex-grow px-4 py-2 font-medium 
+        <button
+          className="flex-grow px-4 py-2 font-medium 
         text-[#FFFFFF] bg-[#0168B8] rounded-[8px] 
-        transition-colors duration-200 cursor-pointer">
+        transition-colors duration-200 cursor-pointer"
+          onClick={onViewDetails}
+        >
           View details
         </button>
-  
       </div>
 
       {/* status badge */}
-        <div
-            className={`absolute
-              right-3 top-3 px-2 py-0.5 rounded-[50px] text-[9px]  border-white
-               bg-[#00C27A] 
-            }`}
-          >
-            Online
-          </div>
+      <div
+        className={`absolute
+              right-3 top-3 px-2 py-0.5 rounded-[50px] text-[9px] border-white
+              ${isOnline ? 'bg-[#00C27A]' : 'bg-gray-400'} text-white`}
+      >
+        {isOnline ? 'Online' : 'Offline'}
+      </div>
     </div>
   );
 };
