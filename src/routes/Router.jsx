@@ -15,6 +15,8 @@ import Login from "../pages/Login";
 import ProtectedRoute from "./ProtectedRoute";
 import AssignOrderPage from "../pages/AssignOrderPage";
 import AdminResetPasswordPage from "../pages/AdminResetPasswordPage";
+import BuyerManagement from "../pages/BuyerManagement";
+import Transportmanagement from "../pages/Transportmanagement";
 
 const Router = createBrowserRouter([
   // 🔓 Public route
@@ -43,6 +45,14 @@ const Router = createBrowserRouter([
           {
             path: "products",
             Component: Products,
+          },
+          {
+            path: "buyer-management",
+            Component: BuyerManagement,
+          },
+          {
+            path: "transport-management",
+            Component: Transportmanagement,
           },
           {
             path: "vendors",
