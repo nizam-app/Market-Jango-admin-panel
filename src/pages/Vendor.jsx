@@ -1,6 +1,7 @@
 // src/pages/Vendor.jsx
 import React, { useEffect, useMemo, useState } from 'react';
 import axiosClient from '../api/axiosClient'; // keep axiosClient untouched
+
 import Swal from 'sweetalert2';
 import 'sweetalert2/dist/sweetalert2.min.css';
 
@@ -102,10 +103,10 @@ const Vendor = () => {
   }, [filter, page]);
 
   // -------- Helper: update vendor status (PUT) ----------
-  const updateVendorStatus = async (id, status) => {
+  const updateVendorStatus = async (vendorProfileId, status) => {
     try {
       const payload = { status };
-      const res = await axiosClient.put(`/vendor/status-update/${id}`, payload);
+      const res = await axiosClient.put(`/vendor/status-update/${vendorProfileId}`, payload);
       return res.data; // return API response
     } catch (err) {
       throw err;
@@ -127,12 +128,19 @@ const Vendor = () => {
         const payload = resp.data;
         const vendorsRaw = payload.data || [];
         const mapped = vendorsRaw.map((v) => ({
+          // user level id
           id: v.id,
+          // status update এর জন্য লাগবে vendor table এর id
+          vendorProfileId: v.vendor?.id ?? null,
           name: v.name || v.email || `Vendor #${v.id}`,
           email: v.email || '-',
           created_at: v.created_at,
           status: v.status,
-          products_count: (v.vendor && v.vendor.products_count) ?? v.products_count ?? '-',
+          // তোমার রেসপন্স অনুযায়ী product_count আছে user লেভেলে
+          products_count:
+            v.product_count ??
+            (Array.isArray(v.vendor?.products) ? v.vendor.products.length : '-') ??
+            '-',
           raw: v,
         }));
 
@@ -158,7 +166,7 @@ const Vendor = () => {
   }
 
   // -------- Actions with SweetAlert confirmations ----------
-  const confirmAndUpdate = async (vendorId, newStatus) => {
+  const confirmAndUpdate = async (vendorProfileId, newStatus) => {
     const statusLabel = newStatus;
     const result = await Swal.fire({
       title: `Are you sure?`,
@@ -174,7 +182,7 @@ const Vendor = () => {
     if (result.isConfirmed) {
       try {
         Swal.showLoading();
-        const resp = await updateVendorStatus(vendorId, newStatus);
+        const resp = await updateVendorStatus(vendorProfileId, newStatus);
         Swal.close();
 
         Swal.fire({
@@ -200,9 +208,9 @@ const Vendor = () => {
     }
   };
 
-  const handleApprove = (id) => confirmAndUpdate(id, 'Approved');
-  const handleReject = (id) => confirmAndUpdate(id, 'Rejected');
-  const handleSetPending = (id) => confirmAndUpdate(id, 'Pending');
+  const handleApprove = (vendorProfileId) => confirmAndUpdate(vendorProfileId, 'Approved');
+  const handleReject = (vendorProfileId) => confirmAndUpdate(vendorProfileId, 'Rejected');
+  const handleSetPending = (vendorProfileId) => confirmAndUpdate(vendorProfileId, 'Pending');
 
   // -------- Modal logic ----------
   const openVendorModal = async (vendorId, vendorRaw) => {
@@ -221,7 +229,6 @@ const Vendor = () => {
         if (dResp?.status === 'success' && dResp?.data) detail = dResp.data;
         else if (dResp?.data) detail = dResp.data; // fallback
       } catch (errDet) {
-        // ignore — endpoint might not exist; we'll fallback to vendorRaw
         console.warn('vendor detail fetch failed', errDet);
       }
 
@@ -229,7 +236,6 @@ const Vendor = () => {
       let products = [];
       try {
         const { data: pResp } = await axiosClient.get(`/vendor/${vendorId}/products`);
-        // try a few shapes:
         if (pResp?.status === 'success' && Array.isArray(pResp?.data)) products = pResp.data;
         else if (Array.isArray(pResp?.data?.data)) products = pResp.data.data;
         else if (Array.isArray(pResp)) products = pResp;
@@ -280,7 +286,9 @@ const Vendor = () => {
 
       <div style={styles.card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <div style={{ color: '#444', fontWeight: 700 }}>{filter} — <span style={{ fontWeight: 600, color: '#777' }}>{meta.total ?? 0} results</span></div>
+          <div style={{ color: '#444', fontWeight: 700 }}>
+            {filter} — <span style={{ fontWeight: 600, color: '#777' }}>{meta.total ?? 0} results</span>
+          </div>
           <div style={{ color: '#666', fontSize: 13 }}>Page {meta.current_page} of {meta.last_page}</div>
         </div>
 
@@ -326,7 +334,7 @@ const Vendor = () => {
                         {v.status !== 'Approved' && (
                           <button
                             style={{ ...styles.btn(), background: BRAND }}
-                            onClick={() => handleApprove(v.id)}
+                            onClick={() => handleApprove(v.vendorProfileId ?? v.id)}
                           >
                             Approve
                           </button>
@@ -335,7 +343,7 @@ const Vendor = () => {
                         {v.status !== 'Rejected' && (
                           <button
                             style={{ ...styles.btn({}), background: '#fff', color: '#b91c1c', border: '1px solid #fca5a5' }}
-                            onClick={() => handleReject(v.id)}
+                            onClick={() => handleReject(v.vendorProfileId ?? v.id)}
                           >
                             Reject
                           </button>
@@ -344,7 +352,7 @@ const Vendor = () => {
                         {v.status !== 'Pending' && (
                           <button
                             style={{ ...styles.btn({}), background: '#fff', color: '#475569', border: '1px solid #e6e9ef' }}
-                            onClick={() => handleSetPending(v.id)}
+                            onClick={() => handleSetPending(v.vendorProfileId ?? v.id)}
                           >
                             Set Pending
                           </button>
@@ -359,11 +367,37 @@ const Vendor = () => {
         </div>
 
         <div style={styles.pager}>
-          <button onClick={() => setPage(1)} disabled={meta.current_page <= 1} style={{ ...styles.btn({ ghost: true }), opacity: meta.current_page <= 1 ? 0.5 : 1 }}>First</button>
-          <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={meta.current_page <= 1} style={{ ...styles.btn({ ghost: true }), opacity: meta.current_page <= 1 ? 0.5 : 1 }}>Prev</button>
-          <div style={styles.smallMuted}>Page <strong style={{ color: '#111' }}>{meta.current_page}</strong> of <strong>{meta.last_page}</strong></div>
-          <button onClick={() => setPage((p) => Math.min(meta.last_page, p + 1))} disabled={meta.current_page >= meta.last_page} style={{ ...styles.btn({ ghost: true }), opacity: meta.current_page >= meta.last_page ? 0.5 : 1 }}>Next</button>
-          <button onClick={() => setPage(meta.last_page)} disabled={meta.current_page >= meta.last_page} style={{ ...styles.btn({ ghost: true }), opacity: meta.current_page >= meta.last_page ? 0.5 : 1 }}>Last</button>
+          <button
+            onClick={() => setPage(1)}
+            disabled={meta.current_page <= 1}
+            style={{ ...styles.btn({ ghost: true }), opacity: meta.current_page <= 1 ? 0.5 : 1 }}
+          >
+            First
+          </button>
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={meta.current_page <= 1}
+            style={{ ...styles.btn({ ghost: true }), opacity: meta.current_page <= 1 ? 0.5 : 1 }}
+          >
+            Prev
+          </button>
+          <div style={styles.smallMuted}>
+            Page <strong style={{ color: '#111' }}>{meta.current_page}</strong> of <strong>{meta.last_page}</strong>
+          </div>
+          <button
+            onClick={() => setPage((p) => Math.min(meta.last_page, p + 1))}
+            disabled={meta.current_page >= meta.last_page}
+            style={{ ...styles.btn({ ghost: true }), opacity: meta.current_page >= meta.last_page ? 0.5 : 1 }}
+          >
+            Next
+          </button>
+          <button
+            onClick={() => setPage(meta.last_page)}
+            disabled={meta.current_page >= meta.last_page}
+            style={{ ...styles.btn({ ghost: true }), opacity: meta.current_page >= meta.last_page ? 0.5 : 1 }}
+          >
+            Last
+          </button>
         </div>
       </div>
 
@@ -386,26 +420,47 @@ const Vendor = () => {
               <>
                 <div style={styles.profileRow}>
                   <div style={styles.avatar}>
-                    {modalVendorDetail?.name?.charAt(0)?.toUpperCase() || modalVendorRaw?.name?.charAt(0)?.toUpperCase() || 'V'}
+                    {modalVendorDetail?.name?.charAt(0)?.toUpperCase() ||
+                      modalVendorRaw?.name?.charAt(0)?.toUpperCase() ||
+                      'V'}
                   </div>
 
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 800, fontSize: 18 }}>
-                      {modalVendorDetail?.name ?? modalVendorRaw?.name ?? `Vendor #${modalVendorRaw?.id ?? ''}`}
+                      {modalVendorDetail?.name ??
+                        modalVendorRaw?.name ??
+                        `Vendor #${modalVendorRaw?.id ?? ''}`}
                     </div>
                     <div style={{ color: '#555', marginTop: 6 }}>
                       {modalVendorDetail?.email ?? modalVendorRaw?.email ?? '-'}
                     </div>
 
                     <div style={{ marginTop: 10, display: 'flex', gap: 12 }}>
-                      <div style={{ color: '#666' }}>Status: <strong style={{ marginLeft: 6 }}>{modalVendorDetail?.status ?? modalVendorRaw?.status ?? '-'}</strong></div>
-                      <div style={{ color: '#666' }}>Created: <strong style={{ marginLeft: 6 }}>{(modalVendorDetail?.created_at ?? modalVendorRaw?.created_at) ? new Date((modalVendorDetail?.created_at ?? modalVendorRaw?.created_at)).toLocaleString() : '-'}</strong></div>
+                      <div style={{ color: '#666' }}>
+                        Status:
+                        <strong style={{ marginLeft: 6 }}>
+                          {modalVendorDetail?.status ?? modalVendorRaw?.status ?? '-'}
+                        </strong>
+                      </div>
+                      <div style={{ color: '#666' }}>
+                        Created:
+                        <strong style={{ marginLeft: 6 }}>
+                          {(modalVendorDetail?.created_at ?? modalVendorRaw?.created_at)
+                            ? new Date(
+                                (modalVendorDetail?.created_at ??
+                                  modalVendorRaw?.created_at)
+                              ).toLocaleString()
+                            : '-'}
+                        </strong>
+                      </div>
                     </div>
                   </div>
 
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ color: '#666', fontSize: 13 }}>Vendor ID</div>
-                    <div style={{ fontWeight: 800 }}>{modalVendorDetail?.id ?? modalVendorRaw?.id}</div>
+                    <div style={{ fontWeight: 800 }}>
+                      {modalVendorDetail?.id ?? modalVendorRaw?.id}
+                    </div>
                   </div>
                 </div>
 
@@ -414,10 +469,34 @@ const Vendor = () => {
                 </div>
 
                 <div style={styles.metaGrid}>
-                  <div><div style={{ color: '#666', fontSize: 13 }}>Phone</div><div style={{ fontWeight: 700 }}>{modalVendorDetail?.phone ?? modalVendorRaw?.phone ?? '-'}</div></div>
-                  <div><div style={{ color: '#666', fontSize: 13 }}>Language</div><div style={{ fontWeight: 700 }}>{modalVendorDetail?.language ?? modalVendorRaw?.language ?? '-'}</div></div>
-                  <div><div style={{ color: '#666', fontSize: 13 }}>Is Online</div><div style={{ fontWeight: 700 }}>{(modalVendorDetail?.is_online ?? modalVendorRaw?.is_online) ? 'Yes' : 'No'}</div></div>
-                  <div><div style={{ color: '#666', fontSize: 13 }}>Expires At</div><div style={{ fontWeight: 700 }}>{modalVendorDetail?.expires_at ?? modalVendorRaw?.expires_at ?? '-'}</div></div>
+                  <div>
+                    <div style={{ color: '#666', fontSize: 13 }}>Phone</div>
+                    <div style={{ fontWeight: 700 }}>
+                      {modalVendorDetail?.phone ?? modalVendorRaw?.phone ?? '-'}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ color: '#666', fontSize: 13 }}>Language</div>
+                    <div style={{ fontWeight: 700 }}>
+                      {modalVendorDetail?.language ?? modalVendorRaw?.language ?? '-'}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ color: '#666', fontSize: 13 }}>Is Online</div>
+                    <div style={{ fontWeight: 700 }}>
+                      {(modalVendorDetail?.is_online ?? modalVendorRaw?.is_online)
+                        ? 'Yes'
+                        : 'No'}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ color: '#666', fontSize: 13 }}>Expires At</div>
+                    <div style={{ fontWeight: 700 }}>
+                      {modalVendorDetail?.expires_at ??
+                        modalVendorRaw?.expires_at ??
+                        '-'}
+                    </div>
+                  </div>
                 </div>
 
                 <div style={{ marginTop: 12 }}>
@@ -437,20 +516,48 @@ const Vendor = () => {
                         {modalProducts.map((p, idx) => (
                           <tr key={p.id ?? idx}>
                             <td style={styles.productTd}>{idx + 1}</td>
-                            <td style={styles.productTd}>{p.name ?? p.title ?? 'Untitled'}</td>
-                            <td style={styles.productTd}>{p.price != null ? p.price : '-'}</td>
-                            <td style={styles.productTd}>{p.stock != null ? p.stock : (p.quantity != null ? p.quantity : '-')}</td>
+                            <td style={styles.productTd}>
+                              {p.name ?? p.title ?? 'Untitled'}
+                            </td>
+                            <td style={styles.productTd}>
+                              {p.price != null ? p.price : '-'}
+                            </td>
+                            <td style={styles.productTd}>
+                              {p.stock != null
+                                ? p.stock
+                                : p.quantity != null
+                                ? p.quantity
+                                : '-'}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   ) : (
-                    <div style={{ padding: 12, color: '#555' }}>No products found or products endpoint not available.</div>
+                    <div style={{ padding: 12, color: '#555' }}>
+                      No products found or products endpoint not available.
+                    </div>
                   )}
                 </div>
 
-                <div style={{ marginTop: 18, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                  <button onClick={closeModal} style={{ ...styles.btn({ ghost: true }), background: '#fff', color: '#333' }}>Close</button>
+                <div
+                  style={{
+                    marginTop: 18,
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    gap: 8,
+                  }}
+                >
+                  <button
+                    onClick={closeModal}
+                    style={{
+                      ...styles.btn({ ghost: true }),
+                      background: '#fff',
+                      color: '#333',
+                    }}
+                  >
+                    Close
+                  </button>
                 </div>
               </>
             )}

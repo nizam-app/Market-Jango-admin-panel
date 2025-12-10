@@ -46,8 +46,7 @@ const VendorModal = ({ vendor, onClose , onStatusChange}) => {
     if (!user.phone_verified_at) return "-";
     try {
       return new Date(user.phone_verified_at).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short",
+        year: "numeric", month: "short",
         day: "numeric",
       });
     } catch {
