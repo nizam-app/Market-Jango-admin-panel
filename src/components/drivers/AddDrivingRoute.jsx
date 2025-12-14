@@ -1,13 +1,13 @@
-// src/components/driver/AddDrivingRoute.jsx
+// src/components/drivers/AddDrivingRoute.jsx
 import React, { useEffect, useState } from "react";
-import { useJsApiLoader, Autocomplete } from "@react-google-maps/api";
 import {
   getRoutes,
   createRoute,
   createLocation,
 } from "../../api/routeApi";
 
-const libraries = ["places"];
+// ❗ নতুন – vendor এর একই কম্পোনেন্ট use করছি
+import LocationSearchInput from "../vendor/LocationSearchInput";
 
 const AddDrivingRoute = ({ onRoutesReload }) => {
   const [routeName, setRouteName] = useState("");
@@ -16,15 +16,8 @@ const AddDrivingRoute = ({ onRoutesReload }) => {
   const [locationName, setLocationName] = useState("");
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
-  const [autoInstance, setAutoInstance] = useState(null);
   const [loadingRoute, setLoadingRoute] = useState(false);
   const [savingLocation, setSavingLocation] = useState(false);
-
-  // 🔑 Vite env
-  const { isLoaded } = useJsApiLoader({
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_KEY,
-    libraries,
-  });
 
   // ---------------- Fetch routes ----------------
   const loadRoutes = async () => {
@@ -32,6 +25,7 @@ const AddDrivingRoute = ({ onRoutesReload }) => {
       const res = await getRoutes();
       const data = res.data?.data || [];
       setRoutes(data);
+
       if (!selectedRouteId && data.length > 0) {
         setSelectedRouteId(String(data[0].id));
       }
@@ -47,17 +41,16 @@ const AddDrivingRoute = ({ onRoutesReload }) => {
   // ---------------- Add new route ----------------
   const handleAddRoute = async () => {
     if (!routeName.trim()) return;
+
     try {
       setLoadingRoute(true);
       const res = await createRoute(routeName.trim());
       const newRoute = res.data?.data;
-      setRouteName("");
 
-      // add to list
+      setRouteName("");
       setRoutes((prev) => [...prev, newRoute]);
       setSelectedRouteId(String(newRoute.id));
-
-      onRoutesReload?.(); // DrivingRouteList ke reload korte chaile
+      onRoutesReload?.();
     } catch (err) {
       console.error("Failed to create route", err);
       alert("Route create korte giye problem hocche.");
@@ -65,30 +58,14 @@ const AddDrivingRoute = ({ onRoutesReload }) => {
       setLoadingRoute(false);
     }
   };
+  
 
-  // ---------------- Google Places handlers ----------------
-  const onAutoLoad = (auto) => {
-    setAutoInstance(auto);
-  };
-
-  const onPlaceChanged = () => {
-    if (!autoInstance) return;
-
-    const place = autoInstance.getPlace();
-    if (!place) return;
-
-    // Name / address
-    const name =
-      place.formatted_address || place.name || locationName;
-    setLocationName(name);
-
-    // Lat / Lng
-    if (place.geometry && place.geometry.location) {
-      const lat = place.geometry.location.lat();
-      const lng = place.geometry.location.lng();
-      setLatitude(lat);
-      setLongitude(lng);
-    }
+  // ---------------- Map থেকে location নেওয়া ----------------
+  // LocationSearchInput যখন নতুন location select করবে, এই function কল হবে
+  const handleLocationFromMap = ({ address, lat, lng }) => {
+    setLocationName(address || "");
+    setLatitude(lat);
+    setLongitude(lng);
   };
 
   // ---------------- Add location to route ----------------
@@ -110,7 +87,6 @@ const AddDrivingRoute = ({ onRoutesReload }) => {
       setLatitude("");
       setLongitude("");
 
-      // list refresh
       await loadRoutes();
       onRoutesReload?.();
     } catch (err) {
@@ -123,7 +99,7 @@ const AddDrivingRoute = ({ onRoutesReload }) => {
 
   return (
     <>
-      {/* Add Route */}
+      {/* ---------------- Add Route ---------------- */}
       <div className="mb-8 pb-4">
         <h2 className="text-[26px] font-semibold mb-4">Add Route</h2>
         <div className="flex gap-4 max-w-3xl">
@@ -148,85 +124,78 @@ const AddDrivingRoute = ({ onRoutesReload }) => {
         </div>
       </div>
 
-      {/* Add Route Location */}
+      {/* ---------------- Add Route Location ---------------- */}
       <div className="mb-8 pb-4">
         <h2 className="text-[26px] font-semibold mb-4">
           Add Route Location
         </h2>
 
-        <div className="flex gap-4 max-w-5xl mb-4">
-          {/* Location input with Google Autocomplete */}
-          {isLoaded ? (
-            <Autocomplete
-              onLoad={onAutoLoad}
-              onPlaceChanged={onPlaceChanged}
-            >
-              <input
-                type="text"
-                placeholder="Type Location"
-                value={locationName}
-                onChange={(e) => setLocationName(e.target.value)}
-                className="flex-1 bg-white p-3 pl-4 text-sm font-normal
-                 focus:outline-none rounded-[100px]"
-              />
-            </Autocomplete>
-          ) : (
+        {/* 🔍 Map + Search (vendor এর মতো) */}
+        <div className="max-w-5xl mb-4 space-y-4">
+          <LocationSearchInput onLocationSelect={handleLocationFromMap} />
+
+          {/* উপরের map থেকে পাওয়া location name + route + add button */}
+          <div className="flex gap-4">
             <input
               type="text"
-              disabled
-              placeholder="Loading map..."
-              className="flex-1 bg-gray-100 p-3 pl-4 text-sm font-normal
+              placeholder="Type Location"
+              value={locationName}
+              onChange={(e) => setLocationName(e.target.value)}
+              className="flex-1 bg-white p-3 pl-4 text-sm font-normal
                focus:outline-none rounded-[100px]"
             />
-          )}
 
-          {/* Route dropdown */}
-          <select
-            value={selectedRouteId}
-            onChange={(e) => setSelectedRouteId(e.target.value)}
-            className="flex-1 bg-white p-3 text-sm font-normal 
-             focus:outline-none rounded-[100px]"
-          >
-            {routes.length === 0 && (
-              <option value="">No route found</option>
-            )}
-            {routes.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name}
-              </option>
-            ))}
-          </select>
+            <select
+              value={selectedRouteId}
+              onChange={(e) => setSelectedRouteId(e.target.value)}
+              className="flex-1 bg-white p-3 text-sm font-normal 
+               focus:outline-none rounded-[100px]"
+            >
+              {routes.length === 0 && (
+                <option value="">No route found</option>
+              )}
+              {routes.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
 
-          <button
-            type="button"
-            onClick={handleAddLocation}
-            disabled={savingLocation || !locationName.trim()}
-            className="bg-[#0D3250] text-white font-medium
-            py-3 px-7 rounded-[100px] cursor-pointer text-sm
-            disabled:opacity-60"
-          >
-            {savingLocation ? "Saving..." : "Add Location"}
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={handleAddLocation}
+              disabled={
+                savingLocation ||
+                !locationName.trim() ||
+                !selectedRouteId
+              }
+              className="bg-[#0D3250] text-white font-medium
+              py-3 px-7 rounded-[100px] cursor-pointer text-sm
+              disabled:opacity-60"
+            >
+              {savingLocation ? "Saving..." : "Add Location"}
+            </button>
+          </div>
 
-        {/* Lat / Lng – read-only, from map */}
-        <div className="flex gap-4 max-w-5xl">
-          <input
-            type="text"
-            placeholder="Latitude (optional / from map)"
-            value={latitude}
-            readOnly
-            className="flex-1 bg-white p-3 pl-4 text-sm font-normal 
-             focus:outline-none rounded-[100px]"
-          />
-          <input
-            type="text"
-            placeholder="Longitude (optional / from map)"
-            value={longitude}
-            readOnly
-            className="flex-1 bg-white p-3 pl-4 text-sm font-normal 
-             focus:outline-none rounded-[100px]"
-          />
+          {/* Lat / Lng – শুধুই দেখানোর জন্য */}
+          <div className="flex gap-4">
+            <input
+              type="text"
+              placeholder="Latitude (from map)"
+              value={latitude}
+              readOnly
+              className="flex-1 bg-white p-3 pl-4 text-sm font-normal 
+               focus:outline-none rounded-[100px]"
+            />
+            <input
+              type="text"
+              placeholder="Longitude (from map)"
+              value={longitude}
+              readOnly
+              className="flex-1 bg-white p-3 pl-4 text-sm font-normal 
+               focus:outline-none rounded-[100px]"
+            />
+          </div>
         </div>
       </div>
     </>

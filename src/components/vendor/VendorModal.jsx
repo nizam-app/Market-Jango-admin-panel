@@ -1,169 +1,369 @@
 // src/components/vendor/VendorModal.jsx
-import React from "react";
-import Swal from "sweetalert2";
-import { updateVendorStatus } from "../../api/vendorAPI";
+import React, { useState, useEffect } from "react";
+import { X, UploadCloud, FileText, MapPin } from "lucide-react";
+import axiosClient from "../../api/axiosClient";
+import { LocationSearchInput } from "./LocationSearchInput";
 
-const VendorModal = ({ vendor, onClose , onStatusChange}) => {
-  if (!vendor) return null;
+export function VendorModal({ vendor, onSave, onClose }) {
+  const [name, setName] = useState(vendor?.name || "");
+  const [email, setEmail] = useState(vendor?.email || "");
+  const [phone, setPhone] = useState(vendor?.phone || "");
+  const [businessName, setBusinessName] = useState(
+    vendor?.businessName || ""
+  );
+  
+  const [businessType, setBusinessType] = useState(
+    vendor?.businessType || ""
+  );
+  const [password, setPassword] = useState("");
+  const [country, setCountry] = useState("");
+  const [address, setAddress] = useState(vendor?.address || "");
+  const [latitude, setLatitude] = useState(null);
+  const [longitude, setLongitude] = useState(null);
+  const [documentFile, setDocumentFile] = useState(null);
+  const [documentName, setDocumentName] = useState("");
 
-  const user = vendor.user || {};
-  const images = vendor.images || [];
+  // 👉 business type list from backend
+  const [businessTypes, setBusinessTypes] = useState([]);
+  const [btLoading, setBtLoading] = useState(false);
+  const [btError, setBtError] = useState(null);
 
-  const handleBlockVendor = async () => {
-    const result = await Swal.fire({
-      title: "Block this vendor?",
-      text: "This vendor will be marked as Rejected.",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#3085d6",
-      confirmButtonText: "Yes, block",
-    });
-    if(!result.isConfirmed)return;
-    try {
-      await updateVendorStatus(vendor.id, 'Rejected');
-      await Swal.fire(
-        "Blocked!",
-        "Vendor has been blocked successfully.",
-        "success"
-      );
-      if (onStatusChange) {
-        onStatusChange("Rejected");
+  useEffect(() => {
+    async function fetchBusinessTypes() {
+      setBtLoading(true);
+      setBtError(null);
+      try {
+        const { data: resp } = await axiosClient.get("/business-type");
+        if (resp?.status === "success" && Array.isArray(resp?.data)) {
+          setBusinessTypes(resp.data);
+        } else {
+          setBusinessTypes([]);
+        }
+      } catch (err) {
+        console.error("business-type fetch error", err);
+        setBtError("Could not load business types");
+      } finally {
+        setBtLoading(false);
       }
-      onClose();
-
-    } catch (error) {
-      console.error("Failed to block vendor", error);
-      Swal.fire(
-        "Error",
-        "Failed to block vendor. Please try again.",
-        "error"
-      );
     }
-  }
 
-  const formatPhoneVerified = () => {
-    if (!user.phone_verified_at) return "-";
-    try {
-      return new Date(user.phone_verified_at).toLocaleDateString("en-US", {
-        year: "numeric", month: "short",
-        day: "numeric",
-      });
-    } catch {
-      return user.phone_verified_at;
+    fetchBusinessTypes();
+  }, []);
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setDocumentFile(file);
+      setDocumentName(file.name);
     }
   };
 
-  return (
-    <div
-      onClick={onClose}
-      className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col"
-      >
-        
-          {/* Header: avatar + basic info */}
-          <div className="p-6 border-b border-gray-200 flex items-start gap-4">
-            <img
-              src={
-                user.image ||
-                "https://via.placeholder.com/120x120.png?text=Vendor"
-              }
-              alt={user.name || "Vendor"}
-              className="w-24 h-24 rounded-full object-cover"
-            />
-            <div className="flex-1">
-              <div className="flex justify-between">
-                <div>
-                  <h2 className="text-2xl font-semibold mb-1">
-                    {vendor.business_name || user.name || "Vendor name"}
-                  </h2>
-                  {user.phone && (
-                    <p className="text-sm text-gray-700">{user.phone}</p>
-                  )}
-                  {user.email && (
-                    <p className="text-sm text-gray-700">{user.email}</p>
-                  )}
-                  {vendor.address && (
-                    <p className="text-sm text-gray-600 mt-1">
-                      {vendor.address}
-                    </p>
-                  )}
-                </div>
+  const handleLocationSelect = (locationData) => {
+    setLatitude(locationData.lat);
+    setLongitude(locationData.lng);
+  };
 
-                <button
-                  onClick={onClose}
-                  className="w-10 h-10 rounded-full bg-gray-200 text-2xl leading-none flex items-center justify-center cursor-pointer"
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    if (!name.trim() || !email.trim() || !password.trim()) {
+      return;
+    }
+
+    onSave({
+      id: vendor?.id || "",
+      name: name.trim(),
+      email: email.trim(),
+      phone: phone.trim(),
+      businessName: businessName.trim(),
+      address: address.trim(),
+      status: vendor?.status || "pending",
+      productCount: vendor?.productCount || 0,
+      joinedDate: vendor?.joinedDate || "",
+      documentFile,
+      documentName,
+      latitude,
+      longitude,
+      country,
+      businessType,
+      // backend e currently static "password" pathaccho
+      password: password.trim(),
+    });
+  };
+
+  return (
+    <div className="fixed top-16 left-0 bg-black/50 w-full h-full   flex items-center justify-center p-4 z-20">
+      <div className="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-900">
+            {vendor ? "Edit Vendor" : "Create Vendor"}
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
+          <div className="px-6 py-6 space-y-5">
+            {/* Document Upload */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Document
+              </label>
+              <div className="flex items-center gap-4">
+                {documentName && (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200">
+                    <FileText className="w-5 h-5 text-gray-600" />
+                    <span className="text-sm text-gray-700">
+                      {documentName}
+                    </span>
+                  </div>
+                )}
+                <label className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors text-sm">
+                  <UploadCloud className="w-5 h-5 text-gray-500" />
+                  <span className="text-gray-700">Choose Document</span>
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* Name and Email */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label
+                  htmlFor="vendor-name"
+                  className="block text-sm font-medium text-gray-700 mb-2"
                 >
-                  &times;
-                </button>
+                  Name *
+                </label>
+                <input
+                  id="vendor-name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Admin create vendor"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
               </div>
 
-              <p className="text-xs text-gray-500 mt-2">
-                Member since: {formatPhoneVerified()}
-              </p>
-            </div>
-          </div>
-
-          {/* Body */}
-          <div className="p-6 space-y-6 overflow-y-auto">
-            {/* About */}
-            <div>
-              <h3 className="text-lg font-semibold mb-2">
-                About this vendor
-              </h3>
-              <p className="text-sm text-gray-700 leading-relaxed">
-                {vendor.business_name || user.name} is a{" "}
-                {vendor.business_type || "business"} based in{" "}
-                {vendor.country || "their local area"}. They provide products
-                and services through the Market Jango platform. All contact and
-                verification details are managed securely by the admin panel.
-              </p>
+              <div>
+                <label
+                  htmlFor="vendor-email"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Email *
+                </label>
+                <input
+                  id="vendor-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="vendortest@gmail.com"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
             </div>
 
-            {/* Documents */}
-            <div>
-              <h3 className="text-lg font-semibold mb-3">
-                Trade license &amp; Other Documents
-              </h3>
+            {/* Business Name and Business Type */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label
+                  htmlFor="vendor-business"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Business Name *
+                </label>
+                <input
+                  id="vendor-business"
+                  type="text"
+                  value={businessName}
+                  onChange={(e) => setBusinessName(e.target.value)}
+                  placeholder="The Jona"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
 
-              {images.length === 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="h-40 border border-dashed border-gray-300 rounded-lg flex items-center justify-center text-sm text-gray-400">
-                    No document uploaded
+              <div>
+                <label
+                  htmlFor="business-type"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Business Type *
+                </label>
+                <select
+                  id="business-type"
+                  value={businessType}
+                  onChange={(e) => setBusinessType(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                >
+                  <option value="">Select Type</option>
+                  {businessTypes.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
+                {btLoading && (
+                  <p className="mt-1 text-xs text-gray-400">Loading types...</p>
+                )}
+                {btError && (
+                  <p className="mt-1 text-xs text-red-500">{btError}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Country and Phone */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label
+                  htmlFor="country"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Country *
+                </label>
+                <select
+                  id="country"
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                >
+                  <option value="">Select Country</option>
+                  <option value="Bangladesh">Bangladesh</option>
+                  <option value="India">India</option>
+                  <option value="Pakistan">Pakistan</option>
+                  <option value="Sri Lanka">Sri Lanka</option>
+                  <option value="Nepal">Nepal</option>
+                  <option value="USA">United States</option>
+                  <option value="UK">United Kingdom</option>
+                  <option value="Canada">Canada</option>
+                  <option value="Australia">Australia</option>
+                </select>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="vendor-phone"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Phone Number
+                </label>
+                <input
+                  id="vendor-phone"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+880 1234 567890"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+            {/* Password */}
+<div>
+  <label
+    htmlFor="vendor-password"
+    className="block text-sm font-medium text-gray-700 mb-2"
+  >
+    Password *
+  </label>
+  <input
+    id="vendor-password"
+    type="password"
+    value={password}
+    onChange={(e) => setPassword(e.target.value)}
+    placeholder="Set vendor password"
+    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+    required
+  />
+</div>
+
+
+            {/* Address */}
+            <div>
+              <label
+                htmlFor="vendor-address"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Address *
+              </label>
+              <textarea
+                id="vendor-address"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Banasree"
+                rows={2}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                required
+              />
+            </div>
+
+            {/* Location Search with Map */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Location Search *
+              </label>
+              <LocationSearchInput onLocationSelect={handleLocationSelect} />
+              {latitude != null && longitude != null && (
+                <div className="mt-2 flex items-center gap-4 text-sm text-gray-600">
+                  <div className="flex items-center gap-1">
+                    <MapPin className="w-4 h-4 text-gray-500" />
+                    <span className="font-medium">Lat:</span>
+                    <span>{latitude.toFixed(6)}</span>
                   </div>
-                  <div className="h-40 border border-dashed border-gray-300 rounded-lg flex items-center justify-center text-sm text-gray-400">
-                    No document uploaded
+                  <div className="flex items-center gap-1">
+                    <MapPin className="w-4 h-4 text-gray-500" />
+                    <span className="font-medium">Lng:</span>
+                    <span>{longitude.toFixed(6)}</span>
                   </div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {images.map((img) => {
-                    const url =
-                      img.image_path || img.image || img.url || img.path;
-                    if (!url) return null;
-                    return (
-                      <img
-                        key={img.id || url}
-                        src={url}
-                        alt="Vendor document"
-                        className="w-full h-40 md:h-56 object-cover rounded-lg border"
-                      />
-                    );
-                  })}
                 </div>
               )}
             </div>
-            <button onClick={handleBlockVendor} className="px-4 py-2 cursor-pointer font-medium text-xs bg-[#FF8C00] rounded-[10px] text-white">block vendor</button>
           </div>
-          
-        
-        
+
+          {/* Footer buttons */}
+          <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-6 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={
+                !name.trim() ||
+                !email.trim() ||
+                !businessName.trim() ||
+                !businessType ||
+                !country ||
+                !address.trim() ||
+                latitude == null ||
+                longitude == null ||
+                !password.trim()
+              }
+            >
+              {vendor ? "Save Changes" : "Create Vendor"}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
-};
-
-export default VendorModal;
+}

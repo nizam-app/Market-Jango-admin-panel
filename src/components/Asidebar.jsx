@@ -79,7 +79,7 @@ const Asidebar = () => {
   return (
   
     <aside className="sticky top-0 left-0 border-r border-[#E6EFF5] h-screen z-30 
-    w-[25%] bg-white  pt-3">
+    w-[20%] bg-white  pt-3">
         {/* logo */}
         <div className="flex items-center gap-2 pl-10">
           <img src={appLogo}  alt="logo" />

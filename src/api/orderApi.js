@@ -14,6 +14,7 @@ export const assignOrderToDriver = ( driverId, orderItemId) => {
      {} 
     );
 };
+
 export const getAllOrders = (page = 1) => {
   return axiosClient.get(`/all/order?page=${page}`);
 };

@@ -4,6 +4,8 @@ import axiosClient from '../api/axiosClient'; // keep axiosClient untouched
 
 import Swal from 'sweetalert2';
 import 'sweetalert2/dist/sweetalert2.min.css';
+import { VendorModal } from '../components/vendor/VendorModal';
+ import { createVendor } from "../api/vendorAPI";
 
 const BRAND = '#FF8C00';
 
@@ -29,6 +31,7 @@ const styles = {
   td: { padding: '12px 14px', borderBottom: '1px solid #fbfbfc', verticalAlign: 'middle' },
   vendorName: { fontWeight: 700, fontSize: 14, marginBottom: 4 },
   vendorEmail: { fontSize: 13, color: '#777' },
+  vendorNote: { fontSize: 12, color: '#b91c1c', marginTop: 4 },
   statusPill: (status) => ({
     display: 'inline-block',
     padding: '6px 10px',
@@ -87,6 +90,7 @@ const Vendor = () => {
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
 
+
   // modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalVendorRaw, setModalVendorRaw] = useState(null);
@@ -94,6 +98,12 @@ const Vendor = () => {
   const [modalProducts, setModalProducts] = useState([]);
   const [modalLoading, setModalLoading] = useState(false);
   const [modalError, setModalError] = useState(null);
+  const [isVendorModalOpen, setIsVendorModalOpen] = useState(false);
+
+
+
+
+
 
   useEffect(() => setPage(1), [filter]);
 
@@ -103,15 +113,22 @@ const Vendor = () => {
   }, [filter, page]);
 
   // -------- Helper: update vendor status (PUT) ----------
-  const updateVendorStatus = async (vendorProfileId, status) => {
+  const updateVendorStatus = async (vendorProfileId, status, note) => {
     try {
-      const payload = { status };
-      const res = await axiosClient.put(`/vendor/status-update/${vendorProfileId}`, payload);
-      return res.data; // return API response
+      const payload = note
+        ? { status, note }   // Rejected হলে note সহ যাবে
+        : { status };        // অন্যগুলো শুধু status
+
+      const res = await axiosClient.put(
+        `/vendor/status-update/${vendorProfileId}`,
+        payload
+      );
+      return res.data;
     } catch (err) {
-      throw err;
+      throw new err;
     }
   };
+
 
   // -------- Fetch vendors ----------
   async function fetchVendors() {
@@ -141,6 +158,7 @@ const Vendor = () => {
             v.product_count ??
             (Array.isArray(v.vendor?.products) ? v.vendor.products.length : '-') ??
             '-',
+          note: v.note ?? v.raw?.note ?? null,
           raw: v,
         }));
 
@@ -165,49 +183,84 @@ const Vendor = () => {
     }
   }
 
+  
+
+  // -------- Actions with SweetAlert confirmations ----------
   // -------- Actions with SweetAlert confirmations ----------
   const confirmAndUpdate = async (vendorProfileId, newStatus) => {
-    const statusLabel = newStatus;
-    const result = await Swal.fire({
-      title: `Are you sure?`,
-      html: `You are changing vendor status to <strong>${statusLabel}</strong>.`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'Yes, change it',
-      cancelButtonText: 'No, cancel',
-      customClass: { popup: 'swal2-popup' },
-      confirmButtonColor: BRAND,
-    });
+    let note = undefined;
 
-    if (result.isConfirmed) {
-      try {
-        Swal.showLoading();
-        const resp = await updateVendorStatus(vendorProfileId, newStatus);
-        Swal.close();
+    // 🔴 Reject case: note নেয়ার জন্য আলাদা popup
+    if (newStatus === 'Rejected') {
+      const result = await Swal.fire({
+        title: 'Reject Vendor',
+        html: 'Please write a short note explaining why you are rejecting this vendor.',
+        input: 'textarea',
+        inputLabel: 'Rejection note',
+        inputPlaceholder: 'e.g. Documents not clear. Please re-upload.',
+        inputAttributes: {
+          'aria-label': 'Rejection note',
+        },
+        showCancelButton: true,
+        confirmButtonText: 'Reject',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#b91c1c',
+        focusConfirm: false,
+        inputValidator: (value) => {
+          if (!value || !value.trim()) {
+            return 'Please add a short note before rejecting.';
+          }
+          return null;
+        },
+      });
 
-        Swal.fire({
-          toast: true,
-          position: 'top-end',
-          icon: 'success',
-          title: resp?.message ?? 'Status updated',
-          showConfirmButton: false,
-          timer: 1800,
-        });
+      if (result.isDismissed) return;         // cancel করলে কিছু করবে না
+      note = result.value.trim();             // note set করলাম
+    } else {
+      // ✅ Approved / Pending এর জন্য আগের confirm popup
+      const result = await Swal.fire({
+        title: 'Are you sure?',
+        html: `You are changing vendor status to <strong>${newStatus}</strong>.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, change it',
+        cancelButtonText: 'No, cancel',
+        customClass: { popup: 'swal2-popup' },
+        confirmButtonColor: BRAND,
+      });
 
-        fetchVendors();
-      } catch (err) {
-        Swal.close();
-        console.error(err);
-        Swal.fire({
-          icon: 'error',
-          title: 'Update failed',
-          text: err?.response?.data?.message || err.message || 'Could not update status',
-          confirmButtonColor: BRAND,
-        });
-      }
+      if (!result.isConfirmed) return;
+    }
+
+    try {
+      Swal.showLoading();
+      const resp = await updateVendorStatus(vendorProfileId, newStatus, note);
+      Swal.close();
+
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: resp?.message ?? 'Status updated',
+        showConfirmButton: false,
+        timer: 1800,
+      });
+
+      fetchVendors();
+    } catch (err) {
+      Swal.close();
+      console.error(err);
+      Swal.fire({
+        icon: 'error',
+        title: 'Update failed',
+        text:
+          err?.response?.data?.message ||
+          err.message ||
+          'Could not update status',
+        confirmButtonColor: BRAND,
+      });
     }
   };
-
   const handleApprove = (vendorProfileId) => confirmAndUpdate(vendorProfileId, 'Approved');
   const handleReject = (vendorProfileId) => confirmAndUpdate(vendorProfileId, 'Rejected');
   const handleSetPending = (vendorProfileId) => confirmAndUpdate(vendorProfileId, 'Pending');
@@ -266,9 +319,21 @@ const Vendor = () => {
   return (
     <div style={styles.page}>
       <div style={{ ...styles.header }}>
-        <div>
-          <div style={styles.title}>Vendor Management</div>
-          <div style={{ marginTop: 6, color: '#555', fontSize: 13 }}>Filter vendors by status and act quickly.</div>
+        <div className='flex gap-4'>
+          <div>
+            <div style={styles.title}>Vendor Management</div>
+            <div style={{ marginTop: 6, color: '#555', fontSize: 13 }}>Filter vendors by status and act quickly.</div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsVendorModalOpen(true)}
+            className="inline-flex items-center gap-2 rounded-lg bg-[#FF8C00] px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-[#e57c00] hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#FF8C00] transition"
+          >
+            <span className="text-base leading-none">+</span>
+            <span>Add New Vendor</span>
+          </button>
+
+
         </div>
 
         <div style={styles.tabs}>
@@ -317,6 +382,11 @@ const Vendor = () => {
                     <td style={styles.td}>
                       <div style={styles.vendorName}>{v.name}</div>
                       <div style={styles.vendorEmail}>{v.email}</div>
+                      {v.note && (
+                        <div style={styles.vendorNote}>
+                          {v.note}
+                        </div>
+                      )}
                     </td>
                     <td style={{ ...styles.td, textAlign: 'center' }}>{v.products_count}</td>
                     <td style={styles.td}>
@@ -447,9 +517,9 @@ const Vendor = () => {
                         <strong style={{ marginLeft: 6 }}>
                           {(modalVendorDetail?.created_at ?? modalVendorRaw?.created_at)
                             ? new Date(
-                                (modalVendorDetail?.created_at ??
-                                  modalVendorRaw?.created_at)
-                              ).toLocaleString()
+                              (modalVendorDetail?.created_at ??
+                                modalVendorRaw?.created_at)
+                            ).toLocaleString()
                             : '-'}
                         </strong>
                       </div>
@@ -526,8 +596,8 @@ const Vendor = () => {
                               {p.stock != null
                                 ? p.stock
                                 : p.quantity != null
-                                ? p.quantity
-                                : '-'}
+                                  ? p.quantity
+                                  : '-'}
                             </td>
                           </tr>
                         ))}
@@ -564,8 +634,104 @@ const Vendor = () => {
           </div>
         </div>
       )}
+ 
+
+{isVendorModalOpen && (
+  <VendorModal
+    vendor={null}
+    onSave={async (formValues) => {
+      // 1) Loader swal – এখানে কোনো await থাকবে না
+      Swal.fire({
+        title: "Creating vendor...",
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        didOpen: () => {
+          Swal.showLoading();
+        },
+      });
+
+      try {
+        const formData = new FormData();
+
+        // file থাকলে
+        if (formValues.documentFile) {
+          formData.append("files[]", formValues.documentFile);
+        }
+
+        // ✅ backend field name অনুযায়ী map
+        formData.append("country", formValues.country?.toLowerCase() || "");
+        formData.append("business_name", formValues.businessName);
+        formData.append("business_type", formValues.businessType);
+        formData.append("address", formValues.address);
+        formData.append("longitude", String(formValues.longitude));
+        formData.append("latitude", String(formValues.latitude));
+        formData.append("name", formValues.name);
+        formData.append("email", formValues.email);
+        formData.append("password", formValues.password);
+
+        for (const [key, value] of formData.entries()) {
+          console.log("create-vendor formData ->", key, value);
+        }
+
+        // 2) createVendor এখন data ফেরত দেবে
+        const resp = await createVendor(formData);
+
+        Swal.close();
+
+        await Swal.fire({
+          icon: "success",
+          title: "Vendor created",
+          text: resp?.message || "Admin vendor created",
+          confirmButtonColor: BRAND,
+        });
+
+        setIsVendorModalOpen(false);
+        fetchVendors(); // list refresh
+      } catch (error) {
+        console.error("createVendor error raw ===>", error);
+  console.log("create-vendor response data ===>", error?.response?.data);
+
+  Swal.close();
+
+  // ডিফল্ট ম্যাসেজ
+  let displayMessage =
+    error?.response?.data?.message || "Validation exception";
+
+  // 🔴 তোমার backend এ actual errors আসছে data এর ভিতরে
+  const apiErrors =
+    error?.response?.data?.errors ||   // যদি কখনও errors নামে আসে
+    error?.response?.data?.data ||     // এখন যেটা হচ্ছে: data.email[0]
+    error?.response?.data?.error;      // extra fallback
+
+  if (apiErrors && typeof apiErrors === "object") {
+    displayMessage = Object.entries(apiErrors)
+      .map(([field, msgs]) => {
+        if (Array.isArray(msgs)) {
+          return `${field}: ${msgs.join(", ")}`;
+        }
+        return `${field}: ${msgs}`;
+      })
+      .join("\n");
+  }
+
+  await Swal.fire({
+    icon: "error",
+    title: "Create vendor failed",
+    text: displayMessage,   // এখানে এখন আসবে: "email: The email has already been taken."
+    confirmButtonColor: BRAND,
+  });
+      }
+    }}
+    onClose={() => setIsVendorModalOpen(false)}
+  />
+)}
+
+
+
+
     </div>
   );
 };
 
 export default Vendor;
+

@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { getRoutes, deleteLocation } from "../../api/routeApi";
 
-const DrivingRouteList = () => {
+const DrivingRouteList = ({ reloadKey = 0 }) => {
   const [routes, setRoutes] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -19,8 +19,9 @@ const DrivingRouteList = () => {
   };
 
   useEffect(() => {
+    // ✅ প্রথমবার mount + প্রতি বার reloadKey change হলে
     loadRoutes();
-  }, []);
+  }, [reloadKey]);
 
   const handleRemoveLocation = async (routeId, locationId) => {
     if (!window.confirm("Remove this location from route?")) return;
@@ -41,6 +42,8 @@ const DrivingRouteList = () => {
             : route
         )
       );
+      // চাইলে এখানে আবার API থেকে fresh আনতেও পারো:
+      // await loadRoutes();
     } catch (err) {
       console.error("Failed to delete location", err);
       alert("Location delete korte giye problem hocche.");
@@ -53,7 +56,7 @@ const DrivingRouteList = () => {
     );
   }
 
-  console.log(routes, "lala")
+  console.log(routes, "lala");
 
   return (
     <div className="my-10">
@@ -66,7 +69,7 @@ const DrivingRouteList = () => {
       ) : (
         <div className="space-y-6">
           {routes.map((route) => (
-            <div key={route.id} className="">
+            <div key={route.id}>
               <h3 className="text-lg font-medium mb-2">
                 {route.name} :
               </h3>
@@ -80,7 +83,7 @@ const DrivingRouteList = () => {
                     <span className="text-sm">{loc.name}</span>
                     <button
                       onClick={() =>
-                        handleRemoveLocation(route.route_id, loc.id)
+                        handleRemoveLocation(route.id, loc.id)
                       }
                       className="ml-2 cursor-pointer text-2xl h-4 flex items-center"
                     >
