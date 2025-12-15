@@ -1,5 +1,5 @@
 // src/pages/DriverManagement.jsx
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Plus,
   Check,
@@ -16,91 +16,76 @@ import "sweetalert2/dist/sweetalert2.min.css";
 
 import DriverModal from "../components/drivers/DriverModal";
 import { getRoutes } from "../api/routeApi";
+import {
+  getDriversByStatus,
+  createDriver,
+  updateDriverStatus,
+} from "../api/driverApiUpdate";
 
-// Mock driver data (poro API diye replace korbe)
-const initialDrivers = [
-  {
-    id: 1,
-    name: "Rahim Uddin",
-    email: "rahim.driver@example.com",
-    vehicleType: "Mini Truck",
-    vehicleNumber: "DHAKA-BA-1234",
-    licenseNumber: "LIC-123456",
-    numberOfRoutes: 12,
-    status: "active", // active | pending | rejected
-    rejectionReason: "",
-    joinedDate: "2025-12-01T09:00:00Z",
-  },
-  {
-    id: 2,
-    name: "Karim Hossain",
-    email: "karim.driver@example.com",
-    vehicleType: "Bike",
-    vehicleNumber: "DHAKA-HA-9876",
-    licenseNumber: "LIC-654321",
-    numberOfRoutes: 4,
-    status: "pending",
-    rejectionReason: "",
-    joinedDate: "2025-12-05T10:30:00Z",
-  },
-  {
-    id: 3,
-    name: "Sumi Akter",
-    email: "sumi.driver@example.com",
-    vehicleType: "Van",
-    vehicleNumber: "CTG-TA-4321",
-    licenseNumber: "LIC-111222",
-    numberOfRoutes: 8,
-    status: "rejected",
-    rejectionReason: "Documents not clear. Please re-upload.",
-    joinedDate: "2025-11-25T15:15:00Z",
-  },
-];
+const BRAND = "#FF8C00";
+const STATUS_TABS = ["All", "Approved", "Pending", "Rejected"];
 
-const BRAND = "#2563eb"; // blue-600
+// ---- API item -> table row map ----
+const mapApiDriverToRow = (item) => {
+  const d = item.driver || {};
+
+  return {
+    id: item.id, // user id (React er key)
+    driverId: d.id ?? null, // status-update API er jonno
+
+    name: item.name || "Unnamed driver",
+    email: item.email || "",
+    vehicleType: d.car_name || "N/A",
+    vehicleNumber: d.car_model || "N/A",
+    licenseNumber: d.license_number || "—",
+    numberOfRoutes: (d.routes && d.routes.length) ?? item.route_count ?? 0,
+    status: item.status || "Pending", // "Approved" | "Pending" | "Rejected"
+    rejectionReason: item.note || "",
+    joinedDate: item.created_at || null,
+  };
+};
+
+const mapPagedDriversResponse = (res) => {
+  const payload = res?.data?.data || {};
+  const rows = (payload.data || []).map(mapApiDriverToRow);
+
+  return {
+    rows,
+    meta: {
+      current_page: payload.current_page || 1,
+      last_page: payload.last_page || 1,
+      total: payload.total ?? rows.length,
+      per_page: payload.per_page ?? rows.length,
+    },
+  };
+};
 
 const DriverManagement = () => {
-  const [drivers, setDrivers] = useState(initialDrivers);
-  const [activeFilter, setActiveFilter] = useState("all"); // all | active | pending | rejected
+  const [drivers, setDrivers] = useState([]);
+  const [pageMeta, setPageMeta] = useState({
+    current_page: 1,
+    last_page: 1,
+    total: 0,
+    per_page: 10,
+  });
+
+  const [tabTotals, setTabTotals] = useState({
+    All: 0,
+    Approved: 0,
+    Pending: 0,
+    Rejected: 0,
+  });
+
+  const [activeFilter, setActiveFilter] = useState("All");
+  const [loadingDrivers, setLoadingDrivers] = useState(false);
+  const [loadingCounts, setLoadingCounts] = useState(false);
   const [openMenuId, setOpenMenuId] = useState(null);
 
-  // 👉 new: route list for modal
   const [routes, setRoutes] = useState([]);
-
-  // 👉 new: driver modal state
   const [isDriverModalOpen, setIsDriverModalOpen] = useState(false);
   const [editingDriver, setEditingDriver] = useState(null);
 
-  // Filtered list
-  const filteredDrivers = useMemo(() => {
-    if (activeFilter === "all") return drivers;
-    return drivers.filter((d) => d.status === activeFilter);
-  }, [drivers, activeFilter]);
-
-  // menu open thakle bahire click korle close korar jonno
-  useEffect(() => {
-    if (openMenuId === null) return;
-
-    const handleClickOutside = (event) => {
-      const target = event.target;
-
-      const isMenu = target.closest(".menu-container");
-      const isTrigger = target.closest(".menu-trigger");
-
-      // jodi kono menu / trigger er upor click na hoy
-      if (!isMenu && !isTrigger) {
-        setOpenMenuId(null);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [openMenuId]);
-
-  // 👉 new: load routes for multi-select
+  // ------------ ROUTES -------------
   useEffect(() => {
     async function loadRoutes() {
       try {
@@ -113,69 +98,155 @@ const DriverManagement = () => {
     loadRoutes();
   }, []);
 
-  // Status badge UI
-  const getStatusBadge = (status) => {
+  // ------------ TAB TOTAL COUNTS -------------
+  const loadTabCounts = async () => {
+    try {
+      setLoadingCounts(true);
+      const [allRes, approvedRes, pendingRes, rejectedRes] =
+        await Promise.all([
+          getDriversByStatus("All", 1),
+          getDriversByStatus("Approved", 1),
+          getDriversByStatus("Pending", 1),
+          getDriversByStatus("Rejected", 1),
+        ]);
+
+      const safeTotal = (res) => res?.data?.data?.total ?? 0;
+
+      setTabTotals({
+        All: safeTotal(allRes),
+        Approved: safeTotal(approvedRes),
+        Pending: safeTotal(pendingRes),
+        Rejected: safeTotal(rejectedRes),
+      });
+    } catch (err) {
+      console.error("Failed to load driver counts", err);
+    } finally {
+      setLoadingCounts(false);
+    }
+  };
+
+  // ------------ LIST LOAD -------------
+  const loadDriversForStatus = async (status, page = 1) => {
+    try {
+      setLoadingDrivers(true);
+      const res = await getDriversByStatus(status, page);
+      const { rows, meta } = mapPagedDriversResponse(res);
+      setDrivers(rows);
+      setPageMeta(meta);
+    } catch (err) {
+      console.error("Failed to fetch drivers", err);
+      Swal.fire({
+        icon: "error",
+        title: "Failed to load drivers",
+        text: "Please check the API or token.",
+        confirmButtonColor: BRAND,
+      });
+    } finally {
+      setLoadingDrivers(false);
+    }
+  };
+
+  // initial load
+  useEffect(() => {
+    loadTabCounts();
+    loadDriversForStatus("All", 1);
+  }, []);
+
+  // tab change -> reset to page 1
+  useEffect(() => {
+    loadDriversForStatus(activeFilter, 1);
+  }, [activeFilter]);
+
+  // outside click -> close menu
+  useEffect(() => {
+    if (openMenuId === null) return;
+
+    const handleClickOutside = (event) => {
+      const target = event.target;
+      const isMenu = target.closest(".menu-container");
+      const isTrigger = target.closest(".menu-trigger");
+      if (!isMenu && !isTrigger) {
+        setOpenMenuId(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [openMenuId]);
+
+  const getStatusBadge = (statusRaw) => {
+    const status = (statusRaw || "").toLowerCase();
     let classes =
       "inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border";
-    let label = "";
+    let label = statusRaw || "Unknown";
 
-    switch (status) {
-      case "active":
-        classes += " bg-green-50 text-green-700 border-green-100";
-        label = "Active";
-        break;
-      case "pending":
-        classes += " bg-yellow-50 text-yellow-700 border-yellow-100";
-        label = "Pending";
-        break;
-      case "rejected":
-        classes += " bg-red-50 text-red-700 border-red-100";
-        label = "Rejected";
-        break;
-      default:
-        classes += " bg-gray-50 text-gray-700 border-gray-100";
-        label = status || "Unknown";
+    if (status === "approved") {
+      classes += " bg-green-50 text-green-700 border-green-100";
+      label = "Approved";
+    } else if (status === "pending") {
+      classes += " bg-yellow-50 text-yellow-700 border-yellow-100";
+      label = "Pending";
+    } else if (status === "rejected") {
+      classes += " bg-red-50 text-red-700 border-red-100";
+      label = "Rejected";
+    } else {
+      classes += " bg-gray-50 text-gray-700 border-gray-100";
     }
 
     return <span className={classes}>{label}</span>;
   };
 
-  // 👉 updated: Add Driver => modal open
+  // ------------ ADD DRIVER -------------
   const handleAddDriver = () => {
-    setEditingDriver(null); // create mode
+    setEditingDriver(null);
     setIsDriverModalOpen(true);
   };
 
-  // Helper to update status with SweetAlert confirmation
-  const changeStatusWithConfirm = (driverId, newStatus, label) => {
-    const driver = drivers.find((d) => d.id === driverId);
-    if (!driver) return;
+  // ------------ STATUS CHANGE + NOTE (for reject) -------------
+  const changeStatusWithConfirm = (row, newStatus, label) => {
+    if (!row.driverId) {
+      Swal.fire({
+        icon: "warning",
+        title: "Cannot update status",
+        text: "This driver has no driver record yet.",
+        confirmButtonColor: BRAND,
+      });
+      return;
+    }
+
+    const isReject = newStatus === "Rejected";
 
     Swal.fire({
       title: `Are you sure you want to ${label.toLowerCase()} this driver?`,
-      text: `${driver.name} will become "${label}".`,
+      text: `${row.name} will become "${label}".`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonText: label,
       cancelButtonText: "Cancel",
       confirmButtonColor: BRAND,
-    }).then((result) => {
-      if (result.isConfirmed) {
-        setDrivers((prev) =>
-          prev.map((d) =>
-            d.id === driverId
-              ? {
-                ...d,
-                status: newStatus,
-                rejectionReason:
-                  newStatus === "rejected"
-                    ? d.rejectionReason ||
-                    "Rejected by admin. Please contact support."
-                    : "",
-              }
-              : d
-          )
-        );
+      ...(isReject
+        ? {
+          input: "textarea",
+          inputLabel: "Rejection note",
+          inputPlaceholder: "Write reason (optional)",
+          inputAttributes: {
+            rows: 3,
+          },
+        }
+        : {}),
+    }).then(async (result) => {
+      if (!result.isConfirmed) return;
+
+      const note = isReject ? result.value || "" : "";
+
+      try {
+        await updateDriverStatus(row.driverId, newStatus, note);
+
+        // list + counts refresh
+        await Promise.all([
+          loadDriversForStatus(activeFilter, pageMeta.current_page),
+          loadTabCounts(),
+        ]);
 
         Swal.fire({
           toast: true,
@@ -185,121 +256,171 @@ const DriverManagement = () => {
           showConfirmButton: false,
           timer: 1800,
         });
+      } catch (err) {
+        console.error("Status update failed", err);
+        Swal.fire({
+          icon: "error",
+          title: "Status update failed",
+          text: "Please try again.",
+          confirmButtonColor: BRAND,
+        });
       }
     });
   };
 
-  const handleApprove = (driverId) =>
-    changeStatusWithConfirm(driverId, "active", "Approved");
-  const handleActivate = (driverId) =>
-    changeStatusWithConfirm(driverId, "active", "Active");
-  const handleReject = (driverId) =>
-    changeStatusWithConfirm(driverId, "rejected", "Rejected");
+  const handleApprove = (driverId) => {
+    const row = drivers.find((d) => d.id === driverId);
+    if (!row) return;
+    changeStatusWithConfirm(row, "Approved", "Approved");
+  };
 
-  // Delete driver
+  const handleActivate = (driverId) => {
+    const row = drivers.find((d) => d.id === driverId);
+    if (!row) return;
+    changeStatusWithConfirm(row, "Approved", "Active");
+  };
+
+  const handleReject = (driverId) => {
+    const row = drivers.find((d) => d.id === driverId);
+    if (!row) return;
+    changeStatusWithConfirm(row, "Rejected", "Rejected");
+  };
+
+  // ------------ DELETE (UI only) -------------
   const handleDelete = (driverId) => {
-    const driver = drivers.find((d) => d.id === driverId);
-    if (!driver) return;
+    const row = drivers.find((d) => d.id === driverId);
+    if (!row) return;
 
     Swal.fire({
       title: "Delete driver?",
-      text: `This will remove ${driver.name} from the list.`,
+      text: `This will remove ${row.name} from the list (UI only).`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonText: "Delete",
       cancelButtonText: "Cancel",
       confirmButtonColor: "#dc2626",
     }).then((result) => {
-      if (result.isConfirmed) {
-        setDrivers((prev) => prev.filter((d) => d.id !== driverId));
+      if (!result.isConfirmed) return;
 
-        Swal.fire({
-          toast: true,
-          position: "top-end",
-          icon: "success",
-          title: "Driver deleted",
-          showConfirmButton: false,
-          timer: 1800,
-        });
-      }
+      setDrivers((prev) => prev.filter((d) => d.id !== driverId));
+
+      Swal.fire({
+        toast: true,
+        position: "top-end",
+        icon: "success",
+        title: "Driver deleted (local)",
+        showConfirmButton: false,
+        timer: 1800,
+      });
     });
   };
 
-  // 👉 updated: Edit driver => modal open with mapped data
-  const handleEdit = (driver) => {
+  // ------------ EDIT -------------
+  const handleEdit = (row) => {
     setOpenMenuId(null);
 
-    // table-er driver object theke modal er expected fields map korলাম
     const mappedForModal = {
-      ...driver,
-      carName: driver.vehicleType || "",
-      carModel: driver.carModel || "",
-      location: driver.location || "",
-      price: driver.price || "",
-      routeIds: driver.routeIds || [],
+      ...row,
+      carName: row.vehicleType || "",
+      carModel: row.vehicleNumber || "",
+      location: row.location || "",
+      price: row.price || "",
+      routeIds: row.routeIds || [],
     };
 
     setEditingDriver(mappedForModal);
     setIsDriverModalOpen(true);
   };
 
-  // 👉 new: DriverModal theke data save handle
+  // ------------ CREATE DRIVER -------------
   const handleSaveDriver = async (modalData) => {
-    // এখানে পরে API call connect করতে পারো (create / update)
-    // ekhoner jonno local state update korchi
+    try {
+      Swal.fire({
+        title: modalData.id ? "Updating driver..." : "Creating driver...",
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        didOpen: () => Swal.showLoading(),
+      });
 
-    if (modalData.id) {
-      // UPDATE
-      setDrivers((prev) =>
-        prev.map((d) =>
-          d.id === modalData.id
-            ? {
-              ...d,
-              name: modalData.name,
-              email: modalData.email,
-              vehicleType: modalData.carName,
-              vehicleNumber: modalData.vehicleNumber || d.vehicleNumber,
-              numberOfRoutes: modalData.numberOfRoutes,
-              status: modalData.status,
-            }
-            : d
-        )
-      );
-    } else {
-      // CREATE
-      const nextId =
-        (drivers.length ? drivers[drivers.length - 1].id : 0) + 1;
+      const formData = new FormData();
+      formData.append("name", modalData.name);
+      formData.append("email", modalData.email);
+      formData.append("phone", modalData.phone);
+      formData.append("car_name", modalData.carName);
+      formData.append("car_model", modalData.carModel);
+      formData.append("location", modalData.location);
+      formData.append("price", String(modalData.price));
+      formData.append("password", modalData.password);
 
-      const newDriver = {
-        id: nextId,
-        name: modalData.name,
-        email: modalData.email,
-        vehicleType: modalData.carName,
-        vehicleNumber: modalData.vehicleNumber || "",
-        licenseNumber: "LIC-NEW",
-        numberOfRoutes: modalData.numberOfRoutes,
-        status: "pending",
-        rejectionReason: "",
-        joinedDate: new Date().toISOString(),
-      };
+      (modalData.routeIds || []).forEach((id) => {
+        formData.append("route_ids[]", String(id));
+      });
 
-      setDrivers((prev) => [...prev, newDriver]);
+      if (modalData.files) {
+        Array.from(modalData.files).forEach((file) => {
+          formData.append("files[]", file);
+        });
+      }
+
+      const resp = await createDriver(formData);
+
+      Swal.close();
+
+      await Promise.all([
+        loadTabCounts(),
+        loadDriversForStatus(activeFilter, 1),
+      ]);
+
+      setIsDriverModalOpen(false);
+      setEditingDriver(null);
+
+      Swal.fire({
+        icon: "success",
+        title: resp.data?.message || "Driver created",
+        confirmButtonColor: BRAND,
+      });
+    } catch (err) {
+      console.error("create-driver error", err);
+      Swal.close();
+
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to create driver.";
+
+      Swal.fire({
+        icon: "error",
+        title: "Create driver failed",
+        text: msg,
+        confirmButtonColor: BRAND,
+      });
     }
-
-    setIsDriverModalOpen(false);
-    setEditingDriver(null);
-
-    Swal.fire({
-      icon: "success",
-      title: modalData.id ? "Driver updated" : "Driver added",
-      confirmButtonColor: BRAND,
-    });
   };
 
+  // ------------ PAGINATION -------------
+  const handlePageChange = (direction) => {
+    const { current_page, last_page } = pageMeta;
+    let nextPage =
+      direction === "next" ? current_page + 1 : current_page - 1;
+
+    if (nextPage < 1 || nextPage > last_page) return;
+    loadDriversForStatus(activeFilter, nextPage);
+  };
+
+  const fromIndex =
+    pageMeta.total === 0
+      ? 0
+      : (pageMeta.current_page - 1) * pageMeta.per_page + 1;
+  const toIndex =
+    pageMeta.total === 0
+      ? 0
+      : Math.min(pageMeta.current_page * pageMeta.per_page, pageMeta.total);
+
+  // ------------ RENDER -------------
   return (
     <>
       <div className="space-y-6">
-        {/* Header with Add Button */}
+        {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
@@ -313,268 +434,282 @@ const DriverManagement = () => {
                 ADD DRIVER
               </span>
             </button>
-
           </div>
         </div>
 
-        {/* Filter Tabs + Table */}
+        {/* Filter + Table */}
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          {/* Filter Tabs */}
+          {/* Tabs */}
           <div className="border-b border-gray-200">
             <div className="flex">
-              <button
-                onClick={() => setActiveFilter("all")}
-                className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${activeFilter === "all"
-                    ? "bg-blue-50 text-blue-600 border-b-2 border-blue-600"
-                    : "text-gray-600 hover:bg-gray-50"
-                  }`}
-              >
-                All Drivers
-                <span className="ml-2 inline-flex items-center px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full text-xs">
-                  {drivers.length}
-                </span>
-              </button>
-
-              <button
-                onClick={() => setActiveFilter("active")}
-                className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${activeFilter === "active"
-                    ? "bg-blue-50 text-blue-600 border-b-2 border-blue-600"
-                    : "text-gray-600 hover:bg-gray-50"
-                  }`}
-              >
-                Active Drivers
-                <span className="ml-2 inline-flex items-center px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full text-xs">
-                  {drivers.filter((d) => d.status === "active").length}
-                </span>
-              </button>
-
-              <button
-                onClick={() => setActiveFilter("pending")}
-                className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${activeFilter === "pending"
-                    ? "bg-blue-50 text-blue-600 border-b-2 border-blue-600"
-                    : "text-gray-600 hover:bg-gray-50"
-                  }`}
-              >
-                Pending
-                <span className="ml-2 inline-flex items-center px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full text-xs">
-                  {drivers.filter((d) => d.status === "pending").length}
-                </span>
-              </button>
-
-              <button
-                onClick={() => setActiveFilter("rejected")}
-                className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${activeFilter === "rejected"
-                    ? "bg-blue-50 text-blue-600 border-b-2 border-blue-600"
-                    : "text-gray-600 hover:bg-gray-50"
-                  }`}
-              >
-                Rejected Drivers
-                <span className="ml-2 inline-flex items-center px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full text-xs">
-                  {drivers.filter((d) => d.status === "rejected").length}
-                </span>
-              </button>
+              {STATUS_TABS.map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveFilter(tab)}
+                  className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${activeFilter === tab
+                      ? "bg-blue-50 text-blue-600 border-b-2 border-blue-600"
+                      : "text-gray-600 hover:bg-gray-50"
+                    }`}
+                >
+                  {tab === "All" ? "All Drivers" : tab}
+                  <span className="ml-2 inline-flex items-center px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full text-xs">
+                    {loadingCounts ? "…" : tabTotals[tab] ?? 0}
+                  </span>
+                </button>
+              ))}
             </div>
           </div>
 
           {/* Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">
-                    Date
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">
-                    Driver Details
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">
-                    Vehicle Info
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">
-                    License Number
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">
-                    Number of Routes
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">
-                    Action
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wide">
-                    Menu
-                  </th>
-                </tr>
-              </thead>
+          {loadingDrivers ? (
+            <p className="py-8 px-6 text-sm text-gray-500">
+              Loading drivers...
+            </p>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                        Date
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                        Driver Details
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                        Vehicle Info
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                        License Number
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                        Number of Routes
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                        Action
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                        Menu
+                      </th>
+                    </tr>
+                  </thead>
 
-              <tbody className="divide-y divide-gray-200">
-                {filteredDrivers.map((driver) => (
-                  <tr
-                    key={driver.id}
-                    className="hover:bg-gray-50 transition-colors"
-                  >
-                    {/* Date */}
-                    <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
-                      {driver.joinedDate
-                        ? new Date(driver.joinedDate).toLocaleDateString()
-                        : "-"}
-                    </td>
+                  <tbody className="divide-y divide-gray-200">
+                    {drivers.map((driver) => (
+                      <tr
+                        key={driver.id}
+                        className="hover:bg-gray-50 transition-colors"
+                      >
+                        {/* Date */}
+                        <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
+                          {driver.joinedDate
+                            ? new Date(
+                              driver.joinedDate
+                            ).toLocaleDateString()
+                            : "-"}
+                        </td>
 
-                    {/* Driver details */}
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-sm font-semibold">
-                          {driver.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-gray-900">
-                            {driver.name}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            {driver.email || "-"}
-                          </p>
+                        {/* Driver details */}
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-sm font-semibold">
+                              {driver.name?.charAt(0)?.toUpperCase() || "D"}
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-gray-900">
+                                {driver.name}
+                              </p>
+                              <p className="text-sm text-gray-500">
+                                {driver.email || "-"}
+                              </p>
 
-                          {driver.status === "rejected" &&
-                            driver.rejectionReason && (
-                              <div className="mt-1 flex items-start gap-1">
-                                <Info className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
-                                <p className="text-xs text-red-600">
-                                  {driver.rejectionReason}
-                                </p>
-                              </div>
+                              {driver.status === "Rejected" &&
+                                driver.rejectionReason && (
+                                  <div className="mt-1 flex items-start gap-1">
+                                    <Info className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                                    <p className="text-xs text-red-600">
+                                      {driver.rejectionReason}
+                                    </p>
+                                  </div>
+                                )}
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Vehicle Info */}
+                        <td className="px-6 py-4">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <CarFront className="w-4 h-4 text-gray-500" />
+                              <p className="text-sm font-medium text-gray-900">
+                                {driver.vehicleType}
+                              </p>
+                            </div>
+                            <p className="text-sm text-gray-500">
+                              {driver.vehicleNumber}
+                            </p>
+                          </div>
+                        </td>
+
+                        {/* License Number */}
+                        <td className="px-6 py-4 text-sm text-gray-600">
+                          {driver.licenseNumber}
+                        </td>
+
+                        {/* Number of Routes */}
+                        <td className="px-6 py-4 text-sm text-gray-600">
+                          {driver.numberOfRoutes}
+                        </td>
+
+                        {/* Status */}
+                        <td className="px-6 py-4">
+                          {getStatusBadge(driver.status)}
+                        </td>
+
+                        {/* Action buttons */}
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            {driver.status === "Rejected" ? (
+                              <button
+                                onClick={() => handleActivate(driver.id)}
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 transition-colors"
+                                type="button"
+                              >
+                                <Check className="w-4 h-4" />
+                                Activate
+                              </button>
+                            ) : driver.status === "Pending" ? (
+                              <>
+                                <button
+                                  onClick={() => handleApprove(driver.id)}
+                                  className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 transition-colors"
+                                  type="button"
+                                >
+                                  <Check className="w-4 h-4" />
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={() => handleReject(driver.id)}
+                                  className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-xs font-semibold rounded-lg hover:bg-red-700 transition-colors"
+                                  type="button"
+                                >
+                                  <X className="w-4 h-4" />
+                                  Reject
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                onClick={() => handleReject(driver.id)}
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-xs font-semibold rounded-lg hover:bg-red-700 transition-colors"
+                                type="button"
+                              >
+                                <Ban className="w-4 h-4" />
+                                Reject
+                              </button>
                             )}
-                        </div>
-                      </div>
-                    </td>
+                          </div>
+                        </td>
 
-                    {/* Vehicle Info */}
-                    <td className="px-6 py-4">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <CarFront className="w-4 h-4 text-gray-500" />
-                          <p className="text-sm font-medium text-gray-900">
-                            {driver.vehicleType}
-                          </p>
-                        </div>
-                        <p className="text-sm text-gray-500">
-                          {driver.vehicleNumber}
-                        </p>
-                      </div>
-                    </td>
-
-                    {/* License Number */}
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {driver.licenseNumber}
-                    </td>
-
-                    {/* Number of Routes */}
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {driver.numberOfRoutes}
-                    </td>
-
-                    {/* Status */}
-                    <td className="px-6 py-4">
-                      {getStatusBadge(driver.status)}
-                    </td>
-
-                    {/* Action buttons */}
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        {driver.status === "rejected" ? (
-                          <button
-                            onClick={() => handleActivate(driver.id)}
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 transition-colors"
-                            type="button"
-                          >
-                            <Check className="w-4 h-4" />
-                            Activate
-                          </button>
-                        ) : driver.status === "pending" ? (
-                          <>
+                        {/* Menu */}
+                        <td className="px-6 py-4 relative">
+                          <div className="flex items-center justify-end">
                             <button
-                              onClick={() => handleApprove(driver.id)}
-                              className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 transition-colors"
+                              onClick={() =>
+                                setOpenMenuId(
+                                  openMenuId === driver.id ? null : driver.id
+                                )
+                              }
+                              className="menu-trigger p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                               type="button"
                             >
-                              <Check className="w-4 h-4" />
-                              Approve
+                              <MoreVertical className="w-5 h-5" />
                             </button>
-                            <button
-                              onClick={() => handleReject(driver.id)}
-                              className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-xs font-semibold rounded-lg hover:bg-red-700 transition-colors"
-                              type="button"
-                            >
-                              <X className="w-4 h-4" />
-                              Reject
-                            </button>
-                          </>
-                        ) : (
-                          <button
-                            onClick={() => handleReject(driver.id)}
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-xs font-semibold rounded-lg hover:bg-red-700 transition-colors"
-                            type="button"
-                          >
-                            <Ban className="w-4 h-4" />
-                            Reject
-                          </button>
-                        )}
-                      </div>
-                    </td>
+                          </div>
 
-                    {/* Menu */}
-                    <td className="px-6 py-4 relative">
-                      <div className="flex items-center justify-end">
-                        <button
-                          onClick={() =>
-                            setOpenMenuId(
-                              openMenuId === driver.id ? null : driver.id
-                            )
-                          }
-                          className="menu-trigger p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                          type="button"
-                        >
-                          <MoreVertical className="w-5 h-5" />
-                        </button>
-                      </div>
+                          {openMenuId === driver.id && (
+                            <div className="menu-container absolute right-6 top-11 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-[160px]">
+                              <button
+                                type="button"
+                                onClick={() => handleEdit(driver)}
+                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 rounded-t-lg"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(driver.id)}
+                                className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 rounded-b-lg"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                                Delete
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
-                      {openMenuId === driver.id && (
-                        <div className="menu-container absolute right-6 top-11 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-[160px]">
-                          <button
-                            type="button"
-                            onClick={() => handleEdit(driver)}
-                            className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 rounded-t-lg"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(driver.id)}
-                            className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 rounded-b-lg"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            Delete
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              {drivers.length === 0 && !loadingDrivers && (
+                <div className="text-center py-12">
+                  <p className="text-sm text-gray-500">No drivers found.</p>
+                </div>
+              )}
 
-          {/* Empty state */}
-          {filteredDrivers.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-sm text-gray-500">No drivers found.</p>
-            </div>
+              {/* Pagination footer */}
+              <div className="flex items-center justify-between px-6 py-4 border-top border-gray-100 border-t">
+                <p className="text-xs text-gray-500">
+                  Showing {fromIndex} to {toIndex} of {pageMeta.total} drivers
+                </p>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-gray-500">
+                    Page {pageMeta.current_page} of {pageMeta.last_page}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handlePageChange("prev")}
+                      disabled={
+                        loadingDrivers || pageMeta.current_page <= 1
+                      }
+                      className={`px-3 py-1 text-xs rounded-md border ${loadingDrivers || pageMeta.current_page <= 1
+                          ? "text-gray-400 border-gray-200 cursor-not-allowed"
+                          : "text-gray-700 border-gray-300 hover:bg-gray-50"
+                        }`}
+                    >
+                      Previous
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handlePageChange("next")}
+                      disabled={
+                        loadingDrivers ||
+                        pageMeta.current_page >= pageMeta.last_page
+                      }
+                      className={`px-3 py-1 text-xs rounded-md border ${loadingDrivers ||
+                          pageMeta.current_page >= pageMeta.last_page
+                          ? "text-gray-400 border-gray-200 cursor-not-allowed"
+                          : "text-gray-700 border-gray-300 hover:bg-gray-50"
+                        }`}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </>
           )}
         </div>
       </div>
 
-      {/* 👉 Driver Modal mount ekhane */}
+      {/* MODAL */}
       {isDriverModalOpen && (
         <DriverModal
           driver={editingDriver}
