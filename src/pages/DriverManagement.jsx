@@ -2,14 +2,14 @@
 import React, { useState, useEffect } from "react";
 import {
   Plus,
-  Check,
-  X,
-  Ban,
   MoreVertical,
   Info,
   CarFront,
   Trash2,
   Edit3,
+  CheckCircle2,
+  XCircle,
+  Clock,
 } from "lucide-react";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
@@ -177,23 +177,62 @@ const DriverManagement = () => {
   const getStatusBadge = (statusRaw) => {
     const status = (statusRaw || "").toLowerCase();
     let classes =
-      "inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border";
+      "inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold border";
     let label = statusRaw || "Unknown";
+    let icon = null;
 
     if (status === "approved") {
       classes += " bg-green-50 text-green-700 border-green-100";
       label = "Approved";
+      icon = <CheckCircle2 className="w-4 h-4" />;
     } else if (status === "pending") {
       classes += " bg-yellow-50 text-yellow-700 border-yellow-100";
       label = "Pending";
+      icon = <Clock className="w-4 h-4" />;
     } else if (status === "rejected") {
       classes += " bg-red-50 text-red-700 border-red-100";
       label = "Rejected";
+      icon = <XCircle className="w-4 h-4" />;
     } else {
       classes += " bg-gray-50 text-gray-700 border-gray-100";
     }
 
-    return <span className={classes}>{label}</span>;
+    return (
+      <span className={classes}>
+        {icon}
+        {label}
+      </span>
+    );
+  };
+
+  // Get status classes for the dropdown pill
+  const getStatusClasses = (status) => {
+    switch (status) {
+      case "Approved":
+        return "bg-green-50 text-green-700 border border-green-200";
+      case "Rejected":
+        return "bg-red-50 text-red-700 border border-red-200";
+      case "Pending":
+      default:
+        return "bg-yellow-50 text-yellow-700 border border-yellow-200";
+    }
+  };
+
+  // Handle status selection from dropdown
+  const handleStatusSelect = (driver, newStatus) => {
+    if (!newStatus || driver.status === newStatus) return;
+    
+    if (!driver.driverId) {
+      Swal.fire({
+        icon: "warning",
+        title: "Cannot update status",
+        text: "This driver has no driver record yet.",
+        confirmButtonColor: BRAND,
+      });
+      return;
+    }
+
+    changeStatusWithConfirm(driver, newStatus, newStatus);
   };
 
   // ------------ ADD DRIVER -------------
@@ -268,23 +307,6 @@ const DriverManagement = () => {
     });
   };
 
-  const handleApprove = (driverId) => {
-    const row = drivers.find((d) => d.id === driverId);
-    if (!row) return;
-    changeStatusWithConfirm(row, "Approved", "Approved");
-  };
-
-  const handleActivate = (driverId) => {
-    const row = drivers.find((d) => d.id === driverId);
-    if (!row) return;
-    changeStatusWithConfirm(row, "Approved", "Active");
-  };
-
-  const handleReject = (driverId) => {
-    const row = drivers.find((d) => d.id === driverId);
-    if (!row) return;
-    changeStatusWithConfirm(row, "Rejected", "Rejected");
-  };
 
   // ------------ DELETE (UI only) -------------
   const handleDelete = (driverId) => {
@@ -487,10 +509,7 @@ const DriverManagement = () => {
                         Number of Routes
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">
-                        Status
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">
-                        Action
+                        Status & Actions
                       </th>
                       <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wide">
                         Menu
@@ -565,52 +584,25 @@ const DriverManagement = () => {
                           {driver.numberOfRoutes}
                         </td>
 
-                        {/* Status */}
+                        {/* Status & Actions */}
                         <td className="px-6 py-4">
-                          {getStatusBadge(driver.status)}
-                        </td>
+                          <div className="flex items-center gap-3">
+                            <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${getStatusClasses(driver.status)}`}>
+                              {driver.status === 'Approved' && <CheckCircle2 className="w-4 h-4" />}
+                              {driver.status === 'Rejected' && <XCircle className="w-4 h-4" />}
+                              {driver.status === 'Pending' && <Clock className="w-4 h-4" />}
+                              {driver.status}
+                            </span>
 
-                        {/* Action buttons */}
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            {driver.status === "Rejected" ? (
-                              <button
-                                onClick={() => handleActivate(driver.id)}
-                                className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 transition-colors"
-                                type="button"
-                              >
-                                <Check className="w-4 h-4" />
-                                Activate
-                              </button>
-                            ) : driver.status === "Pending" ? (
-                              <>
-                                <button
-                                  onClick={() => handleApprove(driver.id)}
-                                  className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 transition-colors"
-                                  type="button"
-                                >
-                                  <Check className="w-4 h-4" />
-                                  Approve
-                                </button>
-                                <button
-                                  onClick={() => handleReject(driver.id)}
-                                  className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-xs font-semibold rounded-lg hover:bg-red-700 transition-colors"
-                                  type="button"
-                                >
-                                  <X className="w-4 h-4" />
-                                  Reject
-                                </button>
-                              </>
-                            ) : (
-                              <button
-                                onClick={() => handleReject(driver.id)}
-                                className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-xs font-semibold rounded-lg hover:bg-red-700 transition-colors"
-                                type="button"
-                              >
-                                <Ban className="w-4 h-4" />
-                                Reject
-                              </button>
-                            )}
+                            <select
+                              value={driver.status}
+                              onChange={(e) => handleStatusSelect(driver, e.target.value)}
+                              className="border border-gray-300 rounded-md text-sm px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            >
+                              <option value="Pending">Pending</option>
+                              <option value="Approved">Approved</option>
+                              <option value="Rejected">Rejected</option>
+                            </select>
                           </div>
                         </td>
 

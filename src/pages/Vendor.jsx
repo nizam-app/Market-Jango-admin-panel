@@ -5,7 +5,8 @@ import axiosClient from '../api/axiosClient'; // keep axiosClient untouched
 import Swal from 'sweetalert2';
 import 'sweetalert2/dist/sweetalert2.min.css';
 import { VendorModal } from '../components/vendor/VendorModal';
- import { createVendor } from "../api/vendorAPI";
+import { createVendor } from "../api/vendorAPI";
+import { CheckCircle2, XCircle, Clock, MoreVertical, Edit3, Trash2 } from "lucide-react";
 
 const BRAND = '#FF8C00';
 
@@ -99,6 +100,7 @@ const Vendor = () => {
   const [modalLoading, setModalLoading] = useState(false);
   const [modalError, setModalError] = useState(null);
   const [isVendorModalOpen, setIsVendorModalOpen] = useState(false);
+  const [openMenuId, setOpenMenuId] = useState(null);
 
 
 
@@ -111,6 +113,23 @@ const Vendor = () => {
     fetchVendors();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter, page]);
+
+  // Outside click detection for menu
+  useEffect(() => {
+    if (openMenuId === null) return;
+
+    const handleClickOutside = (event) => {
+      const target = event.target;
+      const isMenu = target.closest(".menu-container");
+      const isTrigger = target.closest(".menu-trigger");
+      if (!isMenu && !isTrigger) {
+        setOpenMenuId(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [openMenuId]);
 
   // -------- Helper: update vendor status (PUT) ----------
   const updateVendorStatus = async (vendorProfileId, status, note) => {
@@ -261,9 +280,24 @@ const Vendor = () => {
       });
     }
   };
-  const handleApprove = (vendorProfileId) => confirmAndUpdate(vendorProfileId, 'Approved');
-  const handleReject = (vendorProfileId) => confirmAndUpdate(vendorProfileId, 'Rejected');
-  const handleSetPending = (vendorProfileId) => confirmAndUpdate(vendorProfileId, 'Pending');
+  // Handler for dropdown status change
+  const handleStatusSelect = (vendor, newStatus) => {
+    if (!newStatus || vendor.status === newStatus) return;
+    confirmAndUpdate(vendor.vendorProfileId ?? vendor.id, newStatus);
+  };
+
+  // Get status classes for pill styling
+  const getStatusClasses = (status) => {
+    switch (status) {
+      case "Approved":
+        return "bg-green-50 text-green-700 border border-green-200";
+      case "Rejected":
+        return "bg-red-50 text-red-700 border border-red-200";
+      case "Pending":
+      default:
+        return "bg-yellow-50 text-yellow-700 border border-yellow-200";
+    }
+  };
 
   // -------- Modal logic ----------
   const openVendorModal = async (vendorId, vendorRaw) => {
@@ -316,6 +350,63 @@ const Vendor = () => {
 
   const filterNames = useMemo(() => Object.keys(STATUS_MAP), []);
 
+  // Handle Edit
+  const handleEdit = (vendor) => {
+    setOpenMenuId(null);
+    // TODO: Implement edit functionality
+    // For now, just open the vendor modal (you can enhance this later)
+    Swal.fire({
+      icon: 'info',
+      title: 'Edit Vendor',
+      text: `Edit functionality for ${vendor.name} will be implemented soon.`,
+      confirmButtonColor: BRAND,
+    });
+  };
+
+  // Handle Delete
+  const handleDelete = async (vendor) => {
+    setOpenMenuId(null);
+    
+    const result = await Swal.fire({
+      title: 'Delete vendor?',
+      text: `This will remove ${vendor.name} from the system. This action cannot be undone.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, delete',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      Swal.showLoading();
+      await axiosClient.delete(`/user/destroy/${vendor.id}`);
+      Swal.close();
+
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: 'Vendor deleted successfully',
+        showConfirmButton: false,
+        timer: 1800,
+      });
+
+      fetchVendors();
+    } catch (err) {
+      Swal.close();
+      console.error('Delete vendor failed', err);
+      Swal.fire({
+        icon: 'error',
+        title: 'Delete failed',
+        text: err?.response?.data?.message || err.message || 'Could not delete vendor',
+        confirmButtonColor: BRAND,
+      });
+    }
+  };
+
   return (
     <div style={styles.page}>
       <div style={{ ...styles.header }}>
@@ -364,17 +455,18 @@ const Vendor = () => {
                 <th style={styles.th}>Date</th>
                 <th style={styles.th}>Name / Email</th>
                 <th style={styles.th}># Products</th>
-                <th style={styles.th}>Status</th>
-                <th style={styles.th}>Action</th>
+                <th style={styles.th}>Status & Actions</th>
+                <th style={styles.th}>View</th>
+                <th style={{ ...styles.th, textAlign: 'right' }}>Menu</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td style={styles.td} colSpan={5}>Loading...</td></tr>
+                <tr><td style={styles.td} colSpan={6}>Loading...</td></tr>
               ) : error ? (
-                <tr><td style={styles.td} colSpan={5}><span style={{ color: 'red' }}>{error}</span></td></tr>
+                <tr><td style={styles.td} colSpan={6}><span style={{ color: 'red' }}>{error}</span></td></tr>
               ) : vendors.length === 0 ? (
-                <tr><td style={styles.td} colSpan={5}>No vendors found.</td></tr>
+                <tr><td style={styles.td} colSpan={6}>No vendors found.</td></tr>
               ) : (
                 vendors.map((v) => (
                   <tr key={v.id}>
@@ -390,44 +482,64 @@ const Vendor = () => {
                     </td>
                     <td style={{ ...styles.td, textAlign: 'center' }}>{v.products_count}</td>
                     <td style={styles.td}>
-                      <span style={styles.statusPill(v.status)}>{v.status}</span>
+                      <div className="flex items-center gap-3">
+                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${getStatusClasses(v.status)}`}>
+                          {v.status === 'Approved' && <CheckCircle2 className="w-4 h-4" />}
+                          {v.status === 'Rejected' && <XCircle className="w-4 h-4" />}
+                          {v.status === 'Pending' && <Clock className="w-4 h-4" />}
+                          {v.status}
+                        </span>
+
+                        <select
+                          value={v.status}
+                          onChange={(e) => handleStatusSelect(v, e.target.value)}
+                          className="border border-gray-300 rounded-md text-sm px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option value="Pending">Pending</option>
+                          <option value="Approved">Approved</option>
+                          <option value="Rejected">Rejected</option>
+                        </select>
+                      </div>
                     </td>
                     <td style={styles.td}>
-                      <div style={styles.actions}>
+                      <button
+                        style={{ ...styles.btn({}), background: '#fff', color: BRAND, border: `1px solid ${BRAND}33` }}
+                        onClick={() => openVendorModal(v.id, v.raw)}
+                      >
+                        View Details
+                      </button>
+                    </td>
+                    <td style={{ ...styles.td, position: 'relative' }}>
+                      <div className="flex items-center justify-end">
                         <button
-                          style={{ ...styles.btn({}), background: '#fff', color: BRAND, border: `1px solid ${BRAND}33` }}
-                          onClick={() => openVendorModal(v.id, v.raw)}
+                          onClick={() => setOpenMenuId(openMenuId === v.id ? null : v.id)}
+                          className="menu-trigger p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                          type="button"
                         >
-                          View
+                          <MoreVertical className="w-5 h-5" />
                         </button>
-
-                        {v.status !== 'Approved' && (
-                          <button
-                            style={{ ...styles.btn(), background: BRAND }}
-                            onClick={() => handleApprove(v.vendorProfileId ?? v.id)}
-                          >
-                            Approve
-                          </button>
-                        )}
-
-                        {v.status !== 'Rejected' && (
-                          <button
-                            style={{ ...styles.btn({}), background: '#fff', color: '#b91c1c', border: '1px solid #fca5a5' }}
-                            onClick={() => handleReject(v.vendorProfileId ?? v.id)}
-                          >
-                            Reject
-                          </button>
-                        )}
-
-                        {v.status !== 'Pending' && (
-                          <button
-                            style={{ ...styles.btn({}), background: '#fff', color: '#475569', border: '1px solid #e6e9ef' }}
-                            onClick={() => handleSetPending(v.vendorProfileId ?? v.id)}
-                          >
-                            Set Pending
-                          </button>
-                        )}
                       </div>
+
+                      {openMenuId === v.id && (
+                        <div className="menu-container absolute right-6 top-11 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-[160px]">
+                          <button
+                            type="button"
+                            onClick={() => handleEdit(v)}
+                            className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 rounded-t-lg"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(v)}
+                            className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 rounded-b-lg"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Delete
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))

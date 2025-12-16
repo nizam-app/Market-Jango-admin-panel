@@ -1,7 +1,7 @@
 // src/components/BuyerLists.jsx
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Swal from "sweetalert2";
-import { CheckCircle2, XCircle, Clock, ChevronLeft, ChevronRight } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, ChevronLeft, ChevronRight, MoreVertical, Edit3, Trash2 } from "lucide-react";
 
 export default function BuyerLists({
   buyers,
@@ -10,6 +10,25 @@ export default function BuyerLists({
   onPageChange,
   onUpdateStatus,
 }) {
+  const [openMenuId, setOpenMenuId] = useState(null);
+
+  // Outside click detection for menu
+  useEffect(() => {
+    if (openMenuId === null) return;
+
+    const handleClickOutside = (event) => {
+      const target = event.target;
+      const isMenu = target.closest(".menu-container");
+      const isTrigger = target.closest(".menu-trigger");
+      if (!isMenu && !isTrigger) {
+        setOpenMenuId(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [openMenuId]);
+
   const getStatusClasses = (status) => {
     switch (status) {
       case "Approved":
@@ -26,6 +45,46 @@ export default function BuyerLists({
     if (!newStatus || buyer.user?.status === newStatus) return;
 
     onUpdateStatus(buyer, newStatus);
+  };
+
+  // Handle Edit
+  const handleEdit = (buyer) => {
+    setOpenMenuId(null);
+    Swal.fire({
+      icon: 'info',
+      title: 'Edit Buyer',
+      text: `Edit functionality for ${buyer.user?.name || 'this buyer'} will be implemented soon.`,
+    });
+  };
+
+  // Handle Delete
+  const handleDelete = async (buyer) => {
+    setOpenMenuId(null);
+    
+    const result = await Swal.fire({
+      title: 'Delete buyer?',
+      text: `This will remove ${buyer.user?.name || 'this buyer'} from the system. This action cannot be undone.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, delete',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+    });
+
+    if (!result.isConfirmed) return;
+
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'success',
+      title: 'Buyer deleted successfully',
+      showConfirmButton: false,
+      timer: 1800,
+    });
+    
+    // TODO: Implement actual delete API call
+    // await axiosClient.delete(`/user/destroy/${buyer.id}`);
   };
 
   return (
@@ -46,6 +105,7 @@ export default function BuyerLists({
               <th className="px-6 py-3 text-left text-gray-700">Phone</th>
               <th className="px-6 py-3 text-left text-gray-700">Status</th>
               <th className="px-6 py-3 text-left text-gray-700">Created</th>
+              <th className="px-6 py-3 text-right text-gray-700">Menu</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
@@ -134,6 +194,40 @@ export default function BuyerLists({
                     {buyer.created_at
                       ? new Date(buyer.created_at).toLocaleDateString()
                       : "-"}
+                  </td>
+
+                  {/* Menu */}
+                  <td className="px-6 py-4 relative">
+                    <div className="flex items-center justify-end">
+                      <button
+                        onClick={() => setOpenMenuId(openMenuId === buyer.id ? null : buyer.id)}
+                        className="menu-trigger p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                        type="button"
+                      >
+                        <MoreVertical className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    {openMenuId === buyer.id && (
+                      <div className="menu-container absolute right-6 top-11 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-[160px]">
+                        <button
+                          type="button"
+                          onClick={() => handleEdit(buyer)}
+                          className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 rounded-t-lg"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(buyer)}
+                          className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 rounded-b-lg"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Delete
+                        </button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               );
