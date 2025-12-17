@@ -55,6 +55,7 @@ const Navbar = () => {
     { navTitle: "Vendor Overview", path: "/vendors" },
     { navTitle: "Driver Overview ", path: "/drivers" },
     { navTitle: "Driver List ", path: "/drivers-list" },
+    { navTitle: "Route Management", path: "/route-management" },
     { navTitle: "Order Overview", path: "/track-order" },
     { navTitle: "Admin Management", path: "/admin-user" },
     { navTitle: "Settings", path: "/setting" },

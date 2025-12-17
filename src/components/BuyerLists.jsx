@@ -9,6 +9,8 @@ export default function BuyerLists({
   pagination,
   onPageChange,
   onUpdateStatus,
+  onEdit,
+  onDelete,
 }) {
   const [openMenuId, setOpenMenuId] = useState(null);
 
@@ -50,41 +52,17 @@ export default function BuyerLists({
   // Handle Edit
   const handleEdit = (buyer) => {
     setOpenMenuId(null);
-    Swal.fire({
-      icon: 'info',
-      title: 'Edit Buyer',
-      text: `Edit functionality for ${buyer.user?.name || 'this buyer'} will be implemented soon.`,
-    });
+    if (onEdit) {
+      onEdit(buyer);
+    }
   };
 
   // Handle Delete
-  const handleDelete = async (buyer) => {
+  const handleDelete = (buyer) => {
     setOpenMenuId(null);
-    
-    const result = await Swal.fire({
-      title: 'Delete buyer?',
-      text: `This will remove ${buyer.user?.name || 'this buyer'} from the system. This action cannot be undone.`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'Yes, delete',
-      cancelButtonText: 'Cancel',
-      confirmButtonColor: '#dc2626',
-      cancelButtonColor: '#6b7280',
-    });
-
-    if (!result.isConfirmed) return;
-
-    Swal.fire({
-      toast: true,
-      position: 'top-end',
-      icon: 'success',
-      title: 'Buyer deleted successfully',
-      showConfirmButton: false,
-      timer: 1800,
-    });
-    
-    // TODO: Implement actual delete API call
-    // await axiosClient.delete(`/user/destroy/${buyer.id}`);
+    if (onDelete) {
+      onDelete(buyer);
+    }
   };
 
   return (

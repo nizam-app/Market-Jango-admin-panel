@@ -66,8 +66,11 @@ export function VendorModal({ vendor, onSave, onClose }) {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!name.trim() || !email.trim() || !password.trim()) {
-      return;
+    // For create mode, validate required fields
+    if (!vendor) {
+      if (!name.trim() || !email.trim() || !password.trim()) {
+        return;
+      }
     }
 
     onSave({
@@ -145,7 +148,7 @@ export function VendorModal({ vendor, onSave, onClose }) {
                   htmlFor="vendor-name"
                   className="block text-sm font-medium text-gray-700 mb-2"
                 >
-                  Name *
+                  Name {!vendor && "*"}
                 </label>
                 <input
                   id="vendor-name"
@@ -154,7 +157,7 @@ export function VendorModal({ vendor, onSave, onClose }) {
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Admin create vendor"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
+                  required={!vendor}
                 />
               </div>
 
@@ -163,7 +166,7 @@ export function VendorModal({ vendor, onSave, onClose }) {
                   htmlFor="vendor-email"
                   className="block text-sm font-medium text-gray-700 mb-2"
                 >
-                  Email *
+                  Email {!vendor && "*"}
                 </label>
                 <input
                   id="vendor-email"
@@ -172,7 +175,7 @@ export function VendorModal({ vendor, onSave, onClose }) {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="vendortest@gmail.com"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
+                  required={!vendor}
                 />
               </div>
             </div>
@@ -184,7 +187,7 @@ export function VendorModal({ vendor, onSave, onClose }) {
                   htmlFor="vendor-business"
                   className="block text-sm font-medium text-gray-700 mb-2"
                 >
-                  Business Name *
+                  Business Name {!vendor && "*"}
                 </label>
                 <input
                   id="vendor-business"
@@ -193,7 +196,7 @@ export function VendorModal({ vendor, onSave, onClose }) {
                   onChange={(e) => setBusinessName(e.target.value)}
                   placeholder="The Jona"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
+                  required={!vendor}
                 />
               </div>
 
@@ -202,14 +205,14 @@ export function VendorModal({ vendor, onSave, onClose }) {
                   htmlFor="business-type"
                   className="block text-sm font-medium text-gray-700 mb-2"
                 >
-                  Business Type *
+                  Business Type {!vendor && "*"}
                 </label>
                 <select
                   id="business-type"
                   value={businessType}
                   onChange={(e) => setBusinessType(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
+                  required={!vendor}
                 >
                   <option value="">Select Type</option>
                   {businessTypes.map((type) => (
@@ -234,14 +237,14 @@ export function VendorModal({ vendor, onSave, onClose }) {
                   htmlFor="country"
                   className="block text-sm font-medium text-gray-700 mb-2"
                 >
-                  Country *
+                  Country {!vendor && "*"}
                 </label>
                 <select
                   id="country"
                   value={country}
                   onChange={(e) => setCountry(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
+                  required={!vendor}
                 >
                   <option value="">Select Country</option>
                   <option value="Bangladesh">Bangladesh</option>
@@ -279,7 +282,7 @@ export function VendorModal({ vendor, onSave, onClose }) {
     htmlFor="vendor-password"
     className="block text-sm font-medium text-gray-700 mb-2"
   >
-    Password *
+    Password {!vendor && "*"}
   </label>
   <input
     id="vendor-password"
@@ -288,7 +291,7 @@ export function VendorModal({ vendor, onSave, onClose }) {
     onChange={(e) => setPassword(e.target.value)}
     placeholder="Set vendor password"
     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-    required
+    required={!vendor}
   />
 </div>
 
@@ -299,7 +302,7 @@ export function VendorModal({ vendor, onSave, onClose }) {
                 htmlFor="vendor-address"
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
-                Address *
+                Address {!vendor && "*"}
               </label>
               <textarea
                 id="vendor-address"
@@ -308,14 +311,14 @@ export function VendorModal({ vendor, onSave, onClose }) {
                 placeholder="Banasree"
                 rows={2}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                required
+                required={!vendor}
               />
             </div>
 
             {/* Location Search with Map */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Location Search *
+                Location Search {!vendor && "*"}
               </label>
               <LocationSearchInput onLocationSelect={handleLocationSelect} />
               {latitude != null && longitude != null && (
@@ -348,15 +351,17 @@ export function VendorModal({ vendor, onSave, onClose }) {
               type="submit"
               className="px-6 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={
-                !name.trim() ||
-                !email.trim() ||
-                !businessName.trim() ||
-                !businessType ||
-                !country ||
-                !address.trim() ||
-                latitude == null ||
-                longitude == null ||
-                !password.trim()
+                !vendor && (
+                  !name.trim() ||
+                  !email.trim() ||
+                  !businessName.trim() ||
+                  !businessType ||
+                  !country ||
+                  !address.trim() ||
+                  latitude == null ||
+                  longitude == null ||
+                  !password.trim()
+                )
               }
             >
               {vendor ? "Save Changes" : "Create Vendor"}

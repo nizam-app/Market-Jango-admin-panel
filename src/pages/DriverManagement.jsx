@@ -21,6 +21,8 @@ import {
   createDriver,
   updateDriverStatus,
 } from "../api/driverApiUpdate";
+import { updateUserInfo } from "../api/userApi";
+import axiosClient from "../api/axiosClient";
 
 const BRAND = "#FF8C00";
 const STATUS_TABS = ["All", "Approved", "Pending", "Rejected"];
@@ -308,33 +310,53 @@ const DriverManagement = () => {
   };
 
 
-  // ------------ DELETE (UI only) -------------
-  const handleDelete = (driverId) => {
+  // ------------ DELETE -------------
+  const handleDelete = async (driverId) => {
     const row = drivers.find((d) => d.id === driverId);
     if (!row) return;
 
-    Swal.fire({
+    const result = await Swal.fire({
       title: "Delete driver?",
-      text: `This will remove ${row.name} from the list (UI only).`,
+      text: `This will remove ${row.name} from the system. This action cannot be undone.`,
       icon: "warning",
       showCancelButton: true,
-      confirmButtonText: "Delete",
+      confirmButtonText: "Yes, delete",
       cancelButtonText: "Cancel",
       confirmButtonColor: "#dc2626",
-    }).then((result) => {
-      if (!result.isConfirmed) return;
+      cancelButtonColor: "#6b7280",
+    });
 
-      setDrivers((prev) => prev.filter((d) => d.id !== driverId));
+    if (!result.isConfirmed) return;
+
+    try {
+      Swal.showLoading();
+      await axiosClient.delete(`/user/destroy/${driverId}`);
+      Swal.close();
 
       Swal.fire({
         toast: true,
         position: "top-end",
         icon: "success",
-        title: "Driver deleted (local)",
+        title: "Driver deleted successfully",
         showConfirmButton: false,
         timer: 1800,
       });
-    });
+
+      // Refresh the list
+      await Promise.all([
+        loadDriversForStatus(activeFilter, pageMeta.current_page),
+        loadTabCounts(),
+      ]);
+    } catch (err) {
+      Swal.close();
+      console.error("Delete driver failed", err);
+      Swal.fire({
+        icon: "error",
+        title: "Delete failed",
+        text: err?.response?.data?.message || err.message || "Could not delete driver",
+        confirmButtonColor: BRAND,
+      });
+    }
   };
 
   // ------------ EDIT -------------
@@ -354,29 +376,35 @@ const DriverManagement = () => {
     setIsDriverModalOpen(true);
   };
 
-  // ------------ CREATE DRIVER -------------
+  // ------------ CREATE/EDIT DRIVER -------------
   const handleSaveDriver = async (modalData) => {
     try {
+      const isEdit = !!modalData.id;
+      
       Swal.fire({
-        title: modalData.id ? "Updating driver..." : "Creating driver...",
+        title: isEdit ? "Updating driver..." : "Creating driver...",
         allowOutsideClick: false,
         showConfirmButton: false,
         didOpen: () => Swal.showLoading(),
       });
 
       const formData = new FormData();
-      formData.append("name", modalData.name);
-      formData.append("email", modalData.email);
-      formData.append("phone", modalData.phone);
-      formData.append("car_name", modalData.carName);
-      formData.append("car_model", modalData.carModel);
-      formData.append("location", modalData.location);
-      formData.append("price", String(modalData.price));
-      formData.append("password", modalData.password);
+      
+      // Only append non-empty values for edit mode
+      if (modalData.name.trim()) formData.append("name", modalData.name);
+      if (modalData.email.trim()) formData.append("email", modalData.email);
+      if (modalData.phone.trim()) formData.append("phone", modalData.phone);
+      if (modalData.password.trim()) formData.append("password", modalData.password);
+      if (modalData.carName.trim()) formData.append("car_name", modalData.carName);
+      if (modalData.carModel.trim()) formData.append("car_model", modalData.carModel);
+      if (modalData.location.trim()) formData.append("location", modalData.location);
+      if (modalData.price) formData.append("price", String(modalData.price));
 
-      (modalData.routeIds || []).forEach((id) => {
-        formData.append("route_ids[]", String(id));
-      });
+      if (modalData.routeIds && modalData.routeIds.length > 0) {
+        modalData.routeIds.forEach((id) => {
+          formData.append("route_ids[]", String(id));
+        });
+      }
 
       if (modalData.files) {
         Array.from(modalData.files).forEach((file) => {
@@ -384,13 +412,18 @@ const DriverManagement = () => {
         });
       }
 
-      const resp = await createDriver(formData);
+      let resp;
+      if (isEdit) {
+        resp = await updateUserInfo(modalData.id, formData);
+      } else {
+        resp = await createDriver(formData);
+      }
 
       Swal.close();
 
       await Promise.all([
         loadTabCounts(),
-        loadDriversForStatus(activeFilter, 1),
+        loadDriversForStatus(activeFilter, pageMeta.current_page),
       ]);
 
       setIsDriverModalOpen(false);
@@ -398,21 +431,21 @@ const DriverManagement = () => {
 
       Swal.fire({
         icon: "success",
-        title: resp.data?.message || "Driver created",
+        title: resp.data?.message || (isEdit ? "Driver updated" : "Driver created"),
         confirmButtonColor: BRAND,
       });
     } catch (err) {
-      console.error("create-driver error", err);
+      console.error("save-driver error", err);
       Swal.close();
 
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        "Failed to create driver.";
+        (modalData.id ? "Failed to update driver." : "Failed to create driver.");
 
       Swal.fire({
         icon: "error",
-        title: "Create driver failed",
+        title: modalData.id ? "Update driver failed" : "Create driver failed",
         text: msg,
         confirmButtonColor: BRAND,
       });

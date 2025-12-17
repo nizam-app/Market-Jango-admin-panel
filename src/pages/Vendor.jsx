@@ -6,6 +6,7 @@ import Swal from 'sweetalert2';
 import 'sweetalert2/dist/sweetalert2.min.css';
 import { VendorModal } from '../components/vendor/VendorModal';
 import { createVendor } from "../api/vendorAPI";
+import { updateUserInfo } from "../api/userApi";
 import { CheckCircle2, XCircle, Clock, MoreVertical, Edit3, Trash2 } from "lucide-react";
 
 const BRAND = '#FF8C00';
@@ -101,6 +102,7 @@ const Vendor = () => {
   const [modalError, setModalError] = useState(null);
   const [isVendorModalOpen, setIsVendorModalOpen] = useState(false);
   const [openMenuId, setOpenMenuId] = useState(null);
+  const [editingVendor, setEditingVendor] = useState(null);
 
 
 
@@ -353,14 +355,21 @@ const Vendor = () => {
   // Handle Edit
   const handleEdit = (vendor) => {
     setOpenMenuId(null);
-    // TODO: Implement edit functionality
-    // For now, just open the vendor modal (you can enhance this later)
-    Swal.fire({
-      icon: 'info',
-      title: 'Edit Vendor',
-      text: `Edit functionality for ${vendor.name} will be implemented soon.`,
-      confirmButtonColor: BRAND,
-    });
+    
+    // Map vendor data for the modal
+    const mappedVendor = {
+      id: vendor.id,
+      name: vendor.name,
+      email: vendor.email,
+      phone: vendor.raw?.phone || '',
+      businessName: vendor.raw?.vendor?.business_name || '',
+      address: vendor.raw?.vendor?.address || '',
+      latitude: vendor.raw?.vendor?.latitude || null,
+      longitude: vendor.raw?.vendor?.longitude || null,
+    };
+    
+    setEditingVendor(mappedVendor);
+    setIsVendorModalOpen(true);
   };
 
   // Handle Delete
@@ -750,11 +759,12 @@ const Vendor = () => {
 
 {isVendorModalOpen && (
   <VendorModal
-    vendor={null}
+    vendor={editingVendor}
     onSave={async (formValues) => {
       // 1) Loader swal – এখানে কোনো await থাকবে না
+      const isEdit = !!editingVendor;
       Swal.fire({
-        title: "Creating vendor...",
+        title: isEdit ? "Updating vendor..." : "Creating vendor...",
         allowOutsideClick: false,
         showConfirmButton: false,
         didOpen: () => {
@@ -771,33 +781,43 @@ const Vendor = () => {
         }
 
         // ✅ backend field name অনুযায়ী map
-        formData.append("country", formValues.country?.toLowerCase() || "");
-        formData.append("business_name", formValues.businessName);
-        formData.append("business_type", formValues.businessType);
-        formData.append("address", formValues.address);
-        formData.append("longitude", String(formValues.longitude));
-        formData.append("latitude", String(formValues.latitude));
-        formData.append("name", formValues.name);
-        formData.append("email", formValues.email);
-        formData.append("password", formValues.password);
+        // Only append if value exists (all fields optional for edit)
+        if (formValues.country) formData.append("country", formValues.country.toLowerCase());
+        if (formValues.businessName) formData.append("business_name", formValues.businessName);
+        if (formValues.businessType) formData.append("business_type", formValues.businessType);
+        if (formValues.address) formData.append("address", formValues.address);
+        if (formValues.longitude) formData.append("longitude", String(formValues.longitude));
+        if (formValues.latitude) formData.append("latitude", String(formValues.latitude));
+        if (formValues.name) formData.append("name", formValues.name);
+        if (formValues.email) formData.append("email", formValues.email);
+        if (formValues.password) formData.append("password", formValues.password);
+        if (formValues.phone) formData.append("phone", formValues.phone);
 
         for (const [key, value] of formData.entries()) {
           console.log("create-vendor formData ->", key, value);
         }
 
-        // 2) createVendor এখন data ফেরত দেবে
-        const resp = await createVendor(formData);
+        // 2) Check if editing or creating
+        const isEdit = !!editingVendor;
+        let resp;
+        
+        if (isEdit) {
+          resp = await updateUserInfo(editingVendor.id, formData);
+        } else {
+          resp = await createVendor(formData);
+        }
 
         Swal.close();
 
         await Swal.fire({
           icon: "success",
-          title: "Vendor created",
-          text: resp?.message || "Admin vendor created",
+          title: isEdit ? "Vendor updated" : "Vendor created",
+          text: resp?.data?.message || resp?.message || (isEdit ? "Vendor updated successfully" : "Admin vendor created"),
           confirmButtonColor: BRAND,
         });
 
         setIsVendorModalOpen(false);
+        setEditingVendor(null);
         fetchVendors(); // list refresh
       } catch (error) {
         console.error("createVendor error raw ===>", error);
@@ -834,7 +854,10 @@ const Vendor = () => {
   });
       }
     }}
-    onClose={() => setIsVendorModalOpen(false)}
+    onClose={() => {
+      setIsVendorModalOpen(false);
+      setEditingVendor(null);
+    }}
   />
 )}
 

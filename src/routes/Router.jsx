@@ -17,6 +17,7 @@ import AssignOrderPage from "../pages/AssignOrderPage";
 import AdminResetPasswordPage from "../pages/AdminResetPasswordPage";
 import BuyerManagement from "../pages/BuyerManagement";
 import Transportmanagement from "../pages/Transportmanagement";
+import RouteManagement from "../pages/RouteManagement";
 
 const Router = createBrowserRouter([
   // 🔓 Public route
@@ -61,6 +62,10 @@ const Router = createBrowserRouter([
           {
             path: "drivers",
             Component: Drivers,
+          },
+          {
+            path: "route-management",
+            Component: RouteManagement,
           },
           {
             path: "track-order",

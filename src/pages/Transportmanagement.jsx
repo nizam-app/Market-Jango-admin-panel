@@ -3,6 +3,9 @@ import React, { useEffect, useState } from "react";
 import Swal from "sweetalert2";
 import TransportList from "../components/TransportList";
 import transportApi from "../api/transportApi";
+import { TransportModal } from "../components/transports/TransportModal";
+import { updateUserInfo } from "../api/userApi";
+import axiosClient from "../api/axiosClient";
 
 const Transportmanagement = () => {
   const [transports, setTransports] = useState([]);
@@ -13,6 +16,8 @@ const Transportmanagement = () => {
     total: 0,
   });
   const [loading, setLoading] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingTransport, setEditingTransport] = useState(null);
 
   const fetchTransports = async (page = 1) => {
     try {
@@ -101,6 +106,107 @@ const Transportmanagement = () => {
     }
   };
 
+  const handleEdit = (transport) => {
+    setEditingTransport(transport);
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveTransport = async (modalData) => {
+    try {
+      const isEdit = !!modalData.id;
+
+      Swal.fire({
+        title: isEdit ? "Updating transport..." : "Creating transport...",
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        didOpen: () => Swal.showLoading(),
+      });
+
+      const formData = new FormData();
+
+      // Only append non-empty values
+      if (modalData.name.trim()) formData.append("name", modalData.name);
+      if (modalData.email.trim()) formData.append("email", modalData.email);
+      if (modalData.phone.trim()) formData.append("phone", modalData.phone);
+      if (modalData.password.trim()) formData.append("password", modalData.password);
+      if (modalData.image) formData.append("image", modalData.image);
+
+      const resp = await updateUserInfo(modalData.id, formData);
+
+      Swal.close();
+
+      // Refresh the list
+      await fetchTransports(pagination.current_page);
+
+      setIsEditModalOpen(false);
+      setEditingTransport(null);
+
+      Swal.fire({
+        icon: "success",
+        title: resp.data?.message || "Transport updated successfully",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+    } catch (error) {
+      console.error("save-transport error", error);
+      Swal.close();
+
+      const msg =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Failed to update transport.";
+
+      Swal.fire({
+        icon: "error",
+        title: "Update transport failed",
+        text: msg,
+      });
+    }
+  };
+
+  const handleDelete = async (transport) => {
+    const transportUserId = transport.user_id || transport.user?.id || transport.id;
+    const transportName = transport.user?.name || transport.name || 'this transport';
+
+    const result = await Swal.fire({
+      title: "Delete transport?",
+      text: `This will remove ${transportName} from the system. This action cannot be undone.`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Yes, delete",
+      cancelButtonText: "Cancel",
+      confirmButtonColor: "#dc2626",
+      cancelButtonColor: "#6b7280",
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      Swal.showLoading();
+      await axiosClient.delete(`/user/destroy/${transportUserId}`);
+      Swal.close();
+
+      Swal.fire({
+        toast: true,
+        position: "top-end",
+        icon: "success",
+        title: "Transport deleted successfully",
+        showConfirmButton: false,
+        timer: 1800,
+      });
+
+      fetchTransports(pagination.current_page);
+    } catch (err) {
+      Swal.close();
+      console.error("Delete transport failed", err);
+      Swal.fire({
+        icon: "error",
+        title: "Delete failed",
+        text: err?.response?.data?.message || err.message || "Could not delete transport",
+      });
+    }
+  };
+
   return (
     <div className="px-6 py-4">
       <h1 className="text-2xl font-semibold text-gray-800 mb-4">
@@ -113,7 +219,21 @@ const Transportmanagement = () => {
         pagination={pagination}
         onPageChange={handlePageChange}
         onUpdateStatus={handleUpdateStatus}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
       />
+
+      {/* Edit Modal */}
+      {isEditModalOpen && (
+        <TransportModal
+          transport={editingTransport}
+          onSave={handleSaveTransport}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setEditingTransport(null);
+          }}
+        />
+      )}
     </div>
   );
 };

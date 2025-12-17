@@ -53,6 +53,13 @@ const Asidebar = () => {
                 path : '/drivers-list'
             },
             {
+                name : 'Route Mgmt',
+                navTitle : 'Route Management',
+                icon : "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z M3 19h18v2H3z",
+                viewBox: "0 0 24 24",
+                path : '/route-management'
+            },
+            {
                 name : 'Track Order',
                 navTitle : 'Order Overview',
                 icon : "M19 28C23 24 27 17.447 27 12C27 5.925 22.075 1 16 1C9.925 1 5 5.925 5 12C5 21 16 31 16 31M5 31H27M21 12C21 9.238 18.762 7 16 7C13.238 7 11 9.238 11 12C11 14.762 13.238 17 16 17C18.762 17 21 14.762 21 12Z",

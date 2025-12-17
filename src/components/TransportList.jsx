@@ -18,6 +18,8 @@ export default function TransportList({
   pagination,
   onPageChange,
   onUpdateStatus,
+  onEdit,
+  onDelete,
 }) {
   const [openMenuId, setOpenMenuId] = useState(null);
 
@@ -60,41 +62,17 @@ export default function TransportList({
   // Handle Edit
   const handleEdit = (transport) => {
     setOpenMenuId(null);
-    Swal.fire({
-      icon: 'info',
-      title: 'Edit Transport',
-      text: `Edit functionality for ${transport.user?.name || 'this transport'} will be implemented soon.`,
-    });
+    if (onEdit) {
+      onEdit(transport);
+    }
   };
 
   // Handle Delete
-  const handleDelete = async (transport) => {
+  const handleDelete = (transport) => {
     setOpenMenuId(null);
-    
-    const result = await Swal.fire({
-      title: 'Delete transport?',
-      text: `This will remove ${transport.user?.name || 'this transport'} from the system. This action cannot be undone.`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'Yes, delete',
-      cancelButtonText: 'Cancel',
-      confirmButtonColor: '#dc2626',
-      cancelButtonColor: '#6b7280',
-    });
-
-    if (!result.isConfirmed) return;
-
-    Swal.fire({
-      toast: true,
-      position: 'top-end',
-      icon: 'success',
-      title: 'Transport deleted successfully',
-      showConfirmButton: false,
-      timer: 1800,
-    });
-    
-    // TODO: Implement actual delete API call
-    // await axiosClient.delete(`/user/destroy/${transport.id}`);
+    if (onDelete) {
+      onDelete(transport);
+    }
   };
 
   return (

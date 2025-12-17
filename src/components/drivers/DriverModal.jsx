@@ -27,23 +27,26 @@ export function DriverModal({ driver, routes = [], onSave, onClose }) {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (
-      !name.trim() ||
-      !email.trim() ||
-      !phone.trim() ||
-      !password.trim() ||
-      !carName.trim() ||
-      !carModel.trim() ||
-      !location.trim() ||
-      !price.trim() ||
-      routeIds.length === 0
-    ) {
-      Swal.fire({
-        icon: "warning",
-        title: "Missing fields",
-        text: "Please fill all required fields before saving.",
-      });
-      return;
+    // For create mode, validate required fields
+    if (!driver) {
+      if (
+        !name.trim() ||
+        !email.trim() ||
+        !phone.trim() ||
+        !password.trim() ||
+        !carName.trim() ||
+        !carModel.trim() ||
+        !location.trim() ||
+        !price.trim() ||
+        routeIds.length === 0
+      ) {
+        Swal.fire({
+          icon: "warning",
+          title: "Missing fields",
+          text: "Please fill all required fields before saving.",
+        });
+        return;
+      }
     }
 
     const payload = {
@@ -115,7 +118,7 @@ export function DriverModal({ driver, routes = [], onSave, onClose }) {
                   htmlFor="driver-name"
                   className="block text-sm font-medium text-gray-700 mb-2"
                 >
-                  Name *
+                  Name {!driver && "*"}
                 </label>
                 <input
                   id="driver-name"
@@ -124,7 +127,7 @@ export function DriverModal({ driver, routes = [], onSave, onClose }) {
                   onChange={(e) => setName(e.target.value)}
                   placeholder="pqlam driver"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
+                  required={!driver}
                 />
               </div>
 
@@ -133,7 +136,7 @@ export function DriverModal({ driver, routes = [], onSave, onClose }) {
                   htmlFor="driver-email"
                   className="block text-sm font-medium text-gray-700 mb-2"
                 >
-                  Email *
+                  Email {!driver && "*"}
                 </label>
                 <input
                   id="driver-email"
@@ -142,7 +145,7 @@ export function DriverModal({ driver, routes = [], onSave, onClose }) {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="pqlam3@gmail.com"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
+                  required={!driver}
                 />
               </div>
             </div>
@@ -154,7 +157,7 @@ export function DriverModal({ driver, routes = [], onSave, onClose }) {
                   htmlFor="driver-phone"
                   className="block text-sm font-medium text-gray-700 mb-2"
                 >
-                  Phone *
+                  Phone {!driver && "*"}
                 </label>
                 <input
                   id="driver-phone"
@@ -163,7 +166,7 @@ export function DriverModal({ driver, routes = [], onSave, onClose }) {
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="3211212323"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
+                  required={!driver}
                 />
               </div>
 
@@ -172,7 +175,7 @@ export function DriverModal({ driver, routes = [], onSave, onClose }) {
                   htmlFor="driver-password"
                   className="block text-sm font-medium text-gray-700 mb-2"
                 >
-                  Password *
+                  Password {!driver && "*"}
                 </label>
                 <input
                   id="driver-password"
@@ -181,7 +184,7 @@ export function DriverModal({ driver, routes = [], onSave, onClose }) {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="password"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
+                  required={!driver}
                 />
               </div>
             </div>
@@ -193,7 +196,7 @@ export function DriverModal({ driver, routes = [], onSave, onClose }) {
                   htmlFor="car-name"
                   className="block text-sm font-medium text-gray-700 mb-2"
                 >
-                  Car Name *
+                  Car Name {!driver && "*"}
                 </label>
                 <input
                   id="car-name"
@@ -202,7 +205,7 @@ export function DriverModal({ driver, routes = [], onSave, onClose }) {
                   onChange={(e) => setCarName(e.target.value)}
                   placeholder="Lexus"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
+                  required={!driver}
                 />
               </div>
 
@@ -211,7 +214,7 @@ export function DriverModal({ driver, routes = [], onSave, onClose }) {
                   htmlFor="car-model"
                   className="block text-sm font-medium text-gray-700 mb-2"
                 >
-                  Car Model *
+                  Car Model {!driver && "*"}
                 </label>
                 <input
                   id="car-model"
@@ -220,7 +223,7 @@ export function DriverModal({ driver, routes = [], onSave, onClose }) {
                   onChange={(e) => setCarModel(e.target.value)}
                   placeholder="12bef"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
+                  required={!driver}
                 />
               </div>
             </div>
@@ -232,7 +235,7 @@ export function DriverModal({ driver, routes = [], onSave, onClose }) {
                   htmlFor="location"
                   className="block text-sm font-medium text-gray-700 mb-2"
                 >
-                  Location *
+                  Location {!driver && "*"}
                 </label>
                 <input
                   id="location"
@@ -241,7 +244,7 @@ export function DriverModal({ driver, routes = [], onSave, onClose }) {
                   onChange={(e) => setLocation(e.target.value)}
                   placeholder="kushtia"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
+                  required={!driver}
                 />
               </div>
 
@@ -250,7 +253,7 @@ export function DriverModal({ driver, routes = [], onSave, onClose }) {
                   htmlFor="price"
                   className="block text-sm font-medium text-gray-700 mb-2"
                 >
-                  Price *
+                  Price {!driver && "*"}
                 </label>
                 <input
                   id="price"
@@ -259,7 +262,7 @@ export function DriverModal({ driver, routes = [], onSave, onClose }) {
                   onChange={(e) => setPrice(e.target.value)}
                   placeholder="120"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
+                  required={!driver}
                 />
               </div>
             </div>
@@ -270,7 +273,7 @@ export function DriverModal({ driver, routes = [], onSave, onClose }) {
                 htmlFor="route-ids"
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
-                Route IDs *
+                Route IDs {!driver && "*"}
               </label>
               <select
                 id="route-ids"
@@ -278,7 +281,7 @@ export function DriverModal({ driver, routes = [], onSave, onClose }) {
                 value={routeIds}
                 onChange={handleRouteChange}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[120px]"
-                required
+                required={!driver}
               >
                 {routes.map((route) => (
                   <option key={route.id} value={String(route.id)}>
@@ -378,15 +381,17 @@ export function DriverModal({ driver, routes = [], onSave, onClose }) {
               type="submit"
               className="px-6 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={
-                !name.trim() ||
-                !email.trim() ||
-                !phone.trim() ||
-                !password.trim() ||
-                !carName.trim() ||
-                !carModel.trim() ||
-                !location.trim() ||
-                !price.trim() ||
-                routeIds.length === 0
+                !driver && (
+                  !name.trim() ||
+                  !email.trim() ||
+                  !phone.trim() ||
+                  !password.trim() ||
+                  !carName.trim() ||
+                  !carModel.trim() ||
+                  !location.trim() ||
+                  !price.trim() ||
+                  routeIds.length === 0
+                )
               }
             >
               {driver ? "Save Changes" : "Add Driver"}
