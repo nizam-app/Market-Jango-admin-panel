@@ -1,8 +1,9 @@
 // src/components/driver/DrivingRouteList.jsx
 import React, { useEffect, useState } from "react";
 import { getRoutes, deleteLocation } from "../../api/routeApi";
+import { Edit3, Trash2 } from "lucide-react";
 
-const DrivingRouteList = ({ reloadKey = 0 }) => {
+const DrivingRouteList = ({ reloadKey = 0, onEdit, onDelete }) => {
   const [routes, setRoutes] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -69,28 +70,54 @@ const DrivingRouteList = ({ reloadKey = 0 }) => {
       ) : (
         <div className="space-y-6">
           {routes.map((route) => (
-            <div key={route.id}>
-              <h3 className="text-lg font-medium mb-2">
-                {route.name} :
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                {route.locations?.map((loc) => (
-                  <div
-                    key={loc.id}
-                    className="flex items-center flex-wrap bg-white
-                      rounded-[100px] px-4 py-2 font-normal"
-                  >
-                    <span className="text-sm">{loc.name}</span>
+            <div key={route.id} className="bg-gray-50 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-medium">
+                  {route.name}
+                </h3>
+                <div className="flex items-center gap-2">
+                  {onEdit && (
                     <button
-                      onClick={() =>
-                        handleRemoveLocation(route.id, loc.id)
-                      }
-                      className="ml-2 cursor-pointer text-2xl h-4 flex items-center"
+                      onClick={() => onEdit(route)}
+                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Edit Route"
                     >
-                      &times;
+                      <Edit3 className="w-4 h-4" />
                     </button>
-                  </div>
-                ))}
+                  )}
+                  {onDelete && (
+                    <button
+                      onClick={() => onDelete(route)}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Delete Route"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {route.locations?.length > 0 ? (
+                  route.locations.map((loc) => (
+                    <div
+                      key={loc.id}
+                      className="flex items-center flex-wrap bg-white
+                        rounded-[100px] px-4 py-2 font-normal"
+                    >
+                      <span className="text-sm">{loc.name}</span>
+                      <button
+                        onClick={() =>
+                          handleRemoveLocation(route.id, loc.id)
+                        }
+                        className="ml-2 cursor-pointer text-2xl h-4 flex items-center"
+                      >
+                        &times;
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-500">No locations added yet.</p>
+                )}
               </div>
             </div>
           ))}

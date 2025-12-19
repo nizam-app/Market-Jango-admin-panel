@@ -6,6 +6,12 @@ export const getRoutes = () => axiosClient.get("/route");
 export const createRoute = (name) =>
   axiosClient.post("/route/create", { name });
 
+export const updateRoute = (id, name) =>
+  axiosClient.post(`/route/update/${id}`, { name });
+
+export const deleteRoute = (id) =>
+  axiosClient.post(`/route/destroy/${id}`);
+
 export const createLocation = (payload) =>
   axiosClient.post("/location/create", payload);
 
