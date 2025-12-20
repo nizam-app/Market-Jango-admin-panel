@@ -4,7 +4,7 @@ import { X, UploadCloud, FileText, MapPin } from "lucide-react";
 import axiosClient from "../../api/axiosClient";
 import { LocationSearchInput } from "./LocationSearchInput";
 
-export function VendorModal({ vendor, onSave, onClose }) {
+export function VendorModal({ vendor, routes = [], onSave, onClose }) {
   const [name, setName] = useState(vendor?.name || "");
   const [email, setEmail] = useState(vendor?.email || "");
   const [phone, setPhone] = useState(vendor?.phone || "");
@@ -22,6 +22,9 @@ export function VendorModal({ vendor, onSave, onClose }) {
   const [longitude, setLongitude] = useState(null);
   const [documentFile, setDocumentFile] = useState(null);
   const [documentName, setDocumentName] = useState("");
+  const [routeIds, setRouteIds] = useState(
+    vendor?.routeIds?.map((id) => String(id)) || []
+  );
 
   // 👉 business type list from backend
   const [businessTypes, setBusinessTypes] = useState([]);
@@ -63,6 +66,16 @@ export function VendorModal({ vendor, onSave, onClose }) {
     setLongitude(locationData.lng);
   };
 
+  const handleRouteChange = (e) => {
+    const clickedValue = e.target.value;
+
+    setRouteIds((prev) =>
+      prev.includes(clickedValue)
+        ? prev.filter((id) => id !== clickedValue)
+        : [...prev, clickedValue]
+    );
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
 
@@ -89,6 +102,7 @@ export function VendorModal({ vendor, onSave, onClose }) {
       longitude,
       country,
       businessType,
+      routeIds, // Add route IDs
       // backend e currently static "password" pathaccho
       password: password.trim(),
     });
@@ -336,6 +350,84 @@ export function VendorModal({ vendor, onSave, onClose }) {
                 </div>
               )}
             </div>
+
+            {/* Route IDs - Multi Select */}
+            {routes.length > 0 && (
+              <div>
+                <label
+                  htmlFor="route-ids"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Assign Routes (Optional)
+                </label>
+                <select
+                  id="route-ids"
+                  multiple
+                  value={routeIds}
+                  onChange={handleRouteChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[120px]"
+                >
+                  {routes.map((route) => {
+                    const priceRange = route.min_price && route.max_price 
+                      ? ` | Price Range: $${route.min_price} - $${route.max_price}`
+                      : route.min_price 
+                      ? ` | Price Range: $${route.min_price}`
+                      : '';
+                    
+                    return (
+                      <option key={route.id} value={String(route.id)}>
+                        {route.name} (ID: {route.id}){priceRange}
+                      </option>
+                    );
+                  })}
+                </select>
+
+                {routeIds.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <p className="w-full text-sm text-gray-600">
+                      Selected Routes:
+                    </p>
+                    {routeIds.map((routeId) => {
+                      const route = routes.find(
+                        (r) => String(r.id) === routeId
+                      );
+                      
+                      const routeName = route?.name || `Route ${routeId}`;
+                      const priceRange = route?.min_price && route?.max_price 
+                        ? ` ($${route.min_price} - $${route.max_price})`
+                        : route?.min_price 
+                        ? ` ($${route.min_price})`
+                        : '';
+                      
+                      return (
+                        <div
+                          key={routeId}
+                          className="inline-flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-700 rounded-lg"
+                        >
+                          <span className="text-sm">
+                            {routeName}
+                            {priceRange && (
+                              <span className="font-semibold ml-1">{priceRange}</span>
+                            )}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setRouteIds((prev) =>
+                                prev.filter((id) => id !== routeId)
+                              )
+                            }
+                            className="text-blue-700 hover:text-blue-900"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Footer buttons */}

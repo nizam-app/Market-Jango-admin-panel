@@ -17,3 +17,19 @@ export const createLocation = (payload) =>
 
 export const deleteLocation = (id) =>
   axiosClient.delete(`/location/destroy/${id}`);
+
+// Route Locations (Delivery Charges)
+export const getRouteLocations = () =>
+  axiosClient.get("/route-locations");
+
+export const getRouteLocationById = (id) =>
+  axiosClient.get(`/route-locations/${id}`);
+
+export const createRouteLocation = (payload) =>
+  axiosClient.post("/route-locations", payload);
+
+export const updateRouteLocation = (id, payload) =>
+  axiosClient.put(`/route-locations/${id}`, payload);
+
+export const deleteRouteLocation = (id) =>
+  axiosClient.delete(`/route-locations/${id}`);

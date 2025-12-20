@@ -283,11 +283,19 @@ export function DriverModal({ driver, routes = [], onSave, onClose }) {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[120px]"
                 required={!driver}
               >
-                {routes.map((route) => (
-                  <option key={route.id} value={String(route.id)}>
-                    {route.name} (ID: {route.id})
-                  </option>
-                ))}
+                {routes.map((route) => {
+                  const priceRange = route.min_price && route.max_price 
+                    ? ` | Price Range: $${route.min_price} - $${route.max_price}`
+                    : route.min_price 
+                    ? ` | Price Range: $${route.min_price}`
+                    : '';
+                  
+                  return (
+                    <option key={route.id} value={String(route.id)}>
+                      {route.name} (ID: {route.id}){priceRange}
+                    </option>
+                  );
+                })}
               </select>
 
               {routeIds.length > 0 && (
@@ -299,12 +307,25 @@ export function DriverModal({ driver, routes = [], onSave, onClose }) {
                     const route = routes.find(
                       (r) => String(r.id) === routeId
                     );
+                    
+                    const routeName = route?.name || `Route ${routeId}`;
+                    const priceRange = route?.min_price && route?.max_price 
+                      ? ` ($${route.min_price} - $${route.max_price})`
+                      : route?.min_price 
+                      ? ` ($${route.min_price})`
+                      : '';
+                    
                     return (
                       <div
                         key={routeId}
                         className="inline-flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-700 rounded-lg"
                       >
-                        <span>{route?.name || `Route ${routeId}`}</span>
+                        <span className="text-sm">
+                          {routeName}
+                          {priceRange && (
+                            <span className="font-semibold ml-1">{priceRange}</span>
+                          )}
+                        </span>
                         <button
                           type="button"
                           onClick={() =>

@@ -92,7 +92,9 @@ const DriverManagement = () => {
     async function loadRoutes() {
       try {
         const res = await getRoutes();
-        setRoutes(res.data?.data || []);
+        // Handle new paginated response structure: data.data.data
+        const routesData = res.data?.data?.data || res.data?.data || [];
+        setRoutes(routesData);
       } catch (err) {
         console.error("Failed to load routes for driver modal", err);
       }

@@ -23,7 +23,8 @@ const AddDrivingRoute = ({ onRoutesReload }) => {
   const loadRoutes = async () => {
     try {
       const res = await getRoutes();
-      const data = res.data?.data || [];
+      // Handle new paginated response structure: data.data.data
+      const data = res.data?.data?.data || res.data?.data || [];
       setRoutes(data);
 
       if (!selectedRouteId && data.length > 0) {

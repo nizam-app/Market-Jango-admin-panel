@@ -7,6 +7,7 @@ import 'sweetalert2/dist/sweetalert2.min.css';
 import { VendorModal } from '../components/vendor/VendorModal';
 import { createVendor } from "../api/vendorAPI";
 import { updateUserInfo } from "../api/userApi";
+import { getRoutes } from "../api/routeApi";
 import { CheckCircle2, XCircle, Clock, MoreVertical, Edit3, Trash2 } from "lucide-react";
 
 const BRAND = '#FF8C00';
@@ -91,6 +92,7 @@ const Vendor = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
+  const [routes, setRoutes] = useState([]);
 
 
   // modal state
@@ -108,6 +110,21 @@ const Vendor = () => {
 
 
 
+
+  // Load routes on mount
+  useEffect(() => {
+    async function loadRoutes() {
+      try {
+        const res = await getRoutes();
+        // Handle new paginated response structure: data.data.data
+        const routesData = res.data?.data?.data || res.data?.data || [];
+        setRoutes(routesData);
+      } catch (err) {
+        console.error("Failed to load routes for vendor modal", err);
+      }
+    }
+    loadRoutes();
+  }, []);
 
   useEffect(() => setPage(1), [filter]);
 
@@ -760,6 +777,7 @@ const Vendor = () => {
 {isVendorModalOpen && (
   <VendorModal
     vendor={editingVendor}
+    routes={routes}
     onSave={async (formValues) => {
       // 1) Loader swal – এখানে কোনো await থাকবে না
       const isEdit = !!editingVendor;
@@ -792,6 +810,13 @@ const Vendor = () => {
         if (formValues.email) formData.append("email", formValues.email);
         if (formValues.password) formData.append("password", formValues.password);
         if (formValues.phone) formData.append("phone", formValues.phone);
+
+        // Add route IDs if available
+        if (formValues.routeIds && formValues.routeIds.length > 0) {
+          formValues.routeIds.forEach((id) => {
+            formData.append("route_ids[]", String(id));
+          });
+        }
 
         for (const [key, value] of formData.entries()) {
           console.log("create-vendor formData ->", key, value);

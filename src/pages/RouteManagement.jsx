@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import Swal from 'sweetalert2';
 import AddDrivingRoute from '../components/drivers/AddDrivingRoute';
 import DrivingRouteList from '../components/drivers/DrivingRouteList';
+import DeliveryChargeManager from '../components/drivers/DeliveryChargeManager';
 import { updateRoute, deleteRoute } from '../api/routeApi';
 
 const RouteManagement = () => {
@@ -118,13 +119,13 @@ const RouteManagement = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-6 py-4">
       <div>
         <h1 className="text-2xl font-semibold text-gray-800 mb-2">
           Route Management
         </h1>
         <p className="text-sm text-gray-600">
-          Manage driving routes and locations for your delivery system
+          Manage driving routes, locations, and delivery charges for your delivery system
         </p>
       </div>
 
@@ -134,6 +135,11 @@ const RouteManagement = () => {
         onEdit={handleEditRoute}
         onDelete={handleDeleteRoute}
       />
+      
+      {/* Delivery Charge Management */}
+      <div className="border-t border-gray-200 pt-6">
+        <DeliveryChargeManager />
+      </div>
     </div>
   );
 };

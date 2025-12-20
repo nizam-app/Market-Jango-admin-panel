@@ -11,7 +11,9 @@ const DrivingRouteList = ({ reloadKey = 0, onEdit, onDelete }) => {
     try {
       setLoading(true);
       const res = await getRoutes();
-      setRoutes(res.data?.data || []);
+      // Handle new paginated response structure: data.data.data
+      const routesData = res.data?.data?.data || res.data?.data || [];
+      setRoutes(routesData);
     } catch (err) {
       console.error("Failed to load routes", err);
     } finally {
