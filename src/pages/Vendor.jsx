@@ -1,5 +1,5 @@
 // src/pages/Vendor.jsx
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import axiosClient from '../api/axiosClient'; // keep axiosClient untouched
 
 import Swal from 'sweetalert2';
@@ -8,7 +8,7 @@ import { VendorModal } from '../components/vendor/VendorModal';
 import { createVendor } from "../api/vendorAPI";
 import { updateUserInfo } from "../api/userApi";
 import { getRoutes } from "../api/routeApi";
-import { CheckCircle2, XCircle, Clock, MoreVertical, Edit3, Trash2 } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, MoreVertical, Edit3, Trash2, Search, X } from "lucide-react";
 
 const BRAND = '#FF8C00';
 
@@ -93,6 +93,9 @@ const Vendor = () => {
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
   const [routes, setRoutes] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const debounceTimerRef = useRef(null);
 
 
   // modal state
@@ -129,9 +132,33 @@ const Vendor = () => {
   useEffect(() => setPage(1), [filter]);
 
   useEffect(() => {
-    fetchVendors();
+    fetchVendors(searchQuery);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter, page]);
+
+  // Auto-search with debounce when user types
+  useEffect(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    if (searchQuery.trim()) {
+      setIsSearching(true);
+    } else {
+      setIsSearching(false);
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      fetchVendors(searchQuery);
+    }, 500);
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
 
   // Outside click detection for menu
   useEffect(() => {
@@ -149,6 +176,20 @@ const Vendor = () => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [openMenuId]);
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    setIsSearching(searchQuery.trim() !== "");
+    fetchVendors(searchQuery);
+  };
+
+  const handleClearSearch = () => {
+    setSearchQuery("");
+    setIsSearching(false);
+  };
 
   // -------- Helper: update vendor status (PUT) ----------
   const updateVendorStatus = async (vendorProfileId, status, note) => {
@@ -169,7 +210,7 @@ const Vendor = () => {
 
 
   // -------- Fetch vendors ----------
-  async function fetchVendors() {
+  async function fetchVendors(search = "") {
     setLoading(true);
     setError(null);
     try {
@@ -200,11 +241,27 @@ const Vendor = () => {
           raw: v,
         }));
 
-        setVendors(mapped);
+        let filteredVendors = mapped;
+        if (search.trim()) {
+          const searchLower = search.toLowerCase();
+          filteredVendors = mapped.filter((vendor) => {
+            const name = (vendor.name || "").toLowerCase();
+            const email = (vendor.email || "").toLowerCase();
+            const businessName = (vendor.raw?.vendor?.business_name || "").toLowerCase();
+            
+            return (
+              name.includes(searchLower) ||
+              email.includes(searchLower) ||
+              businessName.includes(searchLower)
+            );
+          });
+        }
+
+        setVendors(filteredVendors);
         setMeta({
           current_page: payload.current_page || 1,
           last_page: payload.last_page || 1,
-          total: payload.total || mapped.length,
+          total: search.trim() ? filteredVendors.length : (payload.total || mapped.length),
           per_page: payload.per_page || PAGE_SIZE,
         });
       } else {
@@ -284,7 +341,7 @@ const Vendor = () => {
         timer: 1800,
       });
 
-      fetchVendors();
+      fetchVendors(searchQuery);
     } catch (err) {
       Swal.close();
       console.error(err);
@@ -420,7 +477,7 @@ const Vendor = () => {
         timer: 1800,
       });
 
-      fetchVendors();
+      fetchVendors(searchQuery);
     } catch (err) {
       Swal.close();
       console.error('Delete vendor failed', err);
@@ -464,6 +521,50 @@ const Vendor = () => {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Search Bar */}
+      <div style={{ background: '#fff', borderRadius: 12, padding: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 18 }}>
+        <form onSubmit={handleSearch} style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <div style={{ flex: 1, position: 'relative' }}>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Type to search vendors by name, email, or business name..."
+              style={{ width: '100%', padding: '10px 40px 10px 40px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14 }}
+            />
+            <Search style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', width: 20, height: 20, color: '#9ca3af' }} />
+            
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={handleClearSearch}
+                style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}
+              >
+                <X style={{ width: 20, height: 20 }} />
+              </button>
+            )}
+          </div>
+        </form>
+
+        {isSearching && (
+          <div style={{ marginTop: 12, fontSize: 13, color: '#666' }}>
+            {loading ? (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <svg style={{ animation: 'spin 1s linear infinite', height: 16, width: 16, color: '#3b82f6' }} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle style={{ opacity: 0.25 }} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path style={{ opacity: 0.75 }} fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Searching...
+              </span>
+            ) : (
+              <span>
+                Found <strong style={{ color: '#111' }}>{meta.total}</strong> result{meta.total !== 1 ? 's' : ''} for "<strong style={{ color: '#3b82f6' }}>{searchQuery}</strong>"
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       <div style={styles.card}>
@@ -843,7 +944,7 @@ const Vendor = () => {
 
         setIsVendorModalOpen(false);
         setEditingVendor(null);
-        fetchVendors(); // list refresh
+        fetchVendors(searchQuery); // list refresh
       } catch (error) {
         console.error("createVendor error raw ===>", error);
   console.log("create-vendor response data ===>", error?.response?.data);

@@ -1,5 +1,5 @@
 // src/pages/DriverManagement.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Plus,
   MoreVertical,
@@ -10,6 +10,8 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
+  Search,
+  X,
 } from "lucide-react";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
@@ -86,6 +88,9 @@ const DriverManagement = () => {
   const [routes, setRoutes] = useState([]);
   const [isDriverModalOpen, setIsDriverModalOpen] = useState(false);
   const [editingDriver, setEditingDriver] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const debounceTimerRef = useRef(null);
 
   // ------------ ROUTES -------------
   useEffect(() => {
@@ -130,13 +135,36 @@ const DriverManagement = () => {
   };
 
   // ------------ LIST LOAD -------------
-  const loadDriversForStatus = async (status, page = 1) => {
+  const loadDriversForStatus = async (status, page = 1, search = "") => {
     try {
       setLoadingDrivers(true);
       const res = await getDriversByStatus(status, page);
       const { rows, meta } = mapPagedDriversResponse(res);
-      setDrivers(rows);
-      setPageMeta(meta);
+      
+      // Apply client-side filtering if search query exists
+      let filteredDrivers = rows;
+      if (search.trim()) {
+        const searchLower = search.toLowerCase();
+        filteredDrivers = rows.filter((driver) => {
+          const name = (driver.name || "").toLowerCase();
+          const email = (driver.email || "").toLowerCase();
+          const vehicleType = (driver.vehicleType || "").toLowerCase();
+          const vehicleNumber = (driver.vehicleNumber || "").toLowerCase();
+          
+          return (
+            name.includes(searchLower) ||
+            email.includes(searchLower) ||
+            vehicleType.includes(searchLower) ||
+            vehicleNumber.includes(searchLower)
+          );
+        });
+      }
+      
+      setDrivers(filteredDrivers);
+      setPageMeta({
+        ...meta,
+        total: search.trim() ? filteredDrivers.length : meta.total,
+      });
     } catch (err) {
       console.error("Failed to fetch drivers", err);
       Swal.fire({
@@ -158,8 +186,33 @@ const DriverManagement = () => {
 
   // tab change -> reset to page 1
   useEffect(() => {
-    loadDriversForStatus(activeFilter, 1);
+    loadDriversForStatus(activeFilter, 1, searchQuery);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeFilter]);
+
+  // Auto-search with debounce when user types
+  useEffect(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    if (searchQuery.trim()) {
+      setIsSearching(true);
+    } else {
+      setIsSearching(false);
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      loadDriversForStatus(activeFilter, 1, searchQuery);
+    }, 500);
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
 
   // outside click -> close menu
   useEffect(() => {
@@ -178,7 +231,21 @@ const DriverManagement = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [openMenuId]);
 
-  const getStatusBadge = (statusRaw) => {
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    setIsSearching(searchQuery.trim() !== "");
+    loadDriversForStatus(activeFilter, 1, searchQuery);
+  };
+
+  const handleClearSearch = () => {
+    setSearchQuery("");
+    setIsSearching(false);
+  };
+
+  const _getStatusBadge = (statusRaw) => {
     const status = (statusRaw || "").toLowerCase();
     let classes =
       "inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold border";
@@ -287,7 +354,7 @@ const DriverManagement = () => {
 
         // list + counts refresh
         await Promise.all([
-          loadDriversForStatus(activeFilter, pageMeta.current_page),
+          loadDriversForStatus(activeFilter, pageMeta.current_page, searchQuery),
           loadTabCounts(),
         ]);
 
@@ -346,7 +413,7 @@ const DriverManagement = () => {
 
       // Refresh the list
       await Promise.all([
-        loadDriversForStatus(activeFilter, pageMeta.current_page),
+        loadDriversForStatus(activeFilter, pageMeta.current_page, searchQuery),
         loadTabCounts(),
       ]);
     } catch (err) {
@@ -425,7 +492,7 @@ const DriverManagement = () => {
 
       await Promise.all([
         loadTabCounts(),
-        loadDriversForStatus(activeFilter, pageMeta.current_page),
+        loadDriversForStatus(activeFilter, pageMeta.current_page, searchQuery),
       ]);
 
       setIsDriverModalOpen(false);
@@ -461,7 +528,7 @@ const DriverManagement = () => {
       direction === "next" ? current_page + 1 : current_page - 1;
 
     if (nextPage < 1 || nextPage > last_page) return;
-    loadDriversForStatus(activeFilter, nextPage);
+    loadDriversForStatus(activeFilter, nextPage, searchQuery);
   };
 
   const fromIndex =
@@ -492,6 +559,50 @@ const DriverManagement = () => {
               </span>
             </button>
           </div>
+        </div>
+
+        {/* Search Bar */}
+        <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+          <form onSubmit={handleSearch} className="flex gap-3 items-center">
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Type to search drivers by name, email, vehicle..."
+                className="w-full px-4 py-2.5 pl-10 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={handleClearSearch}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+          </form>
+
+          {isSearching && (
+            <div className="mt-3 text-sm text-gray-600">
+              {loadingDrivers ? (
+                <span className="flex items-center gap-2">
+                  <svg className="animate-spin h-4 w-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Searching...
+                </span>
+              ) : (
+                <span>
+                  Found <strong className="text-gray-900">{pageMeta.total}</strong> result{pageMeta.total !== 1 ? 's' : ''} for "<strong className="text-blue-600">{searchQuery}</strong>"
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Filter + Table */}

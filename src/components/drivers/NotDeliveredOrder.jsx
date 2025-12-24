@@ -1,6 +1,7 @@
 // src/components/drivers/NotDeliveredOrder.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router";
+import { Search, X } from "lucide-react";
 
 import { getNotDeliveredOrders } from "../../api/orderApi";
 import NotDeliveredOrderModal from "./NotDeliveredOrderModal";
@@ -21,8 +22,11 @@ const NotDeliveredOrder = () => {
   });
 
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const debounceTimerRef = useRef(null);
 
-  const loadOrders = async (pageNumber = 1) => {
+  const loadOrders = async (pageNumber = 1, search = "") => {
     try {
       setLoading(true);
       const res = await getNotDeliveredOrders(pageNumber);
@@ -31,13 +35,35 @@ const NotDeliveredOrder = () => {
       const paginationData = res.data?.data;
       const list = paginationData?.data ?? [];
 
-      setOrders(list);
+      // Apply client-side filtering if search query exists
+      let filteredOrders = list;
+      if (search.trim()) {
+        const searchLower = search.toLowerCase();
+        filteredOrders = list.filter((order) => {
+          const customerName = (order.cus_name || "").toLowerCase();
+          const pickupLocation = (
+            order.pickup_address ||
+            order.ship_address ||
+            order.current_address ||
+            ""
+          ).toLowerCase();
+          const orderId = String(order.id || "").toLowerCase();
+          
+          return (
+            customerName.includes(searchLower) ||
+            pickupLocation.includes(searchLower) ||
+            orderId.includes(searchLower)
+          );
+        });
+      }
+
+      setOrders(filteredOrders);
       setPagination({
         current_page: paginationData?.current_page ?? pageNumber,
         last_page: paginationData?.last_page ?? 1,
-        total: paginationData?.total ?? list.length,
+        total: search.trim() ? filteredOrders.length : (paginationData?.total ?? list.length),
         from: paginationData?.from ?? 0,
-        to: paginationData?.to ?? list.length,
+        to: search.trim() ? filteredOrders.length : (paginationData?.to ?? list.length),
       });
     } catch (error) {
       console.error("Failed to load not delivered orders", error);
@@ -47,8 +73,33 @@ const NotDeliveredOrder = () => {
   };
 
   useEffect(() => {
-    loadOrders(page);
+    loadOrders(page, searchQuery);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
+
+  // Auto-search with debounce when user types
+  useEffect(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    if (searchQuery.trim()) {
+      setIsSearching(true);
+    } else {
+      setIsSearching(false);
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      loadOrders(page, searchQuery);
+    }, 500);
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
 
   const handlePrevPage = () => {
     if (page > 1) setPage((prev) => prev - 1);
@@ -56,6 +107,20 @@ const NotDeliveredOrder = () => {
 
   const handleNextPage = () => {
     if (page < pagination.last_page) setPage((prev) => prev + 1);
+  };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    setIsSearching(searchQuery.trim() !== "");
+    loadOrders(page, searchQuery);
+  };
+
+  const handleClearSearch = () => {
+    setSearchQuery("");
+    setIsSearching(false);
   };
 
   const openDetails = (order) => {
@@ -87,6 +152,50 @@ const NotDeliveredOrder = () => {
         <h2 className="text-[26px] font-semibold md:mb-0">
           Not delivered order
         </h2>
+      </div>
+
+      {/* Search Bar */}
+      <div className="mb-4 bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+        <form onSubmit={handleSearch} className="flex gap-3 items-center">
+          <div className="flex-1 relative">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Type to search by customer name, location, or order ID..."
+              className="w-full px-4 py-2.5 pl-10 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+            />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={handleClearSearch}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
+          </div>
+        </form>
+
+        {isSearching && (
+          <div className="mt-3 text-sm text-gray-600">
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <svg className="animate-spin h-4 w-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Searching...
+              </span>
+            ) : (
+              <span>
+                Found <strong className="text-gray-900">{pagination.total}</strong> result{pagination.total !== 1 ? 's' : ''} for "<strong className="text-blue-600">{searchQuery}</strong>"
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="overflow-x-auto rounded-lg">
