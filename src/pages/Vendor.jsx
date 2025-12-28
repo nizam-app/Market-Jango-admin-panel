@@ -97,6 +97,8 @@ const Vendor = () => {
   const [isSearching, setIsSearching] = useState(false);
   const debounceTimerRef = useRef(null);
 
+  console.log("lala", vendors )
+
 
   // modal state
   const [isModalOpen, setIsModalOpen] = useState(false);

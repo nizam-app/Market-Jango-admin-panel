@@ -48,11 +48,13 @@ const NotDeliveredOrder = () => {
             ""
           ).toLowerCase();
           const orderId = String(order.id || "").toLowerCase();
+          const driverName = (order.driver?.user?.name || "").toLowerCase();
           
           return (
             customerName.includes(searchLower) ||
             pickupLocation.includes(searchLower) ||
-            orderId.includes(searchLower)
+            orderId.includes(searchLower) ||
+            driverName.includes(searchLower)
           );
         });
       }
@@ -162,7 +164,7 @@ const NotDeliveredOrder = () => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Type to search by customer name, location, or order ID..."
+              placeholder="Type to search by customer name, driver name, location, or order ID..."
               className="w-full px-4 py-2.5 pl-10 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
             />
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -209,6 +211,9 @@ const NotDeliveredOrder = () => {
                 Customer name
               </th>
               <th className="px-2 py-3 text-left font-normal uppercase tracking-wider">
+                Driver name
+              </th>
+              <th className="px-2 py-3 text-left font-normal uppercase tracking-wider">
                 Pickup location
               </th>
               <th className="px-2 py-3 text-left font-normal uppercase tracking-wider">
@@ -224,7 +229,7 @@ const NotDeliveredOrder = () => {
             {loading ? (
               <tr>
                 <td
-                  colSpan={5}
+                  colSpan={6}
                   className="px-3 py-6 text-center text-sm text-gray-500"
                 >
                   Loading not delivered orders...
@@ -233,7 +238,7 @@ const NotDeliveredOrder = () => {
             ) : orders.length === 0 ? (
               <tr>
                 <td
-                  colSpan={5}
+                  colSpan={6}
                   className="px-3 py-6 text-center text-sm text-gray-500"
                 >
                   No not delivered order found.
@@ -251,6 +256,10 @@ const NotDeliveredOrder = () => {
 
                   <td className="px-3 py-4 whitespace-nowrap text-sm">
                     {order.cus_name || "-"}
+                  </td>
+
+                  <td className="px-3 py-4 whitespace-nowrap text-sm">
+                    {order.driver?.user?.name || "-"}
                   </td>
 
                   <td className="px-3 py-4 whitespace-nowrap text-sm">
