@@ -810,6 +810,68 @@ const Vendor = () => {
                   </div>
                 </div>
 
+                {/* Click section - conditionally rendered */}
+                {(modalVendorDetail?.vendor?.click != null || modalVendorRaw?.vendor?.click != null) && (
+                  <div style={{ marginTop: 12 }}>
+                    <div style={{ fontWeight: 800, marginBottom: 8 }}>Click Count</div>
+                    <div style={{ padding: 12, background: '#f3f4f6', borderRadius: 8 }}>
+                      <div style={{ fontSize: 24, fontWeight: 800, color: BRAND }}>
+                        {modalVendorDetail?.vendor?.click ?? modalVendorRaw?.vendor?.click ?? 0}
+                      </div>
+                      <div style={{ fontSize: 13, color: '#666', marginTop: 4 }}>
+                        Total clicks on vendor profile
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Reviews section */}
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ fontWeight: 800, marginBottom: 8 }}>
+                    Reviews ({modalVendorDetail?.vendor?.reviews?.length ?? modalVendorRaw?.vendor?.reviews?.length ?? 0})
+                  </div>
+                  {(modalVendorDetail?.vendor?.reviews?.length > 0 || modalVendorRaw?.vendor?.reviews?.length > 0) ? (
+                    <div style={{ maxHeight: 300, overflowY: 'auto', border: '1px solid #e5e7eb', borderRadius: 8, padding: 12 }}>
+                      {(modalVendorDetail?.vendor?.reviews ?? modalVendorRaw?.vendor?.reviews ?? []).map((review, idx) => (
+                        <div 
+                          key={review.id ?? idx} 
+                          style={{ 
+                            padding: 12, 
+                            background: '#fafafa', 
+                            borderRadius: 8, 
+                            marginBottom: idx < ((modalVendorDetail?.vendor?.reviews ?? modalVendorRaw?.vendor?.reviews ?? []).length - 1) ? 10 : 0,
+                            border: '1px solid #f0f0f3'
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'between', alignItems: 'start', marginBottom: 6 }}>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 14, color: '#111', fontWeight: 600 }}>
+                                {review.review || 'No review text'}
+                              </div>
+                            </div>
+                            {review.rating != null && review.rating > 0 && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 8 }}>
+                                <span style={{ color: '#f59e0b', fontSize: 16 }}>★</span>
+                                <span style={{ fontSize: 13, fontWeight: 700, color: '#666' }}>
+                                  {review.rating}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
+                            Review ID: {review.id}
+                            {review.created_at && ` • ${new Date(review.created_at).toLocaleDateString()}`}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ padding: 12, color: '#999', textAlign: 'center', background: '#fafafa', borderRadius: 8, border: '1px solid #f0f0f3' }}>
+                      No reviews available for this vendor.
+                    </div>
+                  )}
+                </div>
+
                 <div style={{ marginTop: 12 }}>
                   <div style={{ fontWeight: 800, marginBottom: 8 }}>Products</div>
 

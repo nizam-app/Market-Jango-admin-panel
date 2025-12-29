@@ -37,11 +37,15 @@ const TrackOrderSection = () => {
       const name = (o.cus_name || "").toLowerCase();
       const pickup = (o.pickup_address || "").toLowerCase();
       const dest = (o.ship_address || "").toLowerCase();
+      const vendorName = (o.vendor?.user?.name || "").toLowerCase();
+      const vendorBusinessName = (o.vendor?.business_name || "").toLowerCase();
       return (
         id.includes(q) ||
         name.includes(q) ||
         pickup.includes(q) ||
-        dest.includes(q)
+        dest.includes(q) ||
+        vendorName.includes(q) ||
+        vendorBusinessName.includes(q)
       );
     });
   };
@@ -124,7 +128,7 @@ const TrackOrderSection = () => {
           <div className="relative mb-6">
             <input
               type="text"
-              placeholder="Search by order / customer / address"
+              placeholder="Search by order / customer / vendor / address"
               className="w-full py-4 pl-12 bg-[#FFFFFF] rounded-[40px] 
               focus:outline-none  text-sm placeholder-[#3C3C3C]"
               value={searchTerm}
@@ -347,6 +351,56 @@ const TrackOrderSection = () => {
                         {selectedOrder.tran_id || `#${selectedOrder.id}`}
                       </p>
                     </div>
+
+                    {/* Vendor Information */}
+                    {selectedOrder.vendor && (
+                      <div className="bg-[#F0F7FF] rounded-[10px] p-4 border border-[#B3D9FF]">
+                        <span className="text-sm text-[#202020] font-semibold">
+                          Vendor Information
+                        </span>
+                        <div className="mt-2 space-y-1">
+                          <p className="font-normal text-xs text-[#000000]">
+                            <span className="font-medium">Business:</span> {selectedOrder.vendor.business_name || "-"}
+                          </p>
+                          <p className="font-normal text-xs text-[#000000]">
+                            <span className="font-medium">Name:</span> {selectedOrder.vendor.user?.name || "-"}
+                          </p>
+                          <p className="font-normal text-xs text-[#000000]">
+                            <span className="font-medium">Type:</span> {selectedOrder.vendor.business_type || "-"}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Delivery Notice */}
+                    {selectedOrder.note && (
+                      <div className="bg-[#F0FFF4] rounded-[10px] p-4 border border-[#9AE6B4]">
+                        <div className="flex items-start gap-2">
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5 text-[#38A169] flex-shrink-0 mt-0.5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                          </svg>
+                          <div className="flex-1">
+                            <span className="text-sm text-[#22543D] font-semibold block">
+                              Delivery Notice
+                            </span>
+                            <p className="font-normal text-xs text-[#22543D] mt-1">
+                              {selectedOrder.note}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Timeline steps */}
                     <div>
