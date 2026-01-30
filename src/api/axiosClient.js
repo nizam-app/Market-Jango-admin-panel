@@ -2,7 +2,8 @@
 import axios from "axios";
 
 const axiosClient = axios.create({
-  baseURL: "https://api-market-jango.r2ait.in/laravel_api/public/api",
+  // baseURL: "https://api-market-jango.r2ait.in/laravel_api/public/api",
+  baseURL: "http://103.208.183.250:8000/api",
 });
 
 // ---- Request interceptor: token send ----

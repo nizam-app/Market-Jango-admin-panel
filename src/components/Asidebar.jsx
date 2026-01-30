@@ -80,6 +80,27 @@ const Asidebar = () => {
                 viewBox: "0 0 23 23",
                 path : '/setting'
             },
+            {
+                name : 'Subscription Plans',
+                navTitle : 'Subscription Plans',
+                icon : "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z",
+                viewBox: "0 0 24 24",
+                path : '/subscription-plans'
+            },
+            {
+                name : 'Rankings',
+                navTitle : 'Rankings',
+                icon : "M7.5 21H2V9h5.5v12zm7.25-18h-5.5v18h5.5V3zM22 11h-5.5v10H22V11z",
+                viewBox: "0 0 24 24",
+                path : '/rankings'
+            },
+            {
+                name : 'Delivery Charges',
+                navTitle : 'Delivery Charges',
+                icon : "M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z",
+                viewBox: "0 0 24 24",
+                path : '/delivery-charges'
+            },
 
     ]
     
