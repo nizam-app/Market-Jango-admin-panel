@@ -69,6 +69,11 @@ export const getDeliveryDashboard = () => {
   return axiosClient.get("/delivery-charge/dashboard");
 };
 
+// Zones (for zone route dropdowns). Paginated; use per_page to get all for dropdowns.
+export const getZones = (perPage = 100) => {
+  return axiosClient.get("/zones", { params: { per_page: perPage } });
+};
+
 // Zone Routes
 export const getZoneRoutes = () => {
   return axiosClient.get("/delivery-charge/zone-routes");

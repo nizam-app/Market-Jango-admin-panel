@@ -4,6 +4,7 @@ import Swal from 'sweetalert2';
 import { Plus, Edit3, Trash2, X, CheckCircle2, XCircle, Package, MapPin, Weight } from 'lucide-react';
 import {
   getDeliveryDashboard,
+  getZones,
   getZoneRoutes,
   createZoneRoute,
   updateZoneRoute,
@@ -14,6 +15,7 @@ import {
   deleteWeightCharge,
 } from '../api/adminApi';
 import axiosClient from '../api/axiosClient';
+import { Link } from 'react-router';
 
 const BRAND = '#FF8C00';
 
@@ -24,6 +26,8 @@ const DeliveryCharges = () => {
   const [zoneRoutes, setZoneRoutes] = useState([]);
   const [weightCharges, setWeightCharges] = useState([]);
   const [zones, setZones] = useState([]);
+  const [zonesLoading, setZonesLoading] = useState(false);
+  const [zonesError, setZonesError] = useState(null);
   const [vendors, setVendors] = useState([]);
 
   // Modal states
@@ -125,27 +129,26 @@ const DeliveryCharges = () => {
   };
 
   const fetchZones = async () => {
+    setZonesLoading(true);
+    setZonesError(null);
     try {
-      // Try to get zones from zone-routes response or a dedicated endpoint
-      const res = await getZoneRoutes();
-      const routes = res.data?.data || res.data || [];
-      
-      // Extract unique zones from routes
-      const zoneSet = new Set();
-      routes.forEach((route) => {
-        if (route.from_zone_id) zoneSet.add(route.from_zone_id);
-        if (route.to_zone_id) zoneSet.add(route.to_zone_id);
-      });
-      
-      // If zones have names, we'd need a zones API
-      // For now, create zone objects from IDs
-      const zonesList = Array.from(zoneSet).map((id) => ({
-        id,
-        name: `Zone ${id}`, // Placeholder - should come from API
-      }));
-      setZones(zonesList);
+      const res = await getZones(100);
+      // Paginated response: zones array is in response.data.data
+      const data = res.data?.data;
+      const zonesList = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+      setZones(zonesList.map((zone) => ({ id: zone.id, name: zone.name || `Zone ${zone.id}` })));
     } catch (err) {
       console.error('Failed to fetch zones', err);
+      setZonesError(err?.response?.data?.message || 'Failed to load zones');
+      setZones([]);
+      Swal.fire({
+        icon: 'error',
+        title: 'Zones failed to load',
+        text: err?.response?.data?.message || 'Could not load zones for dropdowns.',
+        confirmButtonColor: BRAND,
+      });
+    } finally {
+      setZonesLoading(false);
     }
   };
 
@@ -420,7 +423,8 @@ const DeliveryCharges = () => {
   };
 
   const getZoneName = (zoneId) => {
-    const zone = zones.find((z) => z.id === zoneId);
+    if (zoneId == null) return '—';
+    const zone = zones.find((z) => z.id === zoneId || z.id === Number(zoneId));
     return zone ? zone.name : `Zone ${zoneId}`;
   };
 
@@ -663,6 +667,27 @@ const DeliveryCharges = () => {
             </div>
             <form onSubmit={handleSubmitZoneRoute} className="flex-1 overflow-y-auto">
               <div className="px-6 py-6 space-y-5">
+                {/* Zones loading / error / empty message */}
+                {zonesLoading && (
+                  <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+                    Loading zones…
+                  </div>
+                )}
+                {zonesError && !zonesLoading && (
+                  <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-800">
+                    {zonesError}
+                  </div>
+                )}
+                {!zonesLoading && !zonesError && zones.length === 0 && (
+                  <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+                    No zones found. Please create zones first in{' '}
+                    <Link to="/route-management" className="font-semibold text-amber-900 underline hover:text-amber-700">
+                      Route Mgmt
+                    </Link>{' '}
+                    and then add zone routes here.
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -671,10 +696,11 @@ const DeliveryCharges = () => {
                     <select
                       value={zoneRouteForm.from_zone_id}
                       onChange={(e) => setZoneRouteForm({ ...zoneRouteForm, from_zone_id: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                       required
+                      disabled={zonesLoading || !!zonesError}
                     >
-                      <option value="">Select Zone</option>
+                      <option value="">{zonesLoading ? 'Loading…' : 'Select Zone'}</option>
                       {zones.map((zone) => (
                         <option key={zone.id} value={zone.id}>
                           {zone.name}
@@ -689,10 +715,11 @@ const DeliveryCharges = () => {
                     <select
                       value={zoneRouteForm.to_zone_id}
                       onChange={(e) => setZoneRouteForm({ ...zoneRouteForm, to_zone_id: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                       required
+                      disabled={zonesLoading || !!zonesError}
                     >
-                      <option value="">Select Zone</option>
+                      <option value="">{zonesLoading ? 'Loading…' : 'Select Zone'}</option>
                       {zones.map((zone) => (
                         <option key={zone.id} value={zone.id}>
                           {zone.name}

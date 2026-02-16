@@ -2,8 +2,8 @@
 import axios from "axios";
 
 const axiosClient = axios.create({
-  baseURL: "https://api-market-jango.r2ait.in/public/api",
-  // baseURL: "http://103.208.183.250:8000/api",
+  // baseURL: "https://api-market-jango.r2ait.in/public/api",
+  baseURL: "http://103.208.183.250:9000/api",
 });
 
 // ---- Request interceptor: token send ----
@@ -15,7 +15,6 @@ axiosClient.interceptors.request.use(
       // backend jei header expect kore (tumi ageo eta use korchile)
       config.headers["token"] = token;
     }
-
     return config;
   },
   (error) => Promise.reject(error)

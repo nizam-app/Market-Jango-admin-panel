@@ -413,7 +413,7 @@ const SubscriptionPlans = () => {
 
                 {/* Description */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Description ( remainder message, after grace period message. )</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
                   <textarea
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -455,7 +455,7 @@ const SubscriptionPlans = () => {
                 {/* Billing Period and User Type */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Billing Period (grace period setting, withdraw period setting.)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Billing Period</label>
                     <select
                       value={formData.billing_period}
                       onChange={(e) => setFormData({ ...formData, billing_period: e.target.value })}
@@ -492,7 +492,7 @@ const SubscriptionPlans = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Image Limit (0 = unlimited) (number of top products.)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Image Limit (0 = unlimited)</label>
                     <input
                       type="number"
                       value={formData.image_limit}
@@ -536,7 +536,7 @@ const SubscriptionPlans = () => {
                       className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                     />
                     <label htmlFor="has_priority_ranking" className="text-sm font-medium text-gray-700">
-                      Has Priority Ranking ( export orders and report data. )
+                      Has Priority Ranking
                     </label>
                   </div>
                   {formData.has_priority_ranking && (
