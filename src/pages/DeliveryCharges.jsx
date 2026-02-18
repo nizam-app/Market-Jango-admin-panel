@@ -1,10 +1,14 @@
 // src/pages/DeliveryCharges.jsx
 import React, { useEffect, useState } from 'react';
 import Swal from 'sweetalert2';
-import { Plus, Edit3, Trash2, X, CheckCircle2, XCircle, Package, MapPin, Weight } from 'lucide-react';
+import { Plus, Edit3, Trash2, X, CheckCircle2, XCircle, Package, MapPin, Weight, Map } from 'lucide-react';
 import {
   getDeliveryDashboard,
   getZones,
+  getZone,
+  createZone,
+  updateZone,
+  deleteZone,
   getZoneRoutes,
   createZoneRoute,
   updateZoneRoute,
@@ -33,8 +37,20 @@ const DeliveryCharges = () => {
   // Modal states
   const [isZoneRouteModalOpen, setIsZoneRouteModalOpen] = useState(false);
   const [isWeightChargeModalOpen, setIsWeightChargeModalOpen] = useState(false);
+  const [isZoneModalOpen, setIsZoneModalOpen] = useState(false);
   const [editingZoneRoute, setEditingZoneRoute] = useState(null);
   const [editingWeightCharge, setEditingWeightCharge] = useState(null);
+  const [editingZone, setEditingZone] = useState(null);
+
+  // Zone (manage zones) form
+  const [zoneForm, setZoneForm] = useState({
+    name: '',
+    center_latitude: '',
+    center_longitude: '',
+    radius_km: '',
+    price: '',
+    status: 'Active',
+  });
 
   // Zone Route Form
   const [zoneRouteForm, setZoneRouteForm] = useState({
@@ -45,7 +61,7 @@ const DeliveryCharges = () => {
     per_km_charge: '',
     min_charge: '',
     max_charge: '',
-    status: 'active',
+    status: 'Active',
   });
 
   // Weight Charge Form
@@ -60,6 +76,8 @@ const DeliveryCharges = () => {
   useEffect(() => {
     if (activeTab === 'dashboard') {
       fetchDashboard();
+    } else if (activeTab === 'zones') {
+      fetchZones();
     } else if (activeTab === 'zone-routes') {
       fetchZoneRoutes();
       fetchZones();
@@ -112,8 +130,12 @@ const DeliveryCharges = () => {
     setLoading(true);
     try {
       const res = await getWeightCharges();
-      const data = res.data?.data || res.data || [];
-      setWeightCharges(Array.isArray(data) ? data : []);
+      // Backend now returns an object: { charges: [...], total, current_page, per_page, last_page }
+      const payload = res.data || {};
+      const list = Array.isArray(payload.charges) ? payload.charges : [];
+      setWeightCharges(list);
+      // If you later add pagination UI, you can also use:
+      // payload.total, payload.current_page, payload.per_page, payload.last_page
     } catch (err) {
       console.error('Failed to fetch weight charges', err);
       Swal.fire({
@@ -136,7 +158,7 @@ const DeliveryCharges = () => {
       // Paginated response: zones array is in response.data.data
       const data = res.data?.data;
       const zonesList = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
-      setZones(zonesList.map((zone) => ({ id: zone.id, name: zone.name || `Zone ${zone.id}` })));
+      setZones(zonesList.map((zone) => ({ ...zone, name: zone.name || `Zone ${zone.id}` })));
     } catch (err) {
       console.error('Failed to fetch zones', err);
       setZonesError(err?.response?.data?.message || 'Failed to load zones');
@@ -174,7 +196,7 @@ const DeliveryCharges = () => {
         per_km_charge: route.per_km_charge || '',
         min_charge: route.min_charge || '',
         max_charge: route.max_charge || '',
-        status: route.status || 'active',
+        status: route.status === 'Inactive' ? 'Inactive' : 'Active',
       });
     } else {
       setEditingZoneRoute(null);
@@ -186,7 +208,7 @@ const DeliveryCharges = () => {
         per_km_charge: '',
         min_charge: '',
         max_charge: '',
-        status: 'active',
+        status: 'Active',
       });
     }
     setIsZoneRouteModalOpen(true);
@@ -197,9 +219,40 @@ const DeliveryCharges = () => {
     setEditingZoneRoute(null);
   };
 
-  const handleSubmitZoneRoute = async (e) => {
+  const handleOpenZoneModal = (zone = null) => {
+    if (zone) {
+      setEditingZone(zone);
+      setZoneForm({
+        name: zone.name || '',
+        center_latitude: zone.center_latitude ?? '',
+        center_longitude: zone.center_longitude ?? '',
+        radius_km: zone.radius_km ?? '',
+        price: zone.price ?? '',
+        status: zone.status || 'Active',
+      });
+    } else {
+      setEditingZone(null);
+      setZoneForm({
+        name: '',
+        center_latitude: '',
+        center_longitude: '',
+        radius_km: '',
+        price: '',
+        status: 'Active',
+      });
+    }
+    setIsZoneModalOpen(true);
+  };
+
+  const handleCloseZoneModal = () => {
+    setIsZoneModalOpen(false);
+    setEditingZone(null);
+  };
+
+  const handleSubmitZone = async (e) => {
     e.preventDefault();
-    if (!zoneRouteForm.from_zone_id || !zoneRouteForm.to_zone_id || !zoneRouteForm.base_charge) {
+    const name = String(zoneForm.name).trim();
+    if (!name || zoneForm.center_latitude === '' || zoneForm.center_longitude === '' || zoneForm.radius_km === '' || zoneForm.price === '') {
       Swal.fire({
         icon: 'warning',
         title: 'Validation Error',
@@ -208,18 +261,149 @@ const DeliveryCharges = () => {
       });
       return;
     }
+    if (name.length > 50) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Validation Error',
+        text: 'Name must be at most 50 characters',
+        confirmButtonColor: BRAND,
+      });
+      return;
+    }
+    const payload = {
+      name,
+      center_latitude: parseFloat(zoneForm.center_latitude),
+      center_longitude: parseFloat(zoneForm.center_longitude),
+      radius_km: parseFloat(zoneForm.radius_km),
+      price: parseFloat(zoneForm.price),
+      status: zoneForm.status,
+    };
+    try {
+      Swal.showLoading();
+      if (editingZone) {
+        await updateZone(editingZone.id, payload);
+      } else {
+        await createZone(payload);
+      }
+      Swal.close();
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: editingZone ? 'Zone updated' : 'Zone created',
+        showConfirmButton: false,
+        timer: 1800,
+      });
+      handleCloseZoneModal();
+      fetchZones();
+    } catch (err) {
+      Swal.close();
+      const msg = err?.response?.data?.message || err.message || 'Failed to save zone';
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: msg,
+        confirmButtonColor: BRAND,
+      });
+    }
+  };
+
+  const handleDeleteZone = async (zone) => {
+    const result = await Swal.fire({
+      title: 'Delete this zone?',
+      text: 'Zone routes using it may be affected.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, delete',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+    });
+    if (!result.isConfirmed) return;
+    try {
+      Swal.showLoading();
+      await deleteZone(zone.id);
+      Swal.close();
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: 'Zone deleted',
+        showConfirmButton: false,
+        timer: 1800,
+      });
+      fetchZones();
+    } catch (err) {
+      Swal.close();
+      const msg = err?.response?.data?.message || err.message || 'Failed to delete zone';
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: msg,
+        confirmButtonColor: BRAND,
+      });
+    }
+  };
+
+  const handleSubmitZoneRoute = async (e) => {
+    e.preventDefault();
+
+    // Client-side validation with specific messages
+    if (!zoneRouteForm.from_zone_id || String(zoneRouteForm.from_zone_id).trim() === '') {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Validation Error',
+        text: 'Please select From Zone',
+        confirmButtonColor: BRAND,
+      });
+      return;
+    }
+    if (!zoneRouteForm.to_zone_id || String(zoneRouteForm.to_zone_id).trim() === '') {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Validation Error',
+        text: 'Please select To Zone',
+        confirmButtonColor: BRAND,
+      });
+      return;
+    }
+    const baseChargeNum = parseFloat(zoneRouteForm.base_charge);
+    if (zoneRouteForm.base_charge === '' || zoneRouteForm.base_charge == null || Number.isNaN(baseChargeNum) || baseChargeNum < 0) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Validation Error',
+        text: 'Base Charge is required and must be 0 or greater',
+        confirmButtonColor: BRAND,
+      });
+      return;
+    }
 
     try {
       Swal.showLoading();
+      // Send numeric zone IDs and numbers for all numeric fields; vendor_id null for global
+      const fromId = Number(zoneRouteForm.from_zone_id);
+      const toId = Number(zoneRouteForm.to_zone_id);
       const payload = {
-        from_zone_id: parseInt(zoneRouteForm.from_zone_id),
-        to_zone_id: parseInt(zoneRouteForm.to_zone_id),
-        vendor_id: zoneRouteForm.vendor_id ? parseInt(zoneRouteForm.vendor_id) : null,
-        base_charge: parseFloat(zoneRouteForm.base_charge),
-        per_km_charge: zoneRouteForm.per_km_charge ? parseFloat(zoneRouteForm.per_km_charge) : null,
-        min_charge: zoneRouteForm.min_charge ? parseFloat(zoneRouteForm.min_charge) : null,
-        max_charge: zoneRouteForm.max_charge ? parseFloat(zoneRouteForm.max_charge) : null,
-        status: zoneRouteForm.status,
+        from_zone_id: fromId,
+        to_zone_id: toId,
+        base_charge: baseChargeNum,
+        per_km_charge:
+          zoneRouteForm.per_km_charge !== '' && zoneRouteForm.per_km_charge != null
+            ? Number(zoneRouteForm.per_km_charge)
+            : null,
+        min_charge:
+          zoneRouteForm.min_charge !== '' && zoneRouteForm.min_charge != null
+            ? Number(zoneRouteForm.min_charge)
+            : null,
+        max_charge:
+          zoneRouteForm.max_charge !== '' && zoneRouteForm.max_charge != null
+            ? Number(zoneRouteForm.max_charge)
+            : null,
+        status: zoneRouteForm.status === 'active' || zoneRouteForm.status === 'Active' ? 'Active' : 'Inactive',
+        vendor_id:
+          zoneRouteForm.vendor_id !== '' && zoneRouteForm.vendor_id != null
+            ? Number(zoneRouteForm.vendor_id)
+            : null,
       };
 
       if (editingZoneRoute) {
@@ -243,10 +427,21 @@ const DeliveryCharges = () => {
     } catch (err) {
       Swal.close();
       console.error('Save zone route error', err);
+      // Show backend message and optionally validation errors (e.g. 422)
+      const data = err?.response?.data;
+      let message = data?.message || err.message || 'Failed to save zone route';
+      const errors = data?.data?.errors ?? data?.errors;
+      if (errors && typeof errors === 'object') {
+        const parts = Object.entries(errors).map(([field, msgs]) => {
+          const list = Array.isArray(msgs) ? msgs.join(' ') : String(msgs);
+          return `${field}: ${list}`;
+        });
+        if (parts.length) message = message + (message ? '\n\n' : '') + parts.join('\n');
+      }
       Swal.fire({
         icon: 'error',
-        title: 'Error',
-        text: err?.response?.data?.message || 'Failed to save zone route',
+        title: data?.message ? 'Validation failed' : 'Error',
+        text: message,
         confirmButtonColor: BRAND,
       });
     }
@@ -407,7 +602,7 @@ const DeliveryCharges = () => {
   };
 
   const getStatusBadge = (status) => {
-    const isActive = status === 'active' || status === true;
+    const isActive = status === true || String(status || '').toLowerCase() === 'active';
     return (
       <span
         className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${
@@ -446,6 +641,7 @@ const DeliveryCharges = () => {
       <div style={{ display: 'flex', gap: 10, marginBottom: 18 }}>
         {[
           { id: 'dashboard', label: 'Dashboard', icon: Package },
+          { id: 'zones', label: 'Zones', icon: Map },
           { id: 'zone-routes', label: 'Zone Routes', icon: MapPin },
           { id: 'weight-charges', label: 'Weight Charges', icon: Weight },
         ].map((tab) => {
@@ -507,6 +703,83 @@ const DeliveryCharges = () => {
             </div>
           ) : (
             <div style={{ padding: 40, textAlign: 'center', color: '#666' }}>No dashboard data available</div>
+          )}
+        </div>
+      )}
+
+      {/* Zones Tab */}
+      {activeTab === 'zones' && (
+        <div style={{ background: '#fff', borderRadius: 12, padding: 16, boxShadow: '0 6px 18px rgba(16,24,40,0.06)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 600, color: '#111' }}>Manage Zones</h3>
+            <button
+              type="button"
+              onClick={() => handleOpenZoneModal()}
+              className="inline-flex items-center gap-2 rounded-lg bg-[#FF8C00] px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-[#e57c00] transition"
+            >
+              <Plus className="w-4 h-4" />
+              Add Zone
+            </button>
+          </div>
+          <p style={{ fontSize: 13, color: '#555', marginBottom: 16 }}>
+            After adding zones, go to the <strong>Zone Routes</strong> tab to create From Zone → To Zone delivery routes.
+          </p>
+          {zonesLoading ? (
+            <div style={{ padding: 40, textAlign: 'center', color: '#666' }}>Loading zones…</div>
+          ) : zones.length === 0 ? (
+            <div style={{ padding: 40, textAlign: 'center', color: '#666' }}>
+              No zones yet. Add a zone below; then you can use them in the Zone Routes tab.
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 800 }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left', padding: '12px 14px', borderBottom: '1px solid #f0f0f3', color: '#666', fontSize: 13 }}>Name</th>
+                    <th style={{ textAlign: 'left', padding: '12px 14px', borderBottom: '1px solid #f0f0f3', color: '#666', fontSize: 13 }}>Center (Lat, Long)</th>
+                    <th style={{ textAlign: 'left', padding: '12px 14px', borderBottom: '1px solid #f0f0f3', color: '#666', fontSize: 13 }}>Radius (km)</th>
+                    <th style={{ textAlign: 'left', padding: '12px 14px', borderBottom: '1px solid #f0f0f3', color: '#666', fontSize: 13 }}>Price</th>
+                    <th style={{ textAlign: 'left', padding: '12px 14px', borderBottom: '1px solid #f0f0f3', color: '#666', fontSize: 13 }}>Status</th>
+                    <th style={{ textAlign: 'right', padding: '12px 14px', borderBottom: '1px solid #f0f0f3', color: '#666', fontSize: 13 }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {zones.map((zone) => (
+                    <tr key={zone.id}>
+                      <td style={{ padding: '12px 14px', borderBottom: '1px solid #fbfbfc', fontWeight: 600 }}>{zone.name}</td>
+                      <td style={{ padding: '12px 14px', borderBottom: '1px solid #fbfbfc', fontSize: 13 }}>
+                        {zone.center_latitude != null && zone.center_longitude != null
+                          ? `${Number(zone.center_latitude).toFixed(4)}, ${Number(zone.center_longitude).toFixed(4)}`
+                          : '—'}
+                      </td>
+                      <td style={{ padding: '12px 14px', borderBottom: '1px solid #fbfbfc' }}>{zone.radius_km != null ? zone.radius_km : '—'}</td>
+                      <td style={{ padding: '12px 14px', borderBottom: '1px solid #fbfbfc' }}>{zone.price != null ? zone.price : '—'}</td>
+                      <td style={{ padding: '12px 14px', borderBottom: '1px solid #fbfbfc' }}>{getStatusBadge(zone.status)}</td>
+                      <td style={{ padding: '12px 14px', borderBottom: '1px solid #fbfbfc', textAlign: 'right' }}>
+                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenZoneModal(zone)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Edit"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteZone(zone)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}
@@ -795,8 +1068,8 @@ const DeliveryCharges = () => {
                     onChange={(e) => setZoneRouteForm({ ...zoneRouteForm, status: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
                   </select>
                 </div>
               </div>
@@ -902,6 +1175,120 @@ const DeliveryCharges = () => {
                 </button>
                 <button type="submit" className="px-6 py-2 text-sm bg-[#FF8C00] text-white rounded-lg hover:bg-[#e57c00]">
                   {editingWeightCharge ? 'Update' : 'Create'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Zone (Manage Zones) Modal */}
+      {isZoneModalOpen && (
+        <div className="fixed top-0 left-0 bg-black/50 w-full h-full flex items-center justify-center p-4 z-50" onClick={handleCloseZoneModal}>
+          <div className="bg-white rounded-xl max-w-xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">
+                {editingZone ? 'Edit Zone' : 'Add Zone'}
+              </h2>
+              <button type="button" onClick={handleCloseZoneModal} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleSubmitZone} className="flex-1 overflow-y-auto">
+              <div className="px-6 py-6 space-y-5">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Name <span className="text-red-500">*</span> <span className="text-gray-400 font-normal">(max 50 characters)</span>
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={50}
+                    value={zoneForm.name}
+                    onChange={(e) => setZoneForm({ ...zoneForm, name: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Center Latitude <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={zoneForm.center_latitude}
+                      onChange={(e) => setZoneForm({ ...zoneForm, center_latitude: e.target.value })}
+                      placeholder="e.g. 23.8103"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Center Longitude <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={zoneForm.center_longitude}
+                      onChange={(e) => setZoneForm({ ...zoneForm, center_longitude: e.target.value })}
+                      placeholder="e.g. 90.4125"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Radius (km) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      step="any"
+                      value={zoneForm.radius_km}
+                      onChange={(e) => setZoneForm({ ...zoneForm, radius_km: e.target.value })}
+                      placeholder="e.g. 5"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Price <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      step="any"
+                      value={zoneForm.price}
+                      onChange={(e) => setZoneForm({ ...zoneForm, price: e.target.value })}
+                      placeholder="e.g. 50"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                  <select
+                    value={zoneForm.status}
+                    onChange={(e) => setZoneForm({ ...zoneForm, status: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                  </select>
+                </div>
+              </div>
+              <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-end gap-3">
+                <button type="button" onClick={handleCloseZoneModal} className="px-6 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">
+                  Cancel
+                </button>
+                <button type="submit" className="px-6 py-2 text-sm bg-[#FF8C00] text-white rounded-lg hover:bg-[#e57c00]">
+                  {editingZone ? 'Update Zone' : 'Create Zone'}
                 </button>
               </div>
             </form>

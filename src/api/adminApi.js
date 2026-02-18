@@ -69,9 +69,29 @@ export const getDeliveryDashboard = () => {
   return axiosClient.get("/delivery-charge/dashboard");
 };
 
-// Zones (for zone route dropdowns). Paginated; use per_page to get all for dropdowns.
+// Zones (for zone route dropdowns and Zones tab). Paginated; use per_page to get all.
 export const getZones = (perPage = 100) => {
   return axiosClient.get("/zones", { params: { per_page: perPage } });
+};
+
+// Get single zone (for edit form).
+export const getZone = (zoneId) => {
+  return axiosClient.get(`/zones/${zoneId}`);
+};
+
+// Create zone (body: name, center_latitude, center_longitude, radius_km, price, status).
+export const createZone = (payload) => {
+  return axiosClient.post("/zones", payload);
+};
+
+// Update zone.
+export const updateZone = (zoneId, payload) => {
+  return axiosClient.put(`/zones/${zoneId}`, payload);
+};
+
+// Delete zone.
+export const deleteZone = (zoneId) => {
+  return axiosClient.delete(`/zones/${zoneId}`);
 };
 
 // Zone Routes
