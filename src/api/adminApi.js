@@ -131,3 +131,31 @@ export const updateWeightCharge = (weightId, chargeData) => {
 export const deleteWeightCharge = (weightId) => {
   return axiosClient.delete(`/weights/${weightId}`);
 };
+
+// ==================== DELIVERY CHARGE ROUTES (zone_name, from_point, to_point, flat/weight/distance/cube) ====================
+// List: GET /delivery-charges?search=...
+export const getDeliveryChargeRoutes = (search = '') => {
+  const params = {};
+  if (search && String(search).trim()) params.search = String(search).trim();
+  return axiosClient.get('/delivery-charges', { params });
+};
+
+// Single route (for edit)
+export const getDeliveryChargeRoute = (id) => {
+  return axiosClient.get(`/delivery-charges/${id}`);
+};
+
+// Create
+export const createDeliveryChargeRoute = (payload) => {
+  return axiosClient.post('/delivery-charges', payload);
+};
+
+// Update
+export const updateDeliveryChargeRoute = (id, payload) => {
+  return axiosClient.put(`/delivery-charges/${id}`, payload);
+};
+
+// Delete
+export const deleteDeliveryChargeRoute = (id) => {
+  return axiosClient.delete(`/delivery-charges/${id}`);
+};
