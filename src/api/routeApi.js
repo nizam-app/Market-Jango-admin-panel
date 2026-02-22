@@ -3,6 +3,10 @@ import axiosClient from "./axiosClient";
 
 export const getRoutes = () => axiosClient.get("/route");
 
+// List all routes (paginated) for dropdowns. Response: { data: { data: [ { id, name, locations: [...] } ] } }
+export const getRoutesList = (perPage = 100) =>
+  axiosClient.get("/route", { params: { per_page: perPage } });
+
 export const createRoute = (name) =>
   axiosClient.post("/route/create", { name });
 
