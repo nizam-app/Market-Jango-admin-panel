@@ -1,9 +1,9 @@
 // src/pages/RouteManagement.jsx
 import React, { useState } from 'react';
+import DeliveryChargeManagementSection from '../components/delivery/DeliveryChargeManagementSection';
 import Swal from 'sweetalert2';
 import AddDrivingRoute from '../components/drivers/AddDrivingRoute';
 import DrivingRouteList from '../components/drivers/DrivingRouteList';
-import DeliveryChargeManager from '../components/drivers/DeliveryChargeManager';
 import { updateRoute, deleteRoute } from '../api/routeApi';
 
 const RouteManagement = () => {
@@ -125,7 +125,7 @@ const RouteManagement = () => {
           Route Management
         </h1>
         <p className="text-sm text-gray-600">
-          Manage driving routes, locations, and delivery charges for your delivery system
+          Manage driving routes and locations for your delivery system
         </p>
       </div>
 
@@ -135,10 +135,9 @@ const RouteManagement = () => {
         onEdit={handleEditRoute}
         onDelete={handleDeleteRoute}
       />
-      
-      {/* Delivery Charge Management */}
+
       <div className="border-t border-gray-200 pt-6">
-        <DeliveryChargeManager />
+        <DeliveryChargeManagementSection defaultTab="charge-routes" standalone={false} showDashboard={false} />
       </div>
     </div>
   );

@@ -1,7 +1,8 @@
-// src/pages/DeliveryCharges.jsx
+// Reusable Delivery Charge Management section: header, Dashboard + Charge Routes tabs, table, add/edit modal.
+// Use standalone={false} when embedding (e.g. Route Mgmt); defaultTab sets initial tab ('dashboard' | 'charge-routes').
 import React, { useEffect, useState, useRef } from 'react';
 import Swal from 'sweetalert2';
-import { Plus, Edit3, Trash2, X, CheckCircle2, XCircle, Package, Route, Search } from 'lucide-react';
+import { Plus, Edit3, Trash2, X, Package, Route, Search } from 'lucide-react';
 import {
   getDeliveryDashboard,
   getDeliveryChargeRoutes,
@@ -9,33 +10,31 @@ import {
   createDeliveryChargeRoute,
   updateDeliveryChargeRoute,
   deleteDeliveryChargeRoute,
-} from '../api/adminApi';
-import axiosClient from '../api/axiosClient';
-import { getRoutesList } from '../api/routeApi';
+} from '../../api/adminApi';
+import axiosClient from '../../api/axiosClient';
+import { getRoutesList } from '../../api/routeApi';
 
 const BRAND = '#FF8C00';
 
-const DeliveryCharges = () => {
-  const [activeTab, setActiveTab] = useState('dashboard');
+const defaultWeightRange = () => ({ min_weight: 0, max_weight: 0, per_kg_charge: 0, min_charge: null, max_charge: null, enabled: true });
+const defaultDistanceRange = () => ({ min_distance_km: 0, max_distance_km: 0, per_km_charge: 0, min_charge: null, max_charge: null, enabled: true });
+const defaultCubeRange = () => ({ min_cube: 0, max_cube: 0, per_cube_charge: 0, min_charge: null, max_charge: null, enabled: true });
+
+const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone = true, showDashboard = true }) => {
+  const [activeTab, setActiveTab] = useState(defaultTab);
   const [loading, setLoading] = useState(false);
   const [dashboardData, setDashboardData] = useState(null);
   const [vendors, setVendors] = useState([]);
 
-  // Delivery Charge Routes (list + add/edit)
   const [chargeRoutesSearch, setChargeRoutesSearch] = useState('');
   const [deliveryChargeRoutes, setDeliveryChargeRoutes] = useState([]);
   const [loadingChargeRoutes, setLoadingChargeRoutes] = useState(false);
   const [isDeliveryChargeModalOpen, setIsDeliveryChargeModalOpen] = useState(false);
   const [editingDeliveryChargeId, setEditingDeliveryChargeId] = useState(null);
   const chargeRoutesSearchDebounce = useRef(null);
-  // Routes from GET /api/route for Add delivery charge dropdowns (Route, Start point, End point)
   const [routesList, setRoutesList] = useState([]);
   const [routesLoading, setRoutesLoading] = useState(false);
   const [selectedRouteIdForCharge, setSelectedRouteIdForCharge] = useState(null);
-
-  const defaultWeightRange = () => ({ min_weight: 0, max_weight: 0, per_kg_charge: 0, min_charge: null, max_charge: null, enabled: true });
-  const defaultDistanceRange = () => ({ min_distance_km: 0, max_distance_km: 0, per_km_charge: 0, min_charge: null, max_charge: null, enabled: true });
-  const defaultCubeRange = () => ({ min_cube: 0, max_cube: 0, per_cube_charge: 0, min_charge: null, max_charge: null, enabled: true });
 
   const [deliveryChargeForm, setDeliveryChargeForm] = useState({
     zone_name: '',
@@ -59,7 +58,7 @@ const DeliveryCharges = () => {
       fetchDashboard();
     } else if (activeTab === 'charge-routes') {
       fetchDeliveryChargeRoutes(chargeRoutesSearch);
-      fetchRoutesForCharge(); // GET /api/route for Add delivery charge modal (Route, Start point, End point)
+      fetchRoutesForCharge();
     }
   }, [activeTab]);
 
@@ -74,7 +73,6 @@ const DeliveryCharges = () => {
     };
   }, [chargeRoutesSearch]);
 
-  // When modal is open with zone_name (e.g. edit) and routes have loaded, set selected route so Start/End point dropdowns show
   useEffect(() => {
     if (!isDeliveryChargeModalOpen || !deliveryChargeForm.zone_name || routesList.length === 0) return;
     const match = routesList.find((r) => r.name === deliveryChargeForm.zone_name);
@@ -102,7 +100,6 @@ const DeliveryCharges = () => {
 
   const fetchVendors = async () => {
     try {
-      // Fetch vendors for dropdown
       const res = await axiosClient.get('/admin-vendor', { params: { page: 1, per_page: 100 } });
       const vendorsData = res.data?.data?.data || res.data?.data || [];
       setVendors(Array.isArray(vendorsData) ? vendorsData : []);
@@ -235,7 +232,7 @@ const DeliveryCharges = () => {
       });
     }
     fetchVendors();
-    fetchRoutesForCharge(); // GET /api/route so Route and Start/End point dropdowns are populated
+    fetchRoutesForCharge();
     setSelectedRouteIdForCharge(null);
     setIsDeliveryChargeModalOpen(true);
   };
@@ -248,7 +245,7 @@ const DeliveryCharges = () => {
 
   const buildDeliveryChargePayload = () => {
     const flatBase = parseFloat(deliveryChargeForm.flat_base_charge);
-    const payload = {
+    return {
       zone_name: String(deliveryChargeForm.zone_name).trim(),
       from_point: String(deliveryChargeForm.from_point).trim(),
       to_point: String(deliveryChargeForm.to_point).trim(),
@@ -288,7 +285,6 @@ const DeliveryCharges = () => {
           }))
         : [],
     };
-    return payload;
   };
 
   const handleSubmitDeliveryCharge = async (e) => {
@@ -380,45 +376,23 @@ const DeliveryCharges = () => {
     }
   };
 
-  const getStatusBadge = (status) => {
-    const isActive = status === true || String(status || '').toLowerCase() === 'active';
-    return (
-      <span
-        className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${
-          isActive
-            ? 'bg-green-50 text-green-700 border border-green-200'
-            : 'bg-gray-50 text-gray-700 border border-gray-200'
-        }`}
-      >
-        {isActive ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
-        {isActive ? 'Active' : 'Inactive'}
-      </span>
-    );
-  };
-
-  const getVendorName = (vendorId) => {
-    if (!vendorId) return 'Global';
-    const vendor = vendors.find((v) => v.id === vendorId || v.vendor?.id === vendorId);
-    return vendor ? vendor.name || vendor.email : `Vendor ${vendorId}`;
-  };
-
   const selectedRouteForCharge = routesList.find((r) => r.id === selectedRouteIdForCharge);
   const chargeLocations = selectedRouteForCharge?.locations ?? [];
 
-  return (
-    <div style={{ padding: 24, fontFamily: "'Inter', system-ui, Arial, sans-serif", background: '#f7f8fb', minHeight: '100vh' }}>
-      {/* Header */}
-      <div style={{ marginBottom: 18 }}>
+  const content = (
+    <>
+      <div style={{ marginBottom: standalone ? 18 : 12 }}>
         <div style={{ fontSize: 20, fontWeight: 700, color: '#111' }}>Delivery Charge Management</div>
         <div style={{ marginTop: 6, color: '#555', fontSize: 13 }}>Manage zone routes and weight-based delivery charges</div>
       </div>
 
-      {/* Tabs */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 18 }}>
         {[
           { id: 'dashboard', label: 'Dashboard', icon: Package },
           { id: 'charge-routes', label: 'Charge Routes', icon: Route },
-        ].map((tab) => {
+        ]
+          .filter((tab) => showDashboard || tab.id !== 'dashboard')
+          .map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
           return (
@@ -446,8 +420,7 @@ const DeliveryCharges = () => {
         })}
       </div>
 
-      {/* Dashboard Tab */}
-      {activeTab === 'dashboard' && (
+      {showDashboard && activeTab === 'dashboard' && (
         <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 6px 18px rgba(16,24,40,0.06)' }}>
           {loading ? (
             <div style={{ padding: 40, textAlign: 'center', color: '#666' }}>Loading dashboard...</div>
@@ -455,24 +428,18 @@ const DeliveryCharges = () => {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 16 }}>
               <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 8, padding: 20 }}>
                 <div style={{ fontSize: 14, color: '#0369a1', marginBottom: 8 }}>Product-Based Charges</div>
-                <div style={{ fontSize: 24, fontWeight: 700, color: '#0c4a6e' }}>
-                  {dashboardData.total_product_charges || 0}
-                </div>
+                <div style={{ fontSize: 24, fontWeight: 700, color: '#0c4a6e' }}>{dashboardData.total_product_charges || 0}</div>
               </div>
               <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: 20 }}>
                 <div style={{ fontSize: 14, color: '#166534', marginBottom: 8 }}>Zone Routes</div>
-                <div style={{ fontSize: 24, fontWeight: 700, color: '#14532d' }}>
-                  {dashboardData.total_zone_routes || 0}
-                </div>
+                <div style={{ fontSize: 24, fontWeight: 700, color: '#14532d' }}>{dashboardData.total_zone_routes || 0}</div>
                 <div style={{ fontSize: 12, color: '#15803d', marginTop: 4 }}>
                   Global: {dashboardData.global_zone_routes || 0} | Vendor-Specific: {dashboardData.vendor_zone_routes || 0}
                 </div>
               </div>
               <div style={{ background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 8, padding: 20 }}>
                 <div style={{ fontSize: 14, color: '#92400e', marginBottom: 8 }}>Weight Charges</div>
-                <div style={{ fontSize: 24, fontWeight: 700, color: '#78350f' }}>
-                  {dashboardData.total_weight_charges || 0}
-                </div>
+                <div style={{ fontSize: 24, fontWeight: 700, color: '#78350f' }}>{dashboardData.total_weight_charges || 0}</div>
               </div>
             </div>
           ) : (
@@ -481,7 +448,6 @@ const DeliveryCharges = () => {
         </div>
       )}
 
-      {/* Charge Routes Tab (delivery-charges API) */}
       {activeTab === 'charge-routes' && (
         <div style={{ background: '#fff', borderRadius: 12, padding: 16, boxShadow: '0 6px 18px rgba(16,24,40,0.06)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
@@ -557,7 +523,6 @@ const DeliveryCharges = () => {
         </div>
       )}
 
-      {/* Delivery Charge Route (Add/Edit) Modal */}
       {isDeliveryChargeModalOpen && (
         <div className="fixed top-0 left-0 bg-black/50 w-full h-full flex items-center justify-center p-4 z-50" onClick={handleCloseDeliveryChargeModal}>
           <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl" onClick={(e) => e.stopPropagation()}>
@@ -858,8 +823,17 @@ const DeliveryCharges = () => {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
+
+  if (standalone) {
+    return (
+      <div style={{ padding: 24, fontFamily: "'Inter', system-ui, Arial, sans-serif", background: '#f7f8fb', minHeight: '100vh' }}>
+        {content}
+      </div>
+    );
+  }
+  return content;
 };
 
-export default DeliveryCharges;
+export default DeliveryChargeManagementSection;

@@ -20,7 +20,6 @@ import Transportmanagement from "../pages/Transportmanagement";
 import RouteManagement from "../pages/RouteManagement";
 import SubscriptionPlans from "../pages/SubscriptionPlans";
 import Rankings from "../pages/Rankings";
-import DeliveryCharges from "../pages/DeliveryCharges";
 
 const Router = createBrowserRouter([
   // 🔓 Public route
@@ -102,10 +101,7 @@ const Router = createBrowserRouter([
             path: "rankings",
             Component: Rankings,
           },
-          {
-            path: "delivery-charges",
-            Component: DeliveryCharges,
-          }
+          
         ],
       },
     ],
