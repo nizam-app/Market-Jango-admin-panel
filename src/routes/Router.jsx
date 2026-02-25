@@ -20,6 +20,7 @@ import Transportmanagement from "../pages/Transportmanagement";
 import RouteManagement from "../pages/RouteManagement";
 import SubscriptionPlans from "../pages/SubscriptionPlans";
 import Rankings from "../pages/Rankings";
+import CategoryManagement from "../pages/CategoryManagement";
 
 const Router = createBrowserRouter([
   // 🔓 Public route
@@ -48,6 +49,10 @@ const Router = createBrowserRouter([
           {
             path: "products",
             Component: Products,
+          },
+          {
+            path: "category-management",
+            Component: CategoryManagement,
           },
           {
             path: "buyer-management",
