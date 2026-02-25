@@ -21,6 +21,7 @@ import RouteManagement from "../pages/RouteManagement";
 import SubscriptionPlans from "../pages/SubscriptionPlans";
 import Rankings from "../pages/Rankings";
 import CategoryManagement from "../pages/CategoryManagement";
+import VisibilityManagement from "../pages/VisibilityManagement";
 
 const Router = createBrowserRouter([
   // 🔓 Public route
@@ -106,7 +107,10 @@ const Router = createBrowserRouter([
             path: "rankings",
             Component: Rankings,
           },
-          
+          {
+            path: "visibility-management",
+            Component: VisibilityManagement,
+          },
         ],
       },
     ],
