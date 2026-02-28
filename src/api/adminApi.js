@@ -159,3 +159,106 @@ export const updateDeliveryChargeRoute = (id, payload) => {
 export const deleteDeliveryChargeRoute = (id) => {
   return axiosClient.delete(`/delivery-charges/${id}`);
 };
+
+// ==================== AFFILIATES ====================
+// List affiliates. Params: search (name, email, affiliate_code, phone), status (pending|active|suspended|banned), per_page (default 15, max 100), page
+export const getAffiliates = (params = {}) => {
+  const { search, status, per_page = 15, page = 1 } = params;
+  const query = {};
+  if (search != null && String(search).trim() !== "") query.search = String(search).trim();
+  if (status != null && String(status).trim() !== "") query.status = String(status).trim();
+  if (per_page != null) query.per_page = Math.min(Number(per_page) || 15, 100);
+  if (page != null) query.page = Number(page) || 1;
+  return axiosClient.get("/affiliates", { params: query });
+};
+
+// Get one affiliate (full profile). GET /affiliates/:id
+export const getAffiliate = (id) => {
+  return axiosClient.get(`/affiliates/${id}`);
+};
+
+// Update affiliate. PUT /affiliates/:id. Body: name?, status?, place_of_residence?
+export const updateAffiliate = (id, payload) => {
+  return axiosClient.put(`/affiliates/${id}`, payload);
+};
+
+// Delete affiliate. DELETE /affiliates/:id
+export const deleteAffiliate = (id) => {
+  return axiosClient.delete(`/affiliates/${id}`);
+};
+
+// Affiliate password reset. POST /affiliates/:id/password-reset. Body: new_password, new_password_confirmation
+export const affiliatePasswordReset = (id, payload) => {
+  return axiosClient.post(`/affiliates/${id}/password-reset`, payload);
+};
+
+// Create affiliate (generates affiliate ID / affiliate_code). Body: name, email, phone, password, password_confirmation, social_media, traffic_details, marketing_channel, payment_info, terms_accepted, place_of_residence?, status?
+export const createAffiliate = (payload) => {
+  return axiosClient.post("/affiliates", payload);
+};
+
+// ==================== REFERRAL LINKS ====================
+// List referral links. Params: search, status, per_page (default 20), page
+export const getReferralLinks = (params = {}) => {
+  const { search, status, per_page = 20, page = 1 } = params;
+  const query = {};
+  if (search != null && String(search).trim() !== "") query.search = String(search).trim();
+  if (status != null && String(status).trim() !== "") query.status = String(status).trim();
+  if (per_page != null) query.per_page = Number(per_page) || 20;
+  if (page != null) query.page = Number(page) || 1;
+  return axiosClient.get("/referral-links", { params: query });
+};
+
+// Export referral links as CSV. GET /referral-links/export. Returns blob (CSV).
+export const getReferralLinksExport = (params = {}) => {
+  const { search, status } = params;
+  const query = {};
+  if (search != null && String(search).trim() !== "") query.search = String(search).trim();
+  if (status != null && String(status).trim() !== "") query.status = String(status).trim();
+  return axiosClient.get("/referral-links/export", { params: query, responseType: "blob" });
+};
+
+// Manual override: update referral link. PUT /referral-links/:id. Body: status?, revenue?, vendor_approved?, custom_rate?, attribution_model?
+export const updateReferralLink = (id, payload) => {
+  return axiosClient.put(`/referral-links/${id}`, payload);
+};
+
+// Delete referral link. DELETE /referral-links/:id
+export const deleteReferralLink = (id) => {
+  return axiosClient.delete(`/referral-links/${id}`);
+};
+
+// ==================== MANUAL PAYOUTS ====================
+// List manual payouts. Params: search (affiliate/vendor name), status (pending|paid), per_page (default 15, max 100), page
+export const getManualPayouts = (params = {}) => {
+  const { search, status, per_page = 15, page = 1 } = params;
+  const query = {};
+  if (search != null && String(search).trim() !== "") query.search = String(search).trim();
+  if (status != null && String(status).trim() !== "") query.status = String(status).trim();
+  if (per_page != null) query.per_page = Math.min(Number(per_page) || 15, 100);
+  if (page != null) query.page = Number(page) || 1;
+  return axiosClient.get("/manual-payouts", { params: query });
+};
+
+// ==================== AFFILIATE SETTINGS ====================
+// Get affiliate settings
+export const getAffiliateSettings = () => {
+  return axiosClient.get("/affiliate-settings");
+};
+
+// Update affiliate settings. Body: cookie_duration_days, attribution_model, ip_duplication_detection, self_referral_detection, suspicious_conversion_time_filter, blacklist_domains, vendor_control_enabled
+export const updateAffiliateSettings = (payload) => {
+  return axiosClient.put("/affiliate-settings", payload);
+};
+
+// ==================== CONVERSIONS ====================
+// List conversions. Params: search, status, per_page (default 20), page
+export const getConversions = (params = {}) => {
+  const { search, status, per_page = 20, page = 1 } = params;
+  const query = {};
+  if (search != null && String(search).trim() !== "") query.search = String(search).trim();
+  if (status != null && String(status).trim() !== "") query.status = String(status).trim();
+  if (per_page != null) query.per_page = Number(per_page) || 20;
+  if (page != null) query.page = Number(page) || 1;
+  return axiosClient.get("/conversions", { params: query });
+};

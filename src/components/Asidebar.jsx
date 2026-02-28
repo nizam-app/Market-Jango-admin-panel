@@ -108,19 +108,33 @@ const Asidebar = () => {
                 viewBox: "0 0 24 24",
                 path : '/visibility-management'
             },
+            {
+                name : 'Affiliate Links',
+                navTitle : 'Affiliate Program',
+                icon : "M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1",
+                viewBox: "0 0 24 24",
+                path : '/affiliate-links'
+            },
+            {
+                name : 'Payment Management',
+                navTitle : 'Payment Management',
+                icon : "M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z",
+                viewBox: "0 0 24 24",
+                path : '/payment-management'
+            },
     ]
     
   return (
   
     <aside className="sticky top-0 left-0 border-r border-[#E6EFF5] h-screen z-30 
-    w-[20%] bg-white  pt-3">
+    w-[20%] bg-white pt-3 flex flex-col min-h-0">
         {/* logo */}
-        <div className="flex items-center gap-2 pl-10">
+        <div className="flex-shrink-0 flex items-center gap-2 pl-10">
           <img src={appLogo}  alt="logo" />
         </div>
         
-        {/* pages links */}
-        <nav className="space-y-4 text-gray-700 font-medium mt-8">
+        {/* pages links - scrollable */}
+        <nav className="flex-1 min-h-0 overflow-y-auto space-y-4 text-gray-700 font-medium mt-8 pb-4">
           <div className='flex flex-col items-center'>
           
             
