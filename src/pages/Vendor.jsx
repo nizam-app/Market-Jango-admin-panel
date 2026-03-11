@@ -8,6 +8,7 @@ import { VendorModal } from '../components/vendor/VendorModal';
 import { createVendor } from "../api/vendorAPI";
 import { updateUserInfo } from "../api/userApi";
 import { getRoutes } from "../api/routeApi";
+import { getAllPlans, manualAssignSubscription, updateVendorLimits } from "../api/adminApi";
 import { CheckCircle2, XCircle, Clock, MoreVertical, Edit3, Trash2, Search, X } from "lucide-react";
 
 const BRAND = '#FF8C00';
@@ -110,6 +111,10 @@ const Vendor = () => {
   const [isVendorModalOpen, setIsVendorModalOpen] = useState(false);
   const [openMenuId, setOpenMenuId] = useState(null);
   const [editingVendor, setEditingVendor] = useState(null);
+
+  // manual subscription & limits
+  const [vendorPlans, setVendorPlans] = useState([]);
+  const [vendorPlansLoaded, setVendorPlansLoaded] = useState(false);
 
 
 
@@ -449,6 +454,169 @@ const Vendor = () => {
     setIsVendorModalOpen(true);
   };
 
+  // Manual subscription / limits for vendor
+  const handleManualUpgradeVendor = async (vendor) => {
+    try {
+      let plansToUse = vendorPlans;
+
+      // Load plans (vendor type) if not loaded yet
+      if (!vendorPlansLoaded) {
+        Swal.fire({
+          title: "Loading plans...",
+          allowOutsideClick: false,
+          showConfirmButton: false,
+          didOpen: () => Swal.showLoading(),
+        });
+        try {
+          const res = await getAllPlans({ for_user_type: "vendor", status: "active" });
+          const plans = res.data?.data || [];
+          plansToUse = plans;
+          setVendorPlans(plans);
+          setVendorPlansLoaded(true);
+          Swal.close();
+        } catch (err) {
+          console.error("Failed to load plans", err);
+          Swal.close();
+          Swal.fire({
+            icon: "error",
+            title: "Failed to load plans",
+            text: err?.response?.data?.message || err.message || "Could not load subscription plans.",
+            confirmButtonColor: BRAND,
+          });
+          return;
+        }
+      }
+
+      if (!plansToUse || !plansToUse.length) {
+        Swal.fire({
+          icon: "warning",
+          title: "No plans available",
+          text: "No active vendor plans found. Please create a plan first.",
+          confirmButtonColor: BRAND,
+        });
+        return;
+      }
+
+      const optionsHtml = plansToUse
+        .map(
+          (p) =>
+            `<option value="${p.id}">${p.name} — ${p.price} ${p.currency} (${p.billing_period})</option>`
+        )
+        .join("");
+
+      const { value: formValues } = await Swal.fire({
+        title: "Manual subscription & limits",
+        width: 520,
+        html: `
+          <div style="text-align:left;display:flex;flex-direction:column;gap:12px;font-size:13px;">
+            <div>
+              <label style="display:block;margin-bottom:4px;font-weight:600;color:#374151;">Select plan</label>
+              <select id="swal-plan" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:13px;">
+                <option value="">-- Choose a plan --</option>
+                ${optionsHtml}
+              </select>
+            </div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;">
+              <div style="flex:1;min-width:0;">
+                <label style="display:block;margin-bottom:4px;font-weight:500;color:#4b5563;">Manual visibility limit (optional)</label>
+                <input
+                  id="swal-visibility"
+                  type="number"
+                  min="0"
+                  placeholder="e.g. 25"
+                  style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:13px;"
+                />
+              </div>
+              <div style="flex:1;min-width:0;">
+                <label style="display:block;margin-bottom:4px;font-weight:500;color:#4b5563;">Manual category limit (optional)</label>
+                <input
+                  id="swal-category"
+                  type="number"
+                  min="0"
+                  placeholder="e.g. 12"
+                  style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:13px;"
+                />
+              </div>
+            </div>
+          </div>
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: "Apply",
+        cancelButtonText: "Cancel",
+        preConfirm: () => {
+          const planEl = document.getElementById("swal-plan");
+          const visEl = document.getElementById("swal-visibility");
+          const catEl = document.getElementById("swal-category");
+
+          const planId = planEl && "value" in planEl ? planEl.value : "";
+          const visibility = visEl && "value" in visEl ? visEl.value : "";
+          const category = catEl && "value" in catEl ? catEl.value : "";
+
+          if (!planId) {
+            Swal.showValidationMessage("Please select a plan.");
+            return null;
+          }
+
+          return { planId, visibility, category };
+        },
+      });
+
+      if (!formValues) return;
+
+      Swal.fire({
+        title: "Applying changes...",
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        didOpen: () => Swal.showLoading(),
+      });
+
+      // 1) Assign subscription to user
+      await manualAssignSubscription({
+        user_id: vendor.id,
+        subscription_plan_id: Number(formValues.planId),
+      });
+
+      // 2) Optional vendor limits
+      const payload = {};
+      if (formValues.visibility) {
+        payload.manual_visibility_limit = Number(formValues.visibility);
+      }
+      if (formValues.category) {
+        payload.manual_category_limit = Number(formValues.category);
+      }
+
+      const vendorProfileId = vendor.vendorProfileId ?? vendor.raw?.vendor?.id;
+      if (vendorProfileId && Object.keys(payload).length > 0) {
+        await updateVendorLimits(vendorProfileId, payload);
+      }
+
+      Swal.close();
+
+      Swal.fire({
+        icon: "success",
+        title: "Manual upgrade applied",
+        text: "Subscription and limits updated successfully.",
+        confirmButtonColor: BRAND,
+      });
+
+      // Refresh list
+      fetchVendors(searchQuery);
+    } catch (error) {
+      console.error("manual-upgrade-vendor error", error);
+      Swal.close();
+      Swal.fire({
+        icon: "error",
+        title: "Manual upgrade failed",
+        text:
+          error?.response?.data?.message ||
+          error.message ||
+          "Could not apply manual upgrade.",
+        confirmButtonColor: BRAND,
+      });
+    }
+  };
+
   // Handle Delete
   const handleDelete = async (vendor) => {
     setOpenMenuId(null);
@@ -660,10 +828,18 @@ const Vendor = () => {
                             <Edit3 className="w-4 h-4" />
                             Edit
                           </button>
+                              <button
+                                type="button"
+                                onClick={() => handleManualUpgradeVendor(v)}
+                                className="w-full px-4 py-2 text-left text-sm text-blue-600 hover:bg-blue-50 flex items-center gap-2"
+                              >
+                                <CheckCircle2 className="w-4 h-4" />
+                                Manual upgrade
+                              </button>
                           <button
                             type="button"
                             onClick={() => handleDelete(v)}
-                            className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 rounded-b-lg"
+                                className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 rounded-b-lg"
                           >
                             <Trash2 className="w-4 h-4" />
                             Delete

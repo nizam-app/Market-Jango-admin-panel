@@ -63,6 +63,18 @@ export const deletePlan = (planId) => {
   return axiosClient.delete(`/vendor-dashboard/admin/plans/${planId}`);
 };
 
+// Manually assign a subscription to a user (vendor/driver) by admin
+// Body: { user_id, subscription_plan_id }
+export const manualAssignSubscription = (payload) => {
+  return axiosClient.post("/subscriptions/manual-assign", payload);
+};
+
+// Set custom visibility & category limits for a vendor (vendor table ID)
+// Body: { manual_visibility_limit?, manual_category_limit? }
+export const updateVendorLimits = (vendorId, payload) => {
+  return axiosClient.put(`/vendors/${vendorId}/limits`, payload);
+};
+
 // ==================== DELIVERY CHARGE MANAGEMENT ====================
 // Get delivery charge dashboard
 export const getDeliveryDashboard = () => {

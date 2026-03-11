@@ -25,6 +25,7 @@ import {
 } from "../api/driverApiUpdate";
 import { updateUserInfo } from "../api/userApi";
 import axiosClient from "../api/axiosClient";
+import { getAllPlans, manualAssignSubscription } from "../api/adminApi";
 
 const BRAND = "#FF8C00";
 const STATUS_TABS = ["All", "Approved", "Pending", "Rejected"];
@@ -105,6 +106,9 @@ const DriverManagement = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const debounceTimerRef = useRef(null);
+
+  const [driverPlans, setDriverPlans] = useState([]);
+  const [driverPlansLoaded, setDriverPlansLoaded] = useState(false);
 
   // ------------ ROUTES -------------
   useEffect(() => {
@@ -469,6 +473,126 @@ const DriverManagement = () => {
     setIsDriverModalOpen(true);
   };
 
+  // Manual subscription upgrade for driver
+  const handleManualUpgradeDriver = async (row) => {
+    try {
+      let plansToUse = driverPlans;
+
+      if (!driverPlansLoaded) {
+        Swal.fire({
+          title: "Loading plans...",
+          allowOutsideClick: false,
+          showConfirmButton: false,
+          didOpen: () => Swal.showLoading(),
+        });
+        try {
+          const res = await getAllPlans({ for_user_type: "driver", status: "active" });
+          const plans = res.data?.data || [];
+          plansToUse = plans;
+          setDriverPlans(plans);
+          setDriverPlansLoaded(true);
+          Swal.close();
+        } catch (err) {
+          console.error("Failed to load driver plans", err);
+          Swal.close();
+          Swal.fire({
+            icon: "error",
+            title: "Failed to load plans",
+            text: err?.response?.data?.message || err.message || "Could not load driver plans.",
+            confirmButtonColor: BRAND,
+          });
+          return;
+        }
+      }
+
+      if (!plansToUse || !plansToUse.length) {
+        Swal.fire({
+          icon: "warning",
+          title: "No plans available",
+          text: "No active driver plans found. Please create a plan first.",
+          confirmButtonColor: BRAND,
+        });
+        return;
+      }
+
+      const optionsHtml = plansToUse
+        .map(
+          (p) =>
+            `<option value="${p.id}">${p.name} — ${p.price} ${p.currency} (${p.billing_period})</option>`
+        )
+        .join("");
+
+      const { value: planId } = await Swal.fire({
+        title: "Manual subscription upgrade",
+        width: 480,
+        html: `
+          <div style="text-align:left;display:flex;flex-direction:column;gap:12px;font-size:13px;">
+            <div>
+              <label style="display:block;margin-bottom:4px;font-weight:600;color:#374151;">Select plan</label>
+              <select id="swal-driver-plan" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:13px;">
+                <option value="">-- Choose a plan --</option>
+                ${optionsHtml}
+              </select>
+            </div>
+          </div>
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: "Apply",
+        cancelButtonText: "Cancel",
+        preConfirm: () => {
+          const el = document.getElementById("swal-driver-plan");
+          const selected = el && "value" in el ? el.value : "";
+          if (!selected) {
+            Swal.showValidationMessage("Please select a plan.");
+            return null;
+          }
+          return selected;
+        },
+      });
+
+      if (!planId) return;
+
+      Swal.fire({
+        title: "Applying subscription...",
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        didOpen: () => Swal.showLoading(),
+      });
+
+      await manualAssignSubscription({
+        user_id: row.id,
+        subscription_plan_id: Number(planId),
+      });
+
+      Swal.close();
+
+      Swal.fire({
+        icon: "success",
+        title: "Subscription upgraded",
+        text: "Driver subscription updated successfully.",
+        confirmButtonColor: BRAND,
+      });
+
+      await Promise.all([
+        loadTabCounts(),
+        loadDriversForStatus(activeFilter, pageMeta.current_page, searchQuery),
+      ]);
+    } catch (error) {
+      console.error("manual-upgrade-driver error", error);
+      Swal.close();
+      Swal.fire({
+        icon: "error",
+        title: "Manual upgrade failed",
+        text:
+          error?.response?.data?.message ||
+          error.message ||
+          "Could not apply manual upgrade.",
+        confirmButtonColor: BRAND,
+      });
+    }
+  };
+
   // ------------ CREATE/EDIT DRIVER -------------
   const handleSaveDriver = async (modalData) => {
     try {
@@ -815,6 +939,14 @@ const DriverManagement = () => {
                               >
                                 <Edit3 className="w-4 h-4" />
                                 Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleManualUpgradeDriver(driver)}
+                                className="w-full px-4 py-2 text-left text-sm text-blue-600 hover:bg-blue-50 flex items-center gap-2"
+                              >
+                                <CheckCircle2 className="w-4 h-4" />
+                                Manual subscription
                               </button>
                               <button
                                 type="button"
