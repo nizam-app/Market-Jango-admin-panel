@@ -382,7 +382,8 @@ const Vendor = () => {
     setIsModalOpen(true);
     setModalVendorRaw(vendorRaw ?? null);
     setModalVendorDetail(null);
-    setModalProducts([]);
+    // Use products from admin-vendor list response (vendor.vendor.products) so list shows immediately
+    setModalProducts(Array.isArray(vendorRaw?.vendor?.products) ? vendorRaw.vendor.products : []);
     setModalLoading(true);
     setModalError(null);
 
@@ -397,8 +398,8 @@ const Vendor = () => {
         console.warn('vendor detail fetch failed', errDet);
       }
 
-      // Try to fetch products for vendor (if endpoint exists)
-      let products = [];
+      // Try to fetch products for vendor (if endpoint exists); otherwise keep list from vendorRaw.vendor.products
+      let products = Array.isArray(vendorRaw?.vendor?.products) ? vendorRaw.vendor.products : [];
       try {
         const { data: pResp } = await axiosClient.get(`/vendor/${vendorId}/products`);
         if (pResp?.status === 'success' && Array.isArray(pResp?.data)) products = pResp.data;
@@ -808,6 +809,23 @@ const Vendor = () => {
                         '-'}
                     </div>
                   </div>
+                  <div>
+                    <div style={{ color: '#666', fontSize: 13 }}>Last Seen</div>
+                    <div style={{ fontWeight: 700 }}>
+                      {modalVendorDetail?.last_seen ?? modalVendorRaw?.last_seen ?? '-'}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ color: '#666', fontSize: 13 }}>Current Subscription Plan</div>
+                    <div style={{ fontWeight: 700 }}>
+                      {modalVendorDetail?.subscription_plan_name ?? modalVendorRaw?.subscription_plan_name ?? '-'}
+                    </div>
+                    {((modalVendorDetail?.subscription_expires_at ?? modalVendorRaw?.subscription_expires_at)) && (
+                      <div style={{ color: '#666', fontSize: 12, marginTop: 2 }}>
+                        Expires: {new Date(modalVendorDetail?.subscription_expires_at ?? modalVendorRaw?.subscription_expires_at).toLocaleDateString()}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Click section - conditionally rendered */}
@@ -893,7 +911,7 @@ const Vendor = () => {
                               {p.name ?? p.title ?? 'Untitled'}
                             </td>
                             <td style={styles.productTd}>
-                              {p.price != null ? p.price : '-'}
+                              {p.sell_price != null ? p.sell_price : p.regular_price != null ? p.regular_price : p.price != null ? p.price : '-'}
                             </td>
                             <td style={styles.productTd}>
                               {p.stock != null

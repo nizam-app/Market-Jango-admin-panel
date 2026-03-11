@@ -101,10 +101,18 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
   const fetchVendors = async () => {
     try {
       const res = await axiosClient.get('/admin-vendor', { params: { page: 1, per_page: 100 } });
-      const vendorsData = res.data?.data?.data || res.data?.data || [];
-      setVendors(Array.isArray(vendorsData) ? vendorsData : []);
+      const data = res.data?.data;
+      const raw = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+      // Use vendor table id when present (backend delivery-charges expects valid vendor id)
+      const list = raw.map((v) => ({
+        id: v.vendor?.id ?? v.id,
+        userId: v.id,
+        name: v.name || v.email || v.vendor?.business_name || `Vendor #${v.id}`,
+      })).filter((v) => v.id != null);
+      setVendors(list);
     } catch (err) {
       console.error('Failed to fetch vendors', err);
+      setVendors([]);
     }
   };
 
@@ -245,11 +253,10 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
 
   const buildDeliveryChargePayload = () => {
     const flatBase = parseFloat(deliveryChargeForm.flat_base_charge);
-    return {
+    const payload = {
       zone_name: String(deliveryChargeForm.zone_name).trim(),
       from_point: String(deliveryChargeForm.from_point).trim(),
       to_point: String(deliveryChargeForm.to_point).trim(),
-      vendor_id: deliveryChargeForm.vendor_id !== '' && deliveryChargeForm.vendor_id != null ? Number(deliveryChargeForm.vendor_id) : null,
       flat_base_charge: Number.isNaN(flatBase) ? 0 : flatBase,
       flat_enabled: !!deliveryChargeForm.flat_enabled,
       status: deliveryChargeForm.status || 'Active',
@@ -285,6 +292,14 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
           }))
         : [],
     };
+    // Only include vendor_id when a valid vendor is selected (backend validates "exists")
+    const vendorId = deliveryChargeForm.vendor_id !== '' && deliveryChargeForm.vendor_id != null
+      ? Number(deliveryChargeForm.vendor_id)
+      : null;
+    if (vendorId != null && !Number.isNaN(vendorId)) {
+      payload.vendor_id = vendorId;
+    }
+    return payload;
   };
 
   const handleSubmitDeliveryCharge = async (e) => {
@@ -332,7 +347,7 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
       Swal.close();
       const data = err?.response?.data;
       let msg = data?.message || err.message || 'Failed to save route';
-      const errors = data?.data?.errors ?? data?.errors;
+      const errors = data?.data?.errors ?? data?.errors ?? (data?.data && typeof data.data === 'object' && !Array.isArray(data.data) ? data.data : null);
       if (errors && typeof errors === 'object') {
         const parts = Object.entries(errors).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(' ') : v}`);
         if (parts.length) msg = msg + '\n\n' + parts.join('\n');
@@ -605,9 +620,12 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
                   >
                     <option value="">— None (global) —</option>
                     {vendors.map((v) => (
-                      <option key={v.id} value={v.id}>{v.name || v.email}</option>
+                      <option key={v.id} value={v.id}>{v.name}</option>
                     ))}
                   </select>
+                  {vendors.length === 0 && (
+                    <p className="mt-1 text-xs text-amber-600">No vendors loaded. Leave as &quot;None&quot; for a global route.</p>
+                  )}
                 </div>
                 <div className="border-t pt-4">
                   <div className="flex items-center justify-between mb-2">

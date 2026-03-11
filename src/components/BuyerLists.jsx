@@ -11,6 +11,7 @@ export default function BuyerLists({
   onUpdateStatus,
   onEdit,
   onDelete,
+  onViewDetails,
 }) {
   const [openMenuId, setOpenMenuId] = useState(null);
 
@@ -83,6 +84,7 @@ export default function BuyerLists({
               <th className="px-6 py-3 text-left text-gray-700">Phone</th>
               <th className="px-6 py-3 text-left text-gray-700">Status</th>
               <th className="px-6 py-3 text-left text-gray-700">Created</th>
+              <th className="px-6 py-3 text-left text-gray-700">View</th>
               <th className="px-6 py-3 text-right text-gray-700">Menu</th>
             </tr>
           </thead>
@@ -172,6 +174,17 @@ export default function BuyerLists({
                     {buyer.created_at
                       ? new Date(buyer.created_at).toLocaleDateString()
                       : "-"}
+                  </td>
+
+                  {/* View details */}
+                  <td className="px-6 py-4">
+                    <button
+                      type="button"
+                      onClick={() => onViewDetails?.(buyer)}
+                      className="inline-flex items-center gap-2 rounded-lg border border-[#FF8C00]/40 bg-white px-3 py-1.5 text-xs font-semibold text-[#FF8C00] shadow-sm hover:bg-[#FF8C00] hover:text-white hover:shadow transition-colors"
+                    >
+                      View Details
+                    </button>
                   </td>
 
                   {/* Menu */}

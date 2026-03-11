@@ -46,6 +46,16 @@ const mapApiDriverToRow = (item) => {
     status: item.status || "Pending", // "Approved" | "Pending" | "Rejected"
     rejectionReason: item.note || "",
     joinedDate: item.created_at || null,
+
+    // Extra info for detail modal
+    phone: item.phone || "",
+    language: item.language || "-",
+    isOnline: !!item.is_online,
+    lastSeen: item.last_seen || null,
+    subscriptionPlanName: item.subscription_plan_name || null,
+    subscriptionExpiresAt: item.subscription_expires_at || null,
+
+    raw: item,
   };
 };
 
@@ -84,6 +94,10 @@ const DriverManagement = () => {
   const [loadingDrivers, setLoadingDrivers] = useState(false);
   const [loadingCounts, setLoadingCounts] = useState(false);
   const [openMenuId, setOpenMenuId] = useState(null);
+
+  // Detail modal state
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [detailDriver, setDetailDriver] = useState(null);
 
   const [routes, setRoutes] = useState([]);
   const [isDriverModalOpen, setIsDriverModalOpen] = useState(false);
@@ -243,6 +257,16 @@ const DriverManagement = () => {
   const handleClearSearch = () => {
     setSearchQuery("");
     setIsSearching(false);
+  };
+
+  const openDetailModal = (driverRow) => {
+    setDetailDriver(driverRow);
+    setIsDetailModalOpen(true);
+  };
+
+  const closeDetailModal = () => {
+    setIsDetailModalOpen(false);
+    setDetailDriver(null);
   };
 
   const _getStatusBadge = (statusRaw) => {
@@ -657,6 +681,9 @@ const DriverManagement = () => {
                       <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">
                         Status & Actions
                       </th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                        View
+                      </th>
                       <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wide">
                         Menu
                       </th>
@@ -750,6 +777,17 @@ const DriverManagement = () => {
                               <option value="Rejected">Rejected</option>
                             </select>
                           </div>
+                        </td>
+
+                        {/* View details */}
+                        <td className="px-6 py-4">
+                          <button
+                            type="button"
+                            onClick={() => openDetailModal(driver)}
+                            className="inline-flex items-center gap-2 rounded-lg border border-[#FF8C00]/40 bg-white px-3 py-1.5 text-xs font-semibold text-[#FF8C00] shadow-sm hover:bg-[#FF8C00] hover:text-white hover:shadow transition-colors"
+                          >
+                            View Details
+                          </button>
                         </td>
 
                         {/* Menu */}
@@ -847,7 +885,7 @@ const DriverManagement = () => {
         </div>
       </div>
 
-      {/* MODAL */}
+      {/* Create / Edit Driver Modal */}
       {isDriverModalOpen && (
         <DriverModal
           driver={editingDriver}
@@ -858,6 +896,175 @@ const DriverManagement = () => {
             setEditingDriver(null);
           }}
         />
+      )}
+
+      {/* Driver Details Modal */}
+      {isDetailModalOpen && detailDriver && (
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center bg-black/40"
+          onClick={closeDetailModal}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[85vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-bold text-gray-900">
+                Driver Details
+              </h2>
+              <button
+                type="button"
+                onClick={closeDetailModal}
+                className="px-3 py-1.5 text-sm font-semibold rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="px-6 py-4 space-y-6">
+              {/* Header with avatar */}
+              <div className="flex items-start gap-4">
+                <div className="w-14 h-14 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-lg font-bold">
+                  {detailDriver.name?.charAt(0)?.toUpperCase() || "D"}
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-base font-semibold text-gray-900">
+                        {detailDriver.name}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {detailDriver.email || "-"}
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-3 text-xs text-gray-600">
+                        <span>
+                          Status:{" "}
+                          <span className="font-semibold">
+                            {detailDriver.status}
+                          </span>
+                        </span>
+                        <span>
+                          Joined:{" "}
+                          <span className="font-semibold">
+                            {detailDriver.joinedDate
+                              ? new Date(
+                                  detailDriver.joinedDate
+                                ).toLocaleString()
+                              : "-"}
+                          </span>
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right text-xs text-gray-600">
+                      <div className="font-medium text-gray-500">
+                        User ID
+                      </div>
+                      <div className="font-semibold text-gray-900">
+                        {detailDriver.id}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Profile meta */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                  Profile
+                </h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <div className="text-xs text-gray-500">Phone</div>
+                    <div className="font-semibold text-gray-900">
+                      {detailDriver.phone || "-"}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">Language</div>
+                    <div className="font-semibold text-gray-900">
+                      {detailDriver.language || "-"}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">Is Online</div>
+                    <div className="font-semibold text-gray-900">
+                      {detailDriver.isOnline ? "Yes" : "No"}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">Last Seen</div>
+                    <div className="font-semibold text-gray-900">
+                      {detailDriver.lastSeen || "-"}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">
+                      Current Subscription Plan
+                    </div>
+                    <div className="font-semibold text-gray-900">
+                      {detailDriver.subscriptionPlanName || "-"}
+                    </div>
+                    {detailDriver.subscriptionExpiresAt && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        Expires:{" "}
+                        {new Date(
+                          detailDriver.subscriptionExpiresAt
+                        ).toLocaleDateString()}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Vehicle info */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                  Vehicle Info
+                </h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <div className="text-xs text-gray-500">Vehicle</div>
+                    <div className="font-semibold text-gray-900">
+                      {detailDriver.vehicleType}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">Model</div>
+                    <div className="font-semibold text-gray-900">
+                      {detailDriver.vehicleNumber}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">
+                      License Number
+                    </div>
+                    <div className="font-semibold text-gray-900">
+                      {detailDriver.licenseNumber}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">
+                      Number of Routes
+                    </div>
+                    <div className="font-semibold text-gray-900">
+                      {detailDriver.numberOfRoutes}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end">
+              <button
+                type="button"
+                onClick={closeDetailModal}
+                className="px-4 py-2 text-sm font-semibold rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

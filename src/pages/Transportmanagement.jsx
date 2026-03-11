@@ -23,6 +23,20 @@ const Transportmanagement = () => {
   const [isSearching, setIsSearching] = useState(false);
   const debounceTimerRef = useRef(null);
 
+  // Detail modal state
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [detailTransport, setDetailTransport] = useState(null);
+
+  const openDetailModal = (transport) => {
+    setDetailTransport(transport);
+    setIsDetailModalOpen(true);
+  };
+
+  const closeDetailModal = () => {
+    setIsDetailModalOpen(false);
+    setDetailTransport(null);
+  };
+
   const fetchTransports = async (page = 1, search = "") => {
     try {
       setLoading(true);
@@ -326,7 +340,126 @@ const Transportmanagement = () => {
         onUpdateStatus={handleUpdateStatus}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        onViewDetails={openDetailModal}
       />
+
+      {/* Transport Details Modal */}
+      {isDetailModalOpen && detailTransport && (
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center bg-black/40"
+          onClick={closeDetailModal}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[85vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-bold text-gray-900">
+                Transport Details
+              </h2>
+              <button
+                type="button"
+                onClick={closeDetailModal}
+                className="px-3 py-1.5 text-sm font-semibold rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="px-6 py-4 space-y-6">
+              {/* Header with avatar */}
+              <div className="flex items-start gap-4">
+                <div className="w-14 h-14 rounded-full bg-gray-300 text-white flex items-center justify-center text-lg font-bold">
+                  {(detailTransport.user?.name || "?").charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-base font-semibold text-gray-900">
+                        {detailTransport.user?.name || "N/A"}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {detailTransport.user?.email || "-"}
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-3 text-xs text-gray-600">
+                        <span>
+                          Status:{" "}
+                          <span className="font-semibold">
+                            {detailTransport.user?.status || "-"}
+                          </span>
+                        </span>
+                        <span>
+                          Created:{" "}
+                          <span className="font-semibold">
+                            {detailTransport.created_at
+                              ? new Date(detailTransport.created_at).toLocaleString()
+                              : "-"}
+                          </span>
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right text-xs text-gray-600">
+                      <div className="font-medium text-gray-500">Transport ID</div>
+                      <div className="font-semibold text-gray-900">
+                        {detailTransport.id}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Profile meta */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                  Profile
+                </h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <div className="text-xs text-gray-500">Phone</div>
+                    <div className="font-semibold text-gray-900">
+                      {detailTransport.user?.phone || "-"}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">Language</div>
+                    <div className="font-semibold text-gray-900">
+                      {detailTransport.user?.language || "-"}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">Is Online</div>
+                    <div className="font-semibold text-gray-900">
+                      {detailTransport.user?.is_online ? "Yes" : "No"}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">Last Seen</div>
+                    <div className="font-semibold text-gray-900">
+                      {detailTransport.user?.last_seen || "-"}
+                    </div>
+                  </div>
+                  <div className="col-span-2">
+                    <div className="text-xs text-gray-500">Address</div>
+                    <div className="font-semibold text-gray-900">
+                      {detailTransport.address || "-"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end">
+              <button
+                type="button"
+                onClick={closeDetailModal}
+                className="px-4 py-2 text-sm font-semibold rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Modal */}
       {isEditModalOpen && (
