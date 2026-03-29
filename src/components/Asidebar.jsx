@@ -129,8 +129,12 @@ const Asidebar = () => {
     <aside className="sticky top-0 left-0 border-r border-[#E6EFF5] h-screen z-30 
     w-[20%] bg-white pt-3 flex flex-col min-h-0">
         {/* logo */}
-        <div className="flex-shrink-0 flex items-center gap-2 pl-10">
-          <img src={appLogo}  alt="logo" />
+        <div className="flex-shrink-0 flex items-center gap-2 pl-6 pr-4">
+          <img
+            src={appLogo}
+            alt="Jango Market logo"
+            className="max-h-16 w-auto object-contain"
+          />
         </div>
         
         {/* pages links - scrollable */}
