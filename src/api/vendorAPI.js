@@ -6,9 +6,13 @@ export function getPendingVendors(page = 1) {
   return axiosClient.get(`/pending/vendor?page=${page}`);
 }
 
-// Active vendor list (future use – already দেওয়া ছিল)
-export function getActiveVendors(page = 1) {
-  return axiosClient.get(`/active/vendor?page=${page}`);
+// Active vendor list — pass page number or query params e.g. { per_page: 500, page: 1 }
+export function getActiveVendors(pageOrParams = 1) {
+  if (typeof pageOrParams === "object" && pageOrParams !== null) {
+    return axiosClient.get("/active/vendor", { params: pageOrParams });
+  }
+  const page = typeof pageOrParams === "number" ? pageOrParams : 1;
+  return axiosClient.get("/active/vendor", { params: { page } });
 }
 
 // Accept / Reject / Cancel vendor

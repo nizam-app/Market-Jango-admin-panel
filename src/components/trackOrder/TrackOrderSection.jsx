@@ -1,6 +1,6 @@
 // src/components/trackOrder/TrackOrderSection.jsx
 import React, { useEffect, useState } from "react";
-import { getAllOrders } from "../../api/orderApi"; // <-- path adjust লাগলে করো
+import { getAllOrders, parseAllOrdersResponse } from "../../api/orderApi";
 
 const statusSteps = ["Packed", "On The Way", "Complete"];
 
@@ -56,11 +56,8 @@ const TrackOrderSection = () => {
       setError("");
 
       // ✅ all order API
-      const res = await getAllOrders(pageNumber);
-
-      // pagination object
-      const pagination = res.data?.data || {};
-      const list = pagination.data || [];
+      const res = await getAllOrders({ page: pageNumber });
+      const { list, meta } = parseAllOrdersResponse(res);
 
       setOrders(list);
       const filtered = filterBySearch(list, searchTerm);
@@ -70,8 +67,8 @@ const TrackOrderSection = () => {
         setSelectedOrder(filtered[0]); // প্রথম order default select
       }
 
-      setPage(pagination.current_page || 1);
-      setLastPage(pagination.last_page || 1);
+      setPage(meta?.current_page || 1);
+      setLastPage(meta?.last_page || 1);
     } catch (err) {
       console.error("Failed to load orders", err);
       setError("Failed to load orders.");

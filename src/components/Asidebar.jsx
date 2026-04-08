@@ -60,11 +60,25 @@ const Asidebar = () => {
                 path : '/drivers-list'
             },
             {
+                name : 'Assignments',
+                navTitle : 'Driver Assignments',
+                icon : "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z",
+                viewBox: "0 0 24 24",
+                path : '/driver-assignments'
+            },
+            {
                 name : 'Route Mgmt',
                 navTitle : 'Route Management',
                 icon : "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z M3 19h18v2H3z",
                 viewBox: "0 0 24 24",
                 path : '/route-management'
+            },
+            {
+                name : 'Orders',
+                navTitle : 'Order Management',
+                icon : "M7 4V2C7 1.45 7.45 1 8 1H16C16.55 1 17 1.45 17 2V4H20C20.55 4 21 4.45 21 5V20C21 21.1 20.1 22 19 22H5C3.9 22 3 21.1 3 20V5C3 4.45 3.45 4 4 4H7ZM9 3V4H15V3H9ZM5 6V20H19V6H5Z",
+                viewBox: "0 0 24 24",
+                path : '/orders'
             },
             {
                 name : 'Track Order',

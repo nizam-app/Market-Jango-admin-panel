@@ -1,5 +1,6 @@
 // src/pages/DriverManagement.jsx
 import React, { useState, useEffect, useRef } from "react";
+import { Link } from "react-router";
 import {
   Plus,
   MoreVertical,
@@ -706,6 +707,12 @@ const DriverManagement = () => {
                 ADD DRIVER
               </span>
             </button>
+            <Link
+              to="/driver-assignments"
+              className="inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold text-[#FF8C00] border border-[#FF8C00]/40 rounded-lg hover:bg-orange-50"
+            >
+              Assignments
+            </Link>
           </div>
         </div>
 

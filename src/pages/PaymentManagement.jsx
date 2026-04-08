@@ -1,5 +1,4 @@
 // src/pages/PaymentManagement.jsx
-// Payment Management UI for admin – UI only, no API calls yet.
 import React, { useState } from "react";
 import {
   Settings,
@@ -9,6 +8,8 @@ import {
   Receipt,
   Search,
 } from "lucide-react";
+import RefundsPanel from "../components/payment/RefundsPanel";
+import { walletsPayoutsApiPending } from "../api/walletApi";
 
 const BRAND = "#FF8C00";
 
@@ -67,10 +68,6 @@ const PaymentManagement = () => {
   const [transactionSearch, setTransactionSearch] = useState("");
   const transactions = [];
 
-  // Refund requests + payouts
-  const [refundSearch, setRefundSearch] = useState("");
-  const refundRequests = [];
-  const buyersRefundPayouts = [];
   const [affiliatePayoutSearch, setAffiliatePayoutSearch] = useState("");
   const affiliatePayouts = [];
 
@@ -464,6 +461,12 @@ const PaymentManagement = () => {
       {/* VENDOR / DRIVER PAYOUT SYSTEM TAB */}
       {activeTab === "vendor-payouts" && (
         <div className="space-y-6">
+          {walletsPayoutsApiPending && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+              Wallet and payout list APIs are not wired yet. Add endpoints in{" "}
+              <code className="text-xs bg-amber-100 px-1 rounded">src/api/walletApi.js</code> when your backend is ready.
+            </div>
+          )}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
               <h2 className="text-base font-semibold text-gray-800">
@@ -706,190 +709,7 @@ const PaymentManagement = () => {
       {/* REFUND + PAYOUTS TAB */}
       {activeTab === "refunds" && (
         <div className="space-y-6">
-          {/* Refund requests */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
-              <h2 className="text-base font-semibold text-gray-800">
-                Refund requests
-              </h2>
-              <span className="text-xs text-gray-500">
-                Filter by country, state, town, date range
-              </span>
-            </div>
-            <div className="p-6 space-y-4">
-              {renderFilters()}
-              <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="relative flex-1 max-w-sm flex gap-2">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    value={refundSearch}
-                    onChange={(e) => setRefundSearch(e.target.value)}
-                    placeholder="Search by vendor order ID"
-                    className="flex-1 pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/40"
-                  />
-                  <button
-                    type="button"
-                    className="px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
-                  >
-                    Search
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Order ID
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Customer name
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Vendor name
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Refund reason
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Amount
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Order edits / partial refund
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {refundRequests.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={8}
-                        className="px-4 py-12 text-center text-sm text-gray-500"
-                      >
-                        No refund requests yet. Note: affiliate commission will be
-                        reserved.
-                      </td>
-                    </tr>
-                  ) : (
-                    refundRequests.map((row) => (
-                      <tr key={row.id} className="hover:bg-gray-50/50">
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          {row.order_id}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {row.customer_name}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {row.vendor_name}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {row.refund_reason}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {row.amount}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {row.status}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {row.order_edits}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="inline-flex gap-2">
-                            <button className="px-2 py-1 text-xs font-medium rounded-lg bg-green-100 text-green-700">
-                              Approve
-                            </button>
-                            <button className="px-2 py-1 text-xs font-medium rounded-lg bg-red-100 text-red-700">
-                              Reject
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Buyers refund payouts */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-              <h2 className="text-base font-semibold text-gray-800">
-                Buyers refund payouts
-              </h2>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Buyer name
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Amount
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Date of request
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Action (reject, approve)
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {buyersRefundPayouts.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={5}
-                        className="px-4 py-12 text-center text-sm text-gray-500"
-                      >
-                        No buyer refund payouts yet.
-                      </td>
-                    </tr>
-                  ) : (
-                    buyersRefundPayouts.map((row) => (
-                      <tr key={row.id} className="hover:bg-gray-50/50">
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          {row.buyer_name}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {row.amount}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {row.status}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {row.request_date}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="inline-flex gap-2">
-                            <button className="px-2 py-1 text-xs font-medium rounded-lg bg-green-100 text-green-700">
-                              Approve
-                            </button>
-                            <button className="px-2 py-1 text-xs font-medium rounded-lg bg-red-100 text-red-700">
-                              Reject
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <RefundsPanel />
 
           {/* Affiliate payout management */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">

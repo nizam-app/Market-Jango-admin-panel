@@ -24,6 +24,8 @@ import CategoryManagement from "../pages/CategoryManagement";
 import VisibilityManagement from "../pages/VisibilityManagement";
 import AffiliateLinks from "../pages/AffiliateLinks";
 import PaymentManagement from "../pages/PaymentManagement";
+import OrderManagement from "../pages/OrderManagement";
+import DriverAssignments from "../pages/DriverAssignments";
 
 const Router = createBrowserRouter([
   // 🔓 Public route
@@ -80,6 +82,14 @@ const Router = createBrowserRouter([
           {
             path: "track-order",
             Component: TrackOrder,
+          },
+          {
+            path: "orders",
+            Component: OrderManagement,
+          },
+          {
+            path: "driver-assignments",
+            Component: DriverAssignments,
           },
           {
             path: "admin-user",

@@ -3,8 +3,8 @@ import axios from "axios";
 
 const axiosClient = axios.create({
   // baseURL: "https://api-market-jango.r2ait.in/public/api",
-  // baseURL: "http://103.208.183.250:9000/api",
-  baseURL: "/api",
+  baseURL: "http://103.208.183.250:9000/api",
+  // baseURL: "/api",
 });
 
 // ---- Request interceptor: token send ----
