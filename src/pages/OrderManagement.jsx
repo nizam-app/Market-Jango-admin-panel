@@ -171,9 +171,9 @@ const OrderManagement = () => {
             </h1>
             <p className="text-sm text-gray-500 mt-1 max-w-xl">
               Filter by date range, order status, vendor, and delivery zone. Results load from{" "}
-              <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">
+              {/* <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">
                 GET /all/order
-              </code>
+              </code> */}
               .
             </p>
           </div>

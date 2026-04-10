@@ -1,0 +1,13 @@
+# Netlify: SPA + proxy API (avoids HTTPS → HTTP mixed-content block in the browser)
+# Set VITE_API_URL at build time only if you use a public HTTPS API instead; otherwise the SPA uses /api.
+
+[[redirects]]
+  from = "/api/*"
+  to = "http://103.208.183.250:9000/api/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

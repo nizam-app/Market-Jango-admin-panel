@@ -9,7 +9,8 @@ import {
   Search,
 } from "lucide-react";
 import RefundsPanel from "../components/payment/RefundsPanel";
-import { walletsPayoutsApiPending } from "../api/walletApi";
+import WalletsPayoutsTab from "../components/payment/WalletsPayoutsTab";
+import OrderTransactionsPanel from "../components/payment/OrderTransactionsPanel";
 
 const BRAND = "#FF8C00";
 
@@ -60,14 +61,6 @@ const PaymentManagement = () => {
   const [filterFromDate, setFilterFromDate] = useState("");
   const [filterToDate, setFilterToDate] = useState("");
 
-  // Vendor / Driver payout system
-  const [vendorPayoutSearch, setVendorPayoutSearch] = useState("");
-  const vendorPayouts = [];
-
-  // Transaction management
-  const [transactionSearch, setTransactionSearch] = useState("");
-  const transactions = [];
-
   const [affiliatePayoutSearch, setAffiliatePayoutSearch] = useState("");
   const affiliatePayouts = [];
 
@@ -75,9 +68,12 @@ const PaymentManagement = () => {
   const [subscriptionSearch, setSubscriptionSearch] = useState("");
   const subscriptionEarnings = [];
 
+  const filterInputClass =
+    "w-full min-w-0 max-w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/40 box-border";
+
   const renderFilters = () => (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-      <div>
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 min-w-0">
+      <div className="min-w-0">
         <label className="block text-xs font-medium text-gray-600 mb-1">
           Country
         </label>
@@ -86,10 +82,10 @@ const PaymentManagement = () => {
           value={filterCountry}
           onChange={(e) => setFilterCountry(e.target.value)}
           placeholder="All"
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/40"
+          className={filterInputClass}
         />
       </div>
-      <div>
+      <div className="min-w-0">
         <label className="block text-xs font-medium text-gray-600 mb-1">
           State
         </label>
@@ -98,10 +94,10 @@ const PaymentManagement = () => {
           value={filterState}
           onChange={(e) => setFilterState(e.target.value)}
           placeholder="All"
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/40"
+          className={filterInputClass}
         />
       </div>
-      <div>
+      <div className="min-w-0">
         <label className="block text-xs font-medium text-gray-600 mb-1">
           Town
         </label>
@@ -110,32 +106,30 @@ const PaymentManagement = () => {
           value={filterTown}
           onChange={(e) => setFilterTown(e.target.value)}
           placeholder="All"
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/40"
+          className={filterInputClass}
         />
       </div>
-      <div className="flex gap-2">
-        <div className="flex-1">
-          <label className="block text-xs font-medium text-gray-600 mb-1">
-            From
-          </label>
-          <input
-            type="date"
-            value={filterFromDate}
-            onChange={(e) => setFilterFromDate(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/40"
-          />
-        </div>
-        <div className="flex-1">
-          <label className="block text-xs font-medium text-gray-600 mb-1">
-            To
-          </label>
-          <input
-            type="date"
-            value={filterToDate}
-            onChange={(e) => setFilterToDate(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/40"
-          />
-        </div>
+      <div className="min-w-0">
+        <label className="block text-xs font-medium text-gray-600 mb-1">
+          From
+        </label>
+        <input
+          type="date"
+          value={filterFromDate}
+          onChange={(e) => setFilterFromDate(e.target.value)}
+          className={filterInputClass}
+        />
+      </div>
+      <div className="min-w-0">
+        <label className="block text-xs font-medium text-gray-600 mb-1">
+          To
+        </label>
+        <input
+          type="date"
+          value={filterToDate}
+          onChange={(e) => setFilterToDate(e.target.value)}
+          className={filterInputClass}
+        />
       </div>
     </div>
   );
@@ -458,251 +452,17 @@ const PaymentManagement = () => {
         </div>
       )}
 
-      {/* VENDOR / DRIVER PAYOUT SYSTEM TAB */}
+      {/* VENDOR / DRIVER PAYOUT SYSTEM TAB — wallets + payout requests (API-backed) */}
       {activeTab === "vendor-payouts" && (
         <div className="space-y-6">
-          {walletsPayoutsApiPending && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-              Wallet and payout list APIs are not wired yet. Add endpoints in{" "}
-              <code className="text-xs bg-amber-100 px-1 rounded">src/api/walletApi.js</code> when your backend is ready.
-            </div>
-          )}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
-              <h2 className="text-base font-semibold text-gray-800">
-                Vendor / Driver payout system
-              </h2>
-              <span className="text-xs text-gray-500">
-                Filter by country, state, town, time range
-              </span>
-            </div>
-            <div className="p-6 space-y-4">
-              {renderFilters()}
-              <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="relative flex-1 max-w-sm flex gap-2">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    value={vendorPayoutSearch}
-                    onChange={(e) => setVendorPayoutSearch(e.target.value)}
-                    placeholder="Search by vendor name, status"
-                    className="flex-1 pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/40"
-                  />
-                  <button
-                    type="button"
-                    className="px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
-                  >
-                    Search
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Vendor name
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Amount
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Method
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Status (paid, pending)
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Date of request
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Action (approve / reject / hold)
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {vendorPayouts.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={6}
-                        className="px-4 py-12 text-center text-sm text-gray-500"
-                      >
-                        No payout requests yet.
-                      </td>
-                    </tr>
-                  ) : (
-                    vendorPayouts.map((row) => (
-                      <tr key={row.id} className="hover:bg-gray-50/50">
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          {row.vendor_name}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {row.amount}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {row.method}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {row.status}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {row.request_date}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="inline-flex gap-2">
-                            <button className="px-2 py-1 text-xs font-medium rounded-lg bg-green-100 text-green-700">
-                              Approve
-                            </button>
-                            <button className="px-2 py-1 text-xs font-medium rounded-lg bg-red-100 text-red-700">
-                              Reject
-                            </button>
-                            <button className="px-2 py-1 text-xs font-medium rounded-lg bg-gray-100 text-gray-700">
-                              Hold
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <WalletsPayoutsTab />
         </div>
       )}
 
-      {/* TRANSACTION MANAGEMENT TAB */}
+      {/* TRANSACTION MANAGEMENT TAB — GET /reports/order-transactions */}
       {activeTab === "transactions" && (
         <div className="space-y-6">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
-              <h2 className="text-base font-semibold text-gray-800">
-                Transaction management
-              </h2>
-              <span className="text-xs text-gray-500">
-                Filter by country, state, town, date range
-              </span>
-            </div>
-            <div className="p-6 space-y-4">
-              {renderFilters()}
-              <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="relative flex-1 max-w-sm flex gap-2">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    value={transactionSearch}
-                    onChange={(e) => setTransactionSearch(e.target.value)}
-                    placeholder="Search by vendor, buyer/transport, transaction ID, order ID, status, affiliate"
-                    className="flex-1 pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/40"
-                  />
-                  <button
-                    type="button"
-                    className="px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
-                  >
-                    Search
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Transaction ID
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Order ID
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Buyer / Transport ID
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Vendor name
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Payment method
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Gross amount
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Commission
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Taxes
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Affiliate earning
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Vendor / Driver net amount
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Date
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {transactions.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={12}
-                        className="px-4 py-12 text-center text-sm text-gray-500"
-                      >
-                        No transactions yet.
-                      </td>
-                    </tr>
-                  ) : (
-                    transactions.map((row) => (
-                      <tr key={row.id} className="hover:bg-gray-50/50">
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          {row.transaction_id}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {row.order_id}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {row.buyer_transport_id}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {row.vendor_name}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {row.payment_method}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {row.gross_amount}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {row.commission}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {row.taxes}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {row.affiliate_earning}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {row.vendor_net_amount}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {row.status}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {row.date}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <OrderTransactionsPanel />
         </div>
       )}
 
