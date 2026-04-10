@@ -7,14 +7,30 @@ import {
   Filter,
   Loader2,
   MapPin,
+  Pencil,
   Store,
 } from "lucide-react";
 import { getAllOrders, getOrderItemStatuses, parseAllOrdersResponse } from "../api/orderApi";
 import { getActiveVendors } from "../api/vendorAPI";
 import { getZones } from "../api/adminApi";
+import OrderEditModal from "../components/orders/OrderEditModal";
 
 const BRAND = "#FF8C00";
 const BRAND_SOFT = "rgba(255, 140, 0, 0.12)";
+
+function sellingModeLabel(mode) {
+  const m = String(mode || "").toLowerCase().replace(/_/g, "-");
+  if (m === "marketplace") return "Marketplace";
+  if (m === "walkin" || m === "walk-in" || m === "walking") return "Walk-in";
+  return mode ? String(mode) : "—";
+}
+
+function sellingModeBadgeClass(mode) {
+  const m = String(mode || "").toLowerCase();
+  if (m === "marketplace") return "bg-sky-50 text-sky-900 ring-sky-200/80";
+  if (m === "walkin" || m === "walk-in" || m === "walking" || m === "walk_in") return "bg-violet-50 text-violet-900 ring-violet-200/80";
+  return "bg-gray-100 text-gray-700 ring-gray-200";
+}
 
 function statusBadgeClass(s) {
   const v = (s || "").toLowerCase();
@@ -50,11 +66,14 @@ const OrderManagement = () => {
   const [status, setStatus] = useState("");
   const [vendorId, setVendorId] = useState("");
   const [zoneId, setZoneId] = useState("");
+  const [sellingMode, setSellingMode] = useState("");
+  const [orderNumber, setOrderNumber] = useState("");
 
   const [statuses, setStatuses] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [zones, setZones] = useState([]);
   const [filterOptionsLoading, setFilterOptionsLoading] = useState(true);
+  const [editOrder, setEditOrder] = useState(null);
 
   const sortedVendors = useMemo(() => {
     return [...vendors].sort((a, b) =>
@@ -103,16 +122,20 @@ const OrderManagement = () => {
       status,
       vendorId,
       zoneId,
+      sellingMode,
+      orderNumber,
     };
     try {
       setLoading(true);
       setError("");
-      const params = { page };
+      const params = { page, per_page: 20 };
       if (f.fromDate) params.from_date = f.fromDate;
       if (f.toDate) params.to_date = f.toDate;
       if (String(f.status || "").trim()) params.status = String(f.status).trim();
       if (String(f.vendorId || "").trim()) params.vendor_id = String(f.vendorId).trim();
       if (String(f.zoneId || "").trim()) params.zone_id = String(f.zoneId).trim();
+      if (String(f.sellingMode || "").trim()) params.selling_mode = String(f.sellingMode).trim();
+      if (String(f.orderNumber || "").trim()) params.order_number = String(f.orderNumber).trim();
 
       const res = await getAllOrders(params);
       const { list, meta: m } = parseAllOrdersResponse(res);
@@ -131,8 +154,9 @@ const OrderManagement = () => {
     }
   };
 
-  const hasActiveFilters =
-    Boolean(fromDate || toDate || status || vendorId || zoneId);
+  const hasActiveFilters = Boolean(
+    fromDate || toDate || status || vendorId || zoneId || sellingMode || orderNumber
+  );
 
   const clearFilters = () => {
     setFromDate("");
@@ -140,12 +164,16 @@ const OrderManagement = () => {
     setStatus("");
     setVendorId("");
     setZoneId("");
+    setSellingMode("");
+    setOrderNumber("");
     fetchOrders(1, {
       fromDate: "",
       toDate: "",
       status: "",
       vendorId: "",
       zoneId: "",
+      sellingMode: "",
+      orderNumber: "",
     });
   };
 
@@ -302,6 +330,33 @@ const OrderManagement = () => {
             </div>
           </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-5 xl:gap-6">
+            <div className="md:col-span-2 xl:col-span-4">
+              <label className="block text-xs font-medium text-gray-600 mb-2">Order number</label>
+              <input
+                type="text"
+                value={orderNumber}
+                onChange={(e) => setOrderNumber(e.target.value)}
+                placeholder="e.g. ORD-2026…"
+                className={inputClass}
+                autoComplete="off"
+              />
+            </div>
+            <div className="md:col-span-1 xl:col-span-3">
+              <label className="block text-xs font-medium text-gray-600 mb-2">Selling mode</label>
+              <select
+                value={sellingMode}
+                onChange={(e) => setSellingMode(e.target.value)}
+                className={selectClass}
+                aria-label="Filter by selling mode"
+              >
+                <option value="">All modes</option>
+                <option value="marketplace">Marketplace</option>
+                <option value="walk_in">Walk-in</option>
+              </select>
+            </div>
+          </div>
+
           <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 pt-2 border-t border-gray-100">
             <button
               type="button"
@@ -373,15 +428,21 @@ const OrderManagement = () => {
                 <th className="px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-[#5a6489]">
                   Driver
                 </th>
+                <th className="px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-[#5a6489] whitespace-nowrap">
+                  Selling mode
+                </th>
                 <th className="px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-[#5a6489]">
                   Created
+                </th>
+                <th className="px-4 py-3.5 text-right text-xs font-semibold uppercase tracking-wide text-[#5a6489]">
+                  Actions
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-16 text-center">
+                  <td colSpan={11} className="px-4 py-16 text-center">
                     <span className="inline-flex items-center gap-2 text-gray-500">
                       <Loader2 className="w-5 h-5 animate-spin text-[#FF8C00]" aria-hidden />
                       Loading orders…
@@ -390,7 +451,7 @@ const OrderManagement = () => {
                 </tr>
               ) : orders.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-16 text-center text-gray-500">
+                  <td colSpan={11} className="px-4 py-16 text-center text-gray-500">
                     No orders match your filters.
                   </td>
                 </tr>
@@ -425,10 +486,30 @@ const OrderManagement = () => {
                       </span>
                     </td>
                     <td className="px-4 py-3.5 text-gray-600">
-                      {o.driver?.name || o.driver?.user?.name || (o.driver_id != null ? `#${o.driver_id}` : "—")}
+                      {o.driver?.name ||
+                        o.driver?.user?.name ||
+                        (o.driver_id != null ? `#${o.driver_id}` : "—")}
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium ring-1 ring-inset ${sellingModeBadgeClass(o.selling_mode)}`}
+                        title={o.selling_mode != null ? String(o.selling_mode) : undefined}
+                      >
+                        {sellingModeLabel(o.selling_mode)}
+                      </span>
                     </td>
                     <td className="px-4 py-3.5 text-gray-600 whitespace-nowrap text-xs">
                       {o.created_at ? new Date(o.created_at).toLocaleString() : "—"}
+                    </td>
+                    <td className="px-4 py-3.5 text-right">
+                      <button
+                        type="button"
+                        onClick={() => setEditOrder(o)}
+                        className="inline-flex items-center justify-center gap-1.5 text-sm font-medium px-3 py-2 rounded-xl border border-gray-200 text-[#343C6A] bg-white hover:bg-gray-50 transition"
+                      >
+                        <Pencil className="w-3.5 h-3.5 opacity-80" aria-hidden />
+                        Edit
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -466,6 +547,13 @@ const OrderManagement = () => {
           </div>
         )}
       </div>
+
+      <OrderEditModal
+        invoiceItemId={editOrder?.id ?? null}
+        onClose={() => setEditOrder(null)}
+        brand={BRAND}
+        onRefreshTable={() => fetchOrders(meta.current_page)}
+      />
     </div>
   );
 };

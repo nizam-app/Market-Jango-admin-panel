@@ -158,7 +158,12 @@ export default function RefundsPanel() {
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-base font-semibold text-gray-800">Refund requests</h2>
+          <div>
+            <h2 className="text-base font-semibold text-gray-800">Refund requests</h2>
+            <p className="text-xs text-gray-500 mt-0.5 max-w-xl">
+              Buyers, vendors, drivers, and transport — all eligible roles for refunds and payouts.
+            </p>
+          </div>
           <button
             type="button"
             onClick={() => load(meta.current_page)}

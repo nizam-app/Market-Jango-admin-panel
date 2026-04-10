@@ -31,6 +31,42 @@ export const getAllOrders = (params = 1) => {
   return axiosClient.get("/all/order", { params: clean });
 };
 
+/** PUT /all/order/{id} — admin update (status, note, etc.) */
+export const updateAllOrder = (orderItemId, body = {}) => {
+  return axiosClient.put(`/all/order/${orderItemId}`, body);
+};
+
+/** GET /all/order/{invoice_item_id}/edit-context — header + all invoice lines */
+export const getOrderEditContext = (invoiceItemId) => {
+  return axiosClient.get(`/all/order/${invoiceItemId}/edit-context`);
+};
+
+/** PATCH /all/order/{line_id}/quantity */
+export const patchOrderLineQuantity = (lineId, body) => {
+  return axiosClient.patch(`/all/order/${lineId}/quantity`, body);
+};
+
+/** POST /all/order/{line_id}/cancel */
+export const postOrderLineCancel = (lineId, body) => {
+  return axiosClient.post(`/all/order/${lineId}/cancel`, body);
+};
+
+/** POST /all/order/{line_id}/assign-driver */
+export const postOrderLineAssignDriver = (lineId, body) => {
+  return axiosClient.post(`/all/order/${lineId}/assign-driver`, body);
+};
+
+/**
+ * { header, lines } from edit-context payload
+ */
+export function parseOrderEditContext(res) {
+  const raw = res?.data?.data ?? res?.data;
+  return {
+    header: raw?.header ?? null,
+    lines: Array.isArray(raw?.lines) ? raw.lines : [],
+  };
+}
+
 /**
  * Normalize Laravel or array-only responses for /all/order
  */

@@ -58,8 +58,225 @@ const driverVehicle = (d) => {
   return parts.length ? parts.join(" · ") : "—";
 };
 
+const fmt = (v) => (v != null && String(v).trim() !== "" ? String(v) : "—");
+
+/** First non-empty string (APIs may use different keys for the same address). */
+function firstNonEmpty(...vals) {
+  for (const v of vals) {
+    if (v == null) continue;
+    const s = typeof v === "string" ? v.trim() : String(v).trim();
+    if (s !== "") return s;
+  }
+  return "";
+}
+
+/**
+ * Pickup / origin — prefer invoice_item fields, then parent invoice, then vendor location.
+ * If everything is null (common when checkout didn’t persist addresses), nothing to show until the API includes them.
+ */
+function resolvePickupAddress(row) {
+  const item = row?.invoice_item;
+  const inv = item?.invoice;
+  const vendor = row?.vendor;
+  return firstNonEmpty(
+    item?.pickup_address,
+    item?.origin_address,
+    item?.from_address,
+    inv?.pickup_address,
+    inv?.vendor_address,
+    vendor?.address,
+    vendor?.business_address,
+    vendor?.pickup_address
+  );
+}
+
+/**
+ * Drop / delivery — ship + alternate names, then invoice-level shipping, then current/live address.
+ */
+function resolveDropAddress(row) {
+  const item = row?.invoice_item;
+  const inv = item?.invoice;
+  return firstNonEmpty(
+    item?.ship_address,
+    item?.delivery_address,
+    item?.drop_address,
+    item?.destination_address,
+    inv?.ship_address,
+    inv?.delivery_address,
+    inv?.shipping_address,
+    item?.current_address
+  );
+}
+
+const displayOrNotSet = (text) =>
+  text ? text : <span className="text-gray-400">Not set</span>;
+
+/** @param {"pickup"|"drop"} kind */
+function AddressCell({ row, kind }) {
+  const text = kind === "pickup" ? resolvePickupAddress(row) : resolveDropAddress(row);
+  return (
+    <div className="text-xs text-gray-800 break-words leading-snug max-w-[min(100%,18rem)]">
+      {text ? text : <span className="text-gray-400">Not set</span>}
+    </div>
+  );
+}
+
+function DetailSection({ title, children }) {
+  return (
+    <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-4">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-[#5a6489] mb-3">{title}</h3>
+      <dl className="grid gap-2.5 sm:grid-cols-2 text-sm">{children}</dl>
+    </div>
+  );
+}
+
+function DetailRow({ label, value, className = "" }) {
+  return (
+    <div className={className}>
+      <dt className="text-xs text-gray-500">{label}</dt>
+      <dd className="text-gray-900 mt-0.5 break-words">{value}</dd>
+    </div>
+  );
+}
+
+function AssignmentDetailModal({ row, onClose, onReassign }) {
+  useEffect(() => {
+    if (!row) return undefined;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [row, onClose]);
+
+  if (!row) return null;
+
+  const item = row.invoice_item;
+  const inv = item?.invoice;
+  const product = item?.product;
+  const driver = row.driver;
+  const orderNo = inv?.order_number || "—";
+  const customer = inv?.cus_name || item?.cus_name || "—";
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4 sm:p-6 bg-black/45 backdrop-blur-[2px]"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="assignment-detail-title"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="w-full max-w-2xl max-h-[min(90vh,720px)] overflow-hidden flex flex-col rounded-2xl bg-white shadow-xl border border-gray-200/90">
+        <div className="px-5 py-4 border-b border-gray-100 flex items-start justify-between gap-3 bg-[#F4F7FB]">
+          <div>
+            <p id="assignment-detail-title" className="text-lg font-semibold text-[#343C6A]">
+              Assignment #{row.id}
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5 font-mono">{orderNo}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="shrink-0 rounded-lg p-2 text-gray-500 hover:bg-gray-200/80 hover:text-gray-800 transition"
+            aria-label="Close"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="px-5 py-4 overflow-y-auto space-y-4 text-sm">
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ring-1 ring-inset ${assignmentStatusBadgeClass(row.status)}`}
+            >
+              {assignmentStatusLabel(row.status)}
+            </span>
+            {row.rejection_reason ? (
+              <span className="text-xs text-red-600 max-w-full">{row.rejection_reason}</span>
+            ) : null}
+          </div>
+
+          <DetailSection title="Pickup & drop">
+            <DetailRow label="Pickup address" value={displayOrNotSet(resolvePickupAddress(row))} className="sm:col-span-2" />
+            <DetailRow label="Drop (ship) address" value={displayOrNotSet(resolveDropAddress(row))} className="sm:col-span-2" />
+            <DetailRow label="Pickup lat / lng" value={`${fmt(item?.pickup_latitude)} / ${fmt(item?.pickup_longitude)}`} />
+            <DetailRow label="Ship lat / lng" value={`${fmt(item?.ship_latitude)} / ${fmt(item?.ship_longitude)}`} />
+          </DetailSection>
+
+          <DetailSection title="Order & line item">
+            <DetailRow label="Customer" value={customer} />
+            <DetailRow label="Product" value={product?.name || "—"} />
+            <DetailRow label="Order number" value={<span className="font-mono text-xs">{orderNo}</span>} />
+            <DetailRow label="Invoice item ID" value={item?.id != null ? String(item.id) : "—"} />
+            <DetailRow label="Qty" value={fmt(item?.quantity)} />
+            <DetailRow label="Total pay" value={fmt(item?.total_pay)} />
+            <DetailRow label="Sale price" value={fmt(item?.sale_price)} />
+            <DetailRow label="Delivery charge" value={fmt(item?.delivery_charge)} />
+            <DetailRow label="Payment" value={fmt(item?.payment_method)} />
+            <DetailRow label="Line status" value={fmt(item?.status)} />
+            <DetailRow label="Customer phone (line)" value={fmt(item?.cus_phone)} />
+            <DetailRow label="Note" value={fmt(item?.note)} className="sm:col-span-2" />
+          </DetailSection>
+
+          <DetailSection title="Driver">
+            <DetailRow label="Name" value={driverDisplayName(driver)} />
+            <DetailRow label="Phone" value={fmt(driver?.user?.phone || driver?.phone)} />
+            <DetailRow label="Vehicle" value={driverVehicle(driver)} />
+            <DetailRow label="Location" value={fmt(driver?.location)} />
+            <DetailRow label="Driver ID" value={row.driver_id != null ? String(row.driver_id) : "—"} />
+          </DetailSection>
+
+          <DetailSection title="Vendor & assignment">
+            <DetailRow label="Vendor" value={row.vendor?.business_name || "—"} />
+            <DetailRow label="Vendor ID" value={row.vendor_id != null ? String(row.vendor_id) : "—"} />
+            <DetailRow label="Assigned by" value={row.assigned_by?.name || "—"} />
+            <DetailRow label="Assigned by ID" value={row.assigned_by?.id != null ? String(row.assigned_by.id) : "—"} />
+          </DetailSection>
+
+          <DetailSection title="Timestamps">
+            <DetailRow label="Created" value={formatDt(row.created_at)} />
+            <DetailRow label="Updated" value={formatDt(row.updated_at)} />
+            <DetailRow label="Accepted" value={formatDt(row.accepted_at)} />
+            <DetailRow label="Picked up" value={formatDt(row.picked_up_at)} />
+            <DetailRow label="Delivered" value={formatDt(row.delivered_at)} />
+          </DetailSection>
+        </div>
+
+        <div className="px-5 py-4 border-t border-gray-100 flex flex-wrap justify-end gap-2 bg-white">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2.5 text-sm font-medium border border-gray-200 rounded-xl bg-white hover:bg-gray-50"
+          >
+            Close
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              onReassign(row);
+            }}
+            className="px-4 py-2.5 text-sm font-medium rounded-xl border border-[#FF8C00] text-[#FF8C00] bg-white hover:bg-orange-50"
+          >
+            Reassign
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const DriverAssignments = () => {
   const [rows, setRows] = useState([]);
+  const [detailAssignment, setDetailAssignment] = useState(null);
   const [meta, setMeta] = useState({
     current_page: 1,
     last_page: 1,
@@ -320,39 +537,30 @@ const DriverAssignments = () => {
                 <th className="px-4 py-3.5 text-left text-xs font-semibold text-[#5a6489] whitespace-nowrap">
                   Status
                 </th>
-                <th className="px-4 py-3.5 text-left text-xs font-semibold text-[#5a6489] min-w-[180px]">
-                  Order & item
-                </th>
-                <th className="px-4 py-3.5 text-left text-xs font-semibold text-[#5a6489]">
-                  Customer
-                </th>
-                <th className="px-4 py-3.5 text-left text-xs font-semibold text-[#5a6489] min-w-[140px]">
-                  Driver
-                </th>
-                <th className="px-4 py-3.5 text-left text-xs font-semibold text-[#5a6489]">
-                  Vendor
-                </th>
-                <th className="px-4 py-3.5 text-left text-xs font-semibold text-[#5a6489]">
-                  Assigned by
-                </th>
                 <th className="px-4 py-3.5 text-left text-xs font-semibold text-[#5a6489] whitespace-nowrap">
-                  Created
+                  Order
                 </th>
-                <th className="px-4 py-3.5 text-right text-xs font-semibold text-[#5a6489]">
-                  Action
+                <th className="px-4 py-3.5 text-left text-xs font-semibold text-[#5a6489] min-w-[140px] max-w-[14rem]">
+                  Pickup
+                </th>
+                <th className="px-4 py-3.5 text-left text-xs font-semibold text-[#5a6489] min-w-[140px] max-w-[14rem]">
+                  Drop
+                </th>
+                <th className="px-4 py-3.5 text-right text-xs font-semibold text-[#5a6489] whitespace-nowrap">
+                  Actions
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-16 text-center text-gray-500">
+                  <td colSpan={6} className="px-4 py-16 text-center text-gray-500">
                     Loading…
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-16 text-center text-gray-500">
+                  <td colSpan={6} className="px-4 py-16 text-center text-gray-500">
                     No assignments match this filter.
                   </td>
                 </tr>
@@ -360,10 +568,7 @@ const DriverAssignments = () => {
                 rows.map((row) => {
                   const item = row.invoice_item;
                   const inv = item?.invoice;
-                  const product = item?.product;
                   const orderNo = inv?.order_number || "—";
-                  const customer = inv?.cus_name || item?.cus_name || "—";
-                  const driver = row.driver;
 
                   return (
                     <tr key={row.id} className="hover:bg-[#FAFCFF] transition-colors align-top">
@@ -371,59 +576,39 @@ const DriverAssignments = () => {
                         {row.id}
                       </td>
                       <td className="px-4 py-3.5">
-                        <div className="space-y-1">
-                          <span
-                            className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ring-1 ring-inset ${assignmentStatusBadgeClass(row.status)}`}
-                            title={row.status != null ? String(row.status) : undefined}
-                          >
-                            {assignmentStatusLabel(row.status)}
-                          </span>
-                          {row.rejection_reason ? (
-                            <p className="text-[11px] text-red-600 max-w-[14rem] leading-snug">
-                              {row.rejection_reason}
-                            </p>
-                          ) : null}
-                        </div>
+                        <span
+                          className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ring-1 ring-inset ${assignmentStatusBadgeClass(row.status)}`}
+                          title={row.status != null ? String(row.status) : undefined}
+                        >
+                          {assignmentStatusLabel(row.status)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 font-mono text-xs text-[#343C6A] whitespace-nowrap max-w-[11rem] truncate" title={orderNo}>
+                        {orderNo}
                       </td>
                       <td className="px-4 py-3.5">
-                        <div className="font-mono text-xs text-[#343C6A]">{orderNo}</div>
-                        <div className="text-gray-800 font-medium mt-0.5">{product?.name || "—"}</div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          Qty {item?.quantity ?? "—"} · Total{" "}
-                          <span className="tabular-nums">{item?.total_pay ?? "—"}</span>
-                          {item?.payment_method ? (
-                            <span className="text-gray-400"> · {item.payment_method}</span>
-                          ) : null}
-                        </div>
+                        <AddressCell row={row} kind="pickup" />
                       </td>
-                      <td className="px-4 py-3.5 text-gray-800">{customer}</td>
                       <td className="px-4 py-3.5">
-                        <div className="text-gray-900 font-medium">{driverDisplayName(driver)}</div>
-                        <div className="text-xs text-gray-500 mt-0.5">
-                          {driver?.user?.phone || driver?.phone || "—"}
-                        </div>
-                        <div className="text-xs text-gray-400 mt-0.5">{driverVehicle(driver)}</div>
-                        {driver?.location ? (
-                          <div className="text-[11px] text-gray-400 mt-1">{driver.location}</div>
-                        ) : null}
-                      </td>
-                      <td className="px-4 py-3.5 text-gray-800">
-                        {row.vendor?.business_name || "—"}
-                      </td>
-                      <td className="px-4 py-3.5 text-gray-700 text-xs">
-                        {row.assigned_by?.name || "—"}
-                      </td>
-                      <td className="px-4 py-3.5 text-xs text-gray-600 whitespace-nowrap">
-                        {formatDt(row.created_at)}
+                        <AddressCell row={row} kind="drop" />
                       </td>
                       <td className="px-4 py-3.5 text-right">
-                        <button
-                          type="button"
-                          onClick={() => handleReassign(row)}
-                          className="text-sm font-medium px-3 py-2 rounded-xl border border-[#FF8C00] text-[#FF8C00] bg-white hover:bg-orange-50 transition"
-                        >
-                          Reassign
-                        </button>
+                        <div className="inline-flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setDetailAssignment(row)}
+                            className="text-sm font-medium px-3 py-2 rounded-xl border border-gray-200 text-[#343C6A] bg-white hover:bg-gray-50 transition"
+                          >
+                            View details
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleReassign(row)}
+                            className="text-sm font-medium px-3 py-2 rounded-xl border border-[#FF8C00] text-[#FF8C00] bg-white hover:bg-orange-50 transition"
+                          >
+                            Reassign
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -462,6 +647,12 @@ const DriverAssignments = () => {
           </div>
         )}
       </div>
+
+      <AssignmentDetailModal
+        row={detailAssignment}
+        onClose={() => setDetailAssignment(null)}
+        onReassign={handleReassign}
+      />
     </div>
   );
 };

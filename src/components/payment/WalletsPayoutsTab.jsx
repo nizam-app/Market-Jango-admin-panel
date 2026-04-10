@@ -334,9 +334,14 @@ export default function WalletsPayoutsTab() {
       {/* Wallets */}
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Wallet className="w-5 h-5 text-[#FF8C00]" />
-            <h2 className="text-base font-semibold text-gray-800">All user wallets</h2>
+          <div>
+            <div className="flex items-center gap-2">
+              <Wallet className="w-5 h-5 text-[#FF8C00]" />
+              <h2 className="text-base font-semibold text-gray-800">All user wallets</h2>
+            </div>
+            <p className="text-xs text-gray-500 mt-1 sm:pl-7 max-w-xl">
+              Buyers, vendors, drivers, and transport — refunds and payouts apply across all wallet types.
+            </p>
           </div>
           <button
             type="button"

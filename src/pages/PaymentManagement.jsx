@@ -16,9 +16,13 @@ const BRAND = "#FF8C00";
 
 const TABS = [
   { id: "settings", label: "Settings", icon: Settings },
-  { id: "vendor-payouts", label: "Vendor / Driver payouts", icon: DollarSign },
+  {
+    id: "vendor-payouts",
+    label: "All user wallets & payouts",
+    icon: DollarSign,
+  },
   { id: "transactions", label: "Transaction management", icon: CreditCard },
-  { id: "refunds", label: "Refunds & payouts", icon: RefreshCcw },
+  { id: "refunds", label: "Refunds & payouts (all users)", icon: RefreshCcw },
   { id: "subscriptions", label: "Subscription earnings", icon: Receipt },
 ];
 
