@@ -52,6 +52,8 @@ const Navbar = () => {
 
   const navDynamicTitle = [
     { navTitle: "Dashboard Overview", path: "/" },
+    { navTitle: "Transport Management", path: "/transport-management" },
+    { navTitle: "Shipment Management", path: "/shipment-management" },
     { navTitle: "Vendor Overview", path: "/vendors" },
     { navTitle: "Driver Overview ", path: "/drivers" },
     { navTitle: "Driver List ", path: "/drivers-list" },

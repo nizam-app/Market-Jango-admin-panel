@@ -1,7 +1,7 @@
 // src/components/orders/OrderEditModal.jsx — GET edit-context, per-line PATCH/POST/PUT
 import React, { useCallback, useEffect, useState } from "react";
 import Swal from "sweetalert2";
-import { Loader2, Minus, Plus, ChevronDown } from "lucide-react";
+import { Loader2, Minus, Plus, ChevronDown, FileDown } from "lucide-react";
 import {
   getOrderEditContext,
   parseOrderEditContext,
@@ -9,6 +9,8 @@ import {
   postOrderLineCancel,
   postOrderLineAssignDriver,
   updateAllOrder,
+  downloadOrderInvoicePdf,
+  downloadOrderDeliveryLabelPdf,
 } from "../../api/orderApi";
 import { getAdminDriversList } from "../../api/driverAdminApi";
 
@@ -59,6 +61,107 @@ const selectClass =
 const btnGhost =
   "inline-flex items-center justify-center px-3 py-2 text-sm font-medium border border-gray-200 rounded-xl bg-white hover:bg-gray-50 disabled:opacity-40";
 
+async function saveBlobResponseAsDownload(response, fallbackFilename) {
+  const blob = response.data;
+  const ct = (response.headers["content-type"] || "").toLowerCase();
+  const blobType = (blob?.type && String(blob.type).toLowerCase()) || "";
+
+  const sniffHead = async (n) => {
+    if (typeof Blob === "undefined" || !blob?.slice) return "";
+    const buf = await blob.slice(0, n).arrayBuffer();
+    return new TextDecoder("utf-8", { fatal: false }).decode(buf);
+  };
+
+  const head = await sniffHead(8);
+  const headTrim = head.trimStart();
+  const looksJson =
+    headTrim.startsWith("{") ||
+    headTrim.startsWith("[") ||
+    ct.includes("application/json") ||
+    blobType.includes("json");
+
+  if (looksJson) {
+    const text = await blob.text();
+    let msg = "Download failed";
+    try {
+      const j = JSON.parse(text);
+      msg = j.message || j.error || j.errors?.message || msg;
+    } catch {
+      msg = text?.slice(0, 240) || msg;
+    }
+    throw new Error(msg);
+  }
+
+  if (headTrim.startsWith("<!") || headTrim.startsWith("<html")) {
+    throw new Error("Server returned a web page instead of a PDF. Check the download URL or permissions.");
+  }
+
+  if (!head.startsWith("%PDF")) {
+    throw new Error(
+      "Downloaded data is not a valid PDF. The API may be misconfigured or the route may not exist."
+    );
+  }
+
+  const cd = response.headers["content-disposition"] || "";
+  let filename = fallbackFilename;
+  const m = /filename\*=UTF-8''([^;\s]+)|filename="([^"]+)"|filename=([^;\s]+)/i.exec(cd);
+  if (m) {
+    filename = decodeURIComponent((m[1] || m[2] || m[3] || "").replace(/['"]/g, ""));
+  }
+  if (!filename.toLowerCase().endsWith(".pdf")) {
+    filename = `${String(fallbackFilename).replace(/\.pdf$/i, "")}.pdf`;
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/** Axios + blob error responses (4xx/5xx with responseType blob put body in a Blob). */
+async function messageFromDownloadError(error) {
+  const status = error?.response?.status;
+  const data = error?.response?.data;
+
+  if (data instanceof Blob) {
+    try {
+      const text = await data.text();
+      const t = text.trimStart();
+      if (t.startsWith("{") || t.startsWith("[")) {
+        const j = JSON.parse(text);
+        return (
+          j.message ||
+          j.error ||
+          (typeof j.errors === "object" && j.errors && String(Object.values(j.errors).flat?.()[0])) ||
+          text.slice(0, 220)
+        );
+      }
+      if (t.startsWith("<")) {
+        return status === 500
+          ? "Server error (500): the PDF route crashed. Check Laravel storage/logs/laravel.log."
+          : `Download failed (HTTP ${status || "?"}). Server returned HTML instead of a PDF.`;
+      }
+      return text.slice(0, 220) || error?.message;
+    } catch {
+      return error?.message;
+    }
+  }
+
+  if (data && typeof data === "object" && data.message) {
+    return String(data.message);
+  }
+
+  if (status === 500) {
+    return "Server error (500): fix the download-invoice / download-delivery-label handler in Laravel (see laravel.log).";
+  }
+
+  return error?.message || "Download failed.";
+}
+
 export default function OrderEditModal({ invoiceItemId, onClose, brand, onRefreshTable }) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -73,6 +176,7 @@ export default function OrderEditModal({ invoiceItemId, onClose, brand, onRefres
   const [statusNote, setStatusNote] = useState({});
   const [assignPick, setAssignPick] = useState({});
   const [lineBusy, setLineBusy] = useState({});
+  const [downloadBusy, setDownloadBusy] = useState(null);
 
   const showToast = useCallback((message, isError = false) => {
     setToast({ message, isError });
@@ -262,6 +366,42 @@ export default function OrderEditModal({ invoiceItemId, onClose, brand, onRefres
     }
   };
 
+  const handleDownloadInvoice = async () => {
+    if (invoiceItemId == null) {
+      showToast("Line id missing for download.", true);
+      return;
+    }
+    try {
+      setDownloadBusy("invoice");
+      const res = await downloadOrderInvoicePdf(invoiceItemId);
+      const safe = (header?.order_number || `invoice-line-${invoiceItemId}`).replace(/[^\w.-]+/g, "_");
+      await saveBlobResponseAsDownload(res, `${safe}.pdf`);
+      showToast("Invoice downloaded.");
+    } catch (e) {
+      showToast((await messageFromDownloadError(e)) || "Invoice download failed", true);
+    } finally {
+      setDownloadBusy(null);
+    }
+  };
+
+  const handleDownloadDeliveryLabel = async () => {
+    if (invoiceItemId == null) {
+      showToast("Line id missing for delivery label.", true);
+      return;
+    }
+    try {
+      setDownloadBusy("label");
+      const res = await downloadOrderDeliveryLabelPdf(invoiceItemId);
+      const safe = (header?.order_number || `label-line-${invoiceItemId}`).replace(/[^\w.-]+/g, "_");
+      await saveBlobResponseAsDownload(res, `${safe}-delivery-label.pdf`);
+      showToast("Delivery label downloaded.");
+    } catch (e) {
+      showToast((await messageFromDownloadError(e)) || "Delivery label download failed", true);
+    } finally {
+      setDownloadBusy(null);
+    }
+  };
+
   if (invoiceItemId == null) return null;
 
   const totals = header?.totals || {};
@@ -318,7 +458,39 @@ export default function OrderEditModal({ invoiceItemId, onClose, brand, onRefres
             <>
               {/* Header */}
               <section className="rounded-xl border border-gray-200 bg-gray-50/80 p-4 space-y-3">
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-[#5a6489]">Order details</h3>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-[#5a6489] shrink-0">
+                    Order details
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={handleDownloadInvoice}
+                      disabled={downloadBusy != null}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl border border-[#FF8C00] text-[#FF8C00] bg-white hover:bg-orange-50 disabled:opacity-50 transition"
+                    >
+                      {downloadBusy === "invoice" ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+                      ) : (
+                        <FileDown className="w-3.5 h-3.5" aria-hidden />
+                      )}
+                      Invoice (PDF)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDownloadDeliveryLabel}
+                      disabled={downloadBusy != null}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl border border-gray-300 text-[#343C6A] bg-white hover:bg-gray-50 disabled:opacity-50 transition"
+                    >
+                      {downloadBusy === "label" ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+                      ) : (
+                        <FileDown className="w-3.5 h-3.5" aria-hidden />
+                      )}
+                      Delivery label (PDF)
+                    </button>
+                  </div>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
                   <div>
                     <span className="text-gray-500">Customer</span>

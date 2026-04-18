@@ -17,6 +17,7 @@ import AssignOrderPage from "../pages/AssignOrderPage";
 import AdminResetPasswordPage from "../pages/AdminResetPasswordPage";
 import BuyerManagement from "../pages/BuyerManagement";
 import Transportmanagement from "../pages/Transportmanagement";
+import ShipmentManagement from "../pages/ShipmentManagement";
 import RouteManagement from "../pages/RouteManagement";
 import SubscriptionPlans from "../pages/SubscriptionPlans";
 import Rankings from "../pages/Rankings";
@@ -66,6 +67,10 @@ const Router = createBrowserRouter([
           {
             path: "transport-management",
             Component: Transportmanagement,
+          },
+          {
+            path: "shipment-management",
+            Component: ShipmentManagement,
           },
           {
             path: "vendors",

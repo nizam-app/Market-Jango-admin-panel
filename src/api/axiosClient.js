@@ -4,14 +4,18 @@ import { getAuthUser } from "../utils/authUser";
 
 const axiosClient = axios.create({
   // baseURL: "https://api-market-jango.r2ait.in/public/api",
-  baseURL: "http://103.208.183.250:9000/api",
-  // baseURL: "/api",
+  // baseURL: "http://103.208.183.250:9000/api",
+  baseURL: "/api",
 });
 
 // ---- Request: admin API expects token, id, user_type, Accept ----
 axiosClient.interceptors.request.use(
   (config) => {
-    config.headers["Accept"] = "application/json";
+    // Do not force JSON Accept on binary downloads — server may return JSON/HTML
+    // instead of PDF, which then saves as a corrupt .pdf file.
+    if (config.responseType !== "blob") {
+      config.headers["Accept"] = config.headers["Accept"] || "application/json";
+    }
 
     const token = localStorage.getItem("token");
     if (token) {

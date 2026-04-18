@@ -57,6 +57,25 @@ export const postOrderLineAssignDriver = (lineId, body) => {
 };
 
 /**
+ * Admin PDF downloads — backend uses invoice line id in the path:
+ * GET /all/order/{lineId}/download-invoice
+ * GET /all/order/{lineId}/download-delivery-label
+ */
+export const downloadOrderInvoicePdf = (lineId) => {
+  return axiosClient.get(`/all/order/${lineId}/download-invoice`, {
+    responseType: "blob",
+    headers: { Accept: "application/pdf, application/octet-stream, */*" },
+  });
+};
+
+export const downloadOrderDeliveryLabelPdf = (lineId) => {
+  return axiosClient.get(`/all/order/${lineId}/download-delivery-label`, {
+    responseType: "blob",
+    headers: { Accept: "application/pdf, application/octet-stream, */*" },
+  });
+};
+
+/**
  * { header, lines } from edit-context payload
  */
 export function parseOrderEditContext(res) {

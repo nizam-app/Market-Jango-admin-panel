@@ -32,6 +32,73 @@ function sellingModeBadgeClass(mode) {
   return "bg-gray-100 text-gray-700 ring-gray-200";
 }
 
+/** Customer display name for a list row (invoice header or line-level fields). */
+function orderLineCustomerName(o) {
+  const raw =
+    o.invoice?.cus_name ||
+    o.invoice?.customer_name ||
+    o.invoice?.user?.name ||
+    o.cus_name ||
+    o.customer_name ||
+    o.user?.name ||
+    "";
+  const s = String(raw).trim();
+  return s || "—";
+}
+
+function groupCustomerLabel(lines) {
+  const names = [...new Set(lines.map(orderLineCustomerName).filter((n) => n && n !== "—"))];
+  if (names.length === 0) return "—";
+  if (names.length === 1) return names[0];
+  return names.join(" · ");
+}
+
+/** Dedupe key: same order # + same vendor → show order # once in the table. */
+function orderVendorGroupKey(o) {
+  const orderNo = String(o.invoice?.order_number || "").trim();
+  const invPart = orderNo || (o.invoice_id != null ? `invoice:${o.invoice_id}` : "");
+  const vid = o.vendor_id ?? o.vendor?.id ?? "";
+  return `${invPart}::${vid}`;
+}
+
+function sumLineQuantity(lines) {
+  return lines.reduce((s, l) => s + (Number(l.quantity) || 0), 0);
+}
+
+function sumLineTotalPay(lines) {
+  return lines.reduce((s, l) => s + (Number(l.total_pay) || 0), 0);
+}
+
+function earliestCreatedAt(lines) {
+  const ts = lines
+    .map((l) => (l.created_at ? new Date(l.created_at).getTime() : NaN))
+    .filter((n) => Number.isFinite(n));
+  if (!ts.length) return null;
+  return new Date(Math.min(...ts));
+}
+
+function uniqueStatuses(lines) {
+  return [...new Set(lines.map((l) => l.status).filter((s) => s != null && String(s) !== ""))];
+}
+
+function firstDriverLabel(lines) {
+  for (const o of lines) {
+    const d =
+      o.driver?.user?.name || o.driver?.name || (o.driver_id != null ? `#${o.driver_id}` : null);
+    if (d && d !== "—") return d;
+  }
+  return "—";
+}
+
+function firstSellingMode(lines) {
+  return lines[0]?.selling_mode;
+}
+
+function sellingModesConflict(lines) {
+  const u = new Set(lines.map((l) => String(l.selling_mode ?? "")));
+  return u.size > 1;
+}
+
 function statusBadgeClass(s) {
   const v = (s || "").toLowerCase();
   const map = {
@@ -82,6 +149,36 @@ const OrderManagement = () => {
       })
     );
   }, [vendors]);
+
+  /**
+   * Sort then merge lines that share the same order # (or invoice id) + vendor → one table row.
+   * Edit still uses the first line’s id (edit-context loads the whole invoice).
+   */
+  const groupedOrderRows = useMemo(() => {
+    if (!orders.length) return [];
+    const sorted = [...orders].sort((a, b) => {
+      const an = String(a.invoice?.order_number || "").trim();
+      const bn = String(b.invoice?.order_number || "").trim();
+      if (an !== bn) return an.localeCompare(bn, undefined, { numeric: true });
+      const av = Number(a.vendor_id ?? a.vendor?.id ?? 0);
+      const bv = Number(b.vendor_id ?? b.vendor?.id ?? 0);
+      if (av !== bv) return av - bv;
+      return Number(a.id ?? 0) - Number(b.id ?? 0);
+    });
+    const groups = [];
+    for (const o of sorted) {
+      const orderNo = String(o.invoice?.order_number || "").trim();
+      const invPart = orderNo || (o.invoice_id != null ? `invoice:${o.invoice_id}` : "");
+      const key = invPart ? orderVendorGroupKey(o) : null;
+      const last = groups[groups.length - 1];
+      if (key && last && orderVendorGroupKey(last.lines[0]) === key) {
+        last.lines.push(o);
+      } else {
+        groups.push({ lines: [o] });
+      }
+    }
+    return groups;
+  }, [orders]);
 
   useEffect(() => {
     let cancelled = false;
@@ -398,20 +495,26 @@ const OrderManagement = () => {
         </div>
       )}
 
-      {/* Table */}
+      {/* Table — rows grouped by order # + vendor; customer column replaces product list */}
       <div className="bg-white rounded-2xl border border-gray-200/80 overflow-hidden shadow-sm">
+        {!loading && orders.length > 0 && groupedOrderRows.length < orders.length && (
+          <p className="text-xs text-gray-600 px-4 py-2.5 bg-amber-50/60 border-b border-amber-100/80">
+            <strong>{groupedOrderRows.length}</strong> row(s) shown — <strong>{orders.length}</strong> line
+            items merged where order # and vendor match.
+          </p>
+        )}
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
               <tr className="bg-[#F4F7FB] border-b border-[#E6EEF6]">
                 <th className="px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-[#5a6489]">
-                  ID
+                  Line ID(s)
                 </th>
                 <th className="px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-[#5a6489]">
                   Order #
                 </th>
                 <th className="px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-[#5a6489]">
-                  Product
+                  Customer name
                 </th>
                 <th className="px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-[#5a6489]">
                   Vendor
@@ -456,63 +559,119 @@ const OrderManagement = () => {
                   </td>
                 </tr>
               ) : (
-                orders.map((o) => (
-                  <tr
-                    key={o.id}
-                    className="hover:bg-[#FAFCFF] transition-colors border-b border-gray-50 last:border-0"
-                  >
-                    <td className="px-4 py-3.5 font-medium text-[#343C6A] tabular-nums">{o.id}</td>
-                    <td className="px-4 py-3.5 text-gray-800 font-mono text-xs">
-                      {o.invoice?.order_number || o.invoice_id || "—"}
-                    </td>
-                    <td
-                      className="px-4 py-3.5 max-w-[200px] truncate text-gray-800"
-                      title={o.product?.name}
+                groupedOrderRows.map((group) => {
+                  const lines = group.lines;
+                  const o = lines[0];
+                  const rowKey = lines.map((l) => l.id).join("-");
+                  const orderNoDisplay = o.invoice?.order_number || o.invoice_id || "—";
+                  const orderNoTooltip =
+                    o.invoice?.order_number ||
+                    (o.invoice_id != null ? `Invoice #${o.invoice_id}` : "");
+                  const customer = groupCustomerLabel(lines);
+                  const productSummary = lines
+                    .map((l) => l.product?.name)
+                    .filter(Boolean)
+                    .join(", ");
+                  const qtySum = sumLineQuantity(lines);
+                  const totalSum = sumLineTotalPay(lines);
+                  const stList = uniqueStatuses(lines);
+                  const createdEarliest = earliestCreatedAt(lines);
+                  const mode = firstSellingMode(lines);
+                  const modeTitle = sellingModesConflict(lines)
+                    ? lines.map((l) => `${l.selling_mode || "—"}`).join(" · ")
+                    : mode != null
+                      ? String(mode)
+                      : undefined;
+                  const editTarget = o;
+
+                  return (
+                    <tr
+                      key={rowKey}
+                      className="hover:bg-[#FAFCFF] transition-colors border-b border-gray-50 last:border-0"
                     >
-                      {o.product?.name || "—"}
-                    </td>
-                    <td className="px-4 py-3.5 text-gray-800">
-                      {o.vendor?.business_name || o.vendor?.user?.name || "—"}
-                    </td>
-                    <td className="px-4 py-3.5 tabular-nums text-gray-700">{o.quantity ?? "—"}</td>
-                    <td className="px-4 py-3.5 tabular-nums text-gray-800 font-medium">
-                      {o.total_pay ?? "—"}
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium ring-1 ring-inset ${statusBadgeClass(o.status)}`}
+                      <td
+                        className="px-4 py-3.5 font-medium text-[#343C6A] tabular-nums text-xs max-w-[8rem]"
+                        title={lines.length > 1 ? `Merged ${lines.length} lines` : undefined}
                       >
-                        {o.status || "—"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5 text-gray-600">
-                      {o.driver?.name ||
-                        o.driver?.user?.name ||
-                        (o.driver_id != null ? `#${o.driver_id}` : "—")}
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium ring-1 ring-inset ${sellingModeBadgeClass(o.selling_mode)}`}
-                        title={o.selling_mode != null ? String(o.selling_mode) : undefined}
+                        {lines.map((l) => l.id).join(", ")}
+                      </td>
+                      <td
+                        className="px-4 py-3.5 text-gray-800 font-mono text-xs max-w-[11rem] truncate"
+                        title={orderNoTooltip || undefined}
                       >
-                        {sellingModeLabel(o.selling_mode)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5 text-gray-600 whitespace-nowrap text-xs">
-                      {o.created_at ? new Date(o.created_at).toLocaleString() : "—"}
-                    </td>
-                    <td className="px-4 py-3.5 text-right">
-                      <button
-                        type="button"
-                        onClick={() => setEditOrder(o)}
-                        className="inline-flex items-center justify-center gap-1.5 text-sm font-medium px-3 py-2 rounded-xl border border-gray-200 text-[#343C6A] bg-white hover:bg-gray-50 transition"
+                        {orderNoDisplay}
+                      </td>
+                      <td
+                        className="px-4 py-3.5 max-w-[220px] truncate text-gray-800"
+                        title={
+                          customer !== "—"
+                            ? productSummary
+                              ? `${customer} — Products: ${productSummary}`
+                              : customer
+                            : productSummary || undefined
+                        }
                       >
-                        <Pencil className="w-3.5 h-3.5 opacity-80" aria-hidden />
-                        Edit
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                        {customer}
+                      </td>
+                      <td className="px-4 py-3.5 text-gray-800">
+                        {o.vendor?.business_name || o.vendor?.user?.name || "—"}
+                      </td>
+                      <td className="px-4 py-3.5 tabular-nums text-gray-700">{qtySum || "—"}</td>
+                      <td className="px-4 py-3.5 tabular-nums text-gray-800 font-medium">
+                        {Number.isFinite(totalSum)
+                          ? totalSum.toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })
+                          : "—"}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="flex flex-wrap gap-1">
+                          {stList.length ? (
+                            stList.map((st) => (
+                              <span
+                                key={st}
+                                className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium ring-1 ring-inset ${statusBadgeClass(st)}`}
+                                title={lines.length > 1 ? `Statuses on merged lines: ${stList.join(", ")}` : undefined}
+                              >
+                                {st}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5 text-gray-600">{firstDriverLabel(lines)}</td>
+                      <td className="px-4 py-3.5">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium ring-1 ring-inset ${sellingModeBadgeClass(mode)}`}
+                          title={modeTitle}
+                        >
+                          {sellingModeLabel(mode)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-gray-600 whitespace-nowrap text-xs">
+                        {createdEarliest ? createdEarliest.toLocaleString() : "—"}
+                      </td>
+                      <td className="px-4 py-3.5 text-right">
+                        <button
+                          type="button"
+                          onClick={() => setEditOrder(editTarget)}
+                          className="inline-flex items-center justify-center gap-1.5 text-sm font-medium px-3 py-2 rounded-xl border border-gray-200 text-[#343C6A] bg-white hover:bg-gray-50 transition"
+                          title={
+                            lines.length > 1
+                              ? `Edit invoice (opens with line #${editTarget.id}; ${lines.length} items)`
+                              : undefined
+                          }
+                        >
+                          <Pencil className="w-3.5 h-3.5 opacity-80" aria-hidden />
+                          Edit
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
