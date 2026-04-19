@@ -1,14 +1,17 @@
 // src/pages/ShipmentManagement.jsx — GET/PATCH /transport-shipments
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Swal from "sweetalert2";
-import { Loader2, Package, RefreshCw, Search, Truck } from "lucide-react";
+import { FileDown, Loader2, Package, RefreshCw, Search, Truck } from "lucide-react";
 import {
   getTransportShipments,
   getTransportShipment,
   parseShipmentsListResponse,
   parseShipmentDetailResponse,
   patchTransportShipment,
+  downloadShipmentInvoicePdf,
+  downloadShipmentDeliveryLabelPdf,
 } from "../api/transportShipmentApi";
+import { messageFromDownloadError, saveBlobResponseAsDownload } from "../utils/blobDownload";
 import { getAdminDriversList } from "../api/driverAdminApi";
 
 const BRAND = "#FF8C00";
@@ -91,6 +94,8 @@ function ShipmentDetailModal({ shipmentId, onClose, brand, onSaved }) {
   const [shipment, setShipment] = useState(null);
   const [drivers, setDrivers] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [downloadBusy, setDownloadBusy] = useState(null);
+  const [dlToast, setDlToast] = useState(null);
 
   const [formStatus, setFormStatus] = useState("draft");
   const [formPayment, setFormPayment] = useState("pending");
@@ -181,6 +186,42 @@ function ShipmentDetailModal({ shipmentId, onClose, brand, onSaved }) {
     }
   };
 
+  const showDlToast = (message, isError = false) => {
+    setDlToast({ message, isError });
+  };
+
+  const handleDownloadShipmentInvoice = async () => {
+    if (shipmentId == null) return;
+    try {
+      setDownloadBusy("invoice");
+      setDlToast(null);
+      const res = await downloadShipmentInvoicePdf(shipmentId);
+      const safe = `shipment-${shipmentId}`.replace(/[^\w.-]+/g, "_");
+      await saveBlobResponseAsDownload(res, `${safe}-invoice.pdf`);
+      showDlToast("Invoice downloaded.");
+    } catch (e) {
+      showDlToast((await messageFromDownloadError(e)) || "Invoice download failed", true);
+    } finally {
+      setDownloadBusy(null);
+    }
+  };
+
+  const handleDownloadShipmentLabel = async () => {
+    if (shipmentId == null) return;
+    try {
+      setDownloadBusy("label");
+      setDlToast(null);
+      const res = await downloadShipmentDeliveryLabelPdf(shipmentId);
+      const safe = `shipment-${shipmentId}`.replace(/[^\w.-]+/g, "_");
+      await saveBlobResponseAsDownload(res, `${safe}-delivery-label.pdf`);
+      showDlToast("Delivery label downloaded.");
+    } catch (e) {
+      showDlToast((await messageFromDownloadError(e)) || "Delivery label download failed", true);
+    } finally {
+      setDownloadBusy(null);
+    }
+  };
+
   return (
     <div
       className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4 sm:p-6 bg-black/45 backdrop-blur-[2px]"
@@ -191,19 +232,62 @@ function ShipmentDetailModal({ shipmentId, onClose, brand, onSaved }) {
     >
       <div className="w-full max-w-2xl max-h-[min(92vh,820px)] flex flex-col rounded-2xl bg-white shadow-xl border border-gray-200 overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100 flex items-start justify-between gap-3 bg-[#F4F7FB] shrink-0">
-          <div className="flex items-center gap-2">
-            <Package className="w-6 h-6 text-[#FF8C00]" />
-            <div>
+          <div className="flex items-center gap-2 min-w-0">
+            <Package className="w-6 h-6 text-[#FF8C00] shrink-0" />
+            <div className="min-w-0">
               <h2 id="shipment-detail-title" className="text-lg font-semibold text-[#343C6A]">
                 Shipment #{shipmentId}
               </h2>
               <p className="text-xs text-gray-500">Details & admin update</p>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="p-2 rounded-lg text-gray-500 hover:bg-gray-200/80" aria-label="Close">
-            ×
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {!loading && !err && shipment ? (
+              <div className="flex flex-wrap justify-end gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleDownloadShipmentInvoice}
+                  disabled={downloadBusy != null}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-semibold rounded-lg border border-[#FF8C00] text-[#FF8C00] bg-white hover:bg-orange-50 disabled:opacity-50 transition"
+                >
+                  {downloadBusy === "invoice" ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <FileDown className="w-3.5 h-3.5" aria-hidden />
+                  )}
+                  Invoice
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDownloadShipmentLabel}
+                  disabled={downloadBusy != null}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-semibold rounded-lg border border-gray-300 text-[#343C6A] bg-white hover:bg-gray-50 disabled:opacity-50 transition"
+                >
+                  {downloadBusy === "label" ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <FileDown className="w-3.5 h-3.5" aria-hidden />
+                  )}
+                  Label
+                </button>
+              </div>
+            ) : null}
+            <button type="button" onClick={onClose} className="p-2 rounded-lg text-gray-500 hover:bg-gray-200/80" aria-label="Close">
+              ×
+            </button>
+          </div>
         </div>
+
+        {dlToast ? (
+          <div
+            className={`mx-4 mt-3 px-3 py-2 rounded-xl text-sm shrink-0 ${
+              dlToast.isError ? "bg-red-50 text-red-800 border border-red-100" : "bg-emerald-50 text-emerald-900 border border-emerald-100"
+            }`}
+            role="status"
+          >
+            {dlToast.message}
+          </div>
+        ) : null}
 
         <div className="flex-1 overflow-y-auto px-5 py-4 text-sm space-y-5">
           {loading ? (

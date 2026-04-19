@@ -20,6 +20,22 @@ export const patchTransportShipment = (id, body = {}) => {
   return axiosClient.patch(`/transport-shipments/${id}`, body);
 };
 
+/** GET /shipments/{id}/download-invoice — transport shipment invoice PDF */
+export const downloadShipmentInvoicePdf = (shipmentId) => {
+  return axiosClient.get(`/shipments/${shipmentId}/download-invoice`, {
+    responseType: "blob",
+    headers: { Accept: "application/pdf, application/octet-stream, */*" },
+  });
+};
+
+/** GET /shipments/{id}/download-delivery-label — transport delivery label PDF */
+export const downloadShipmentDeliveryLabelPdf = (shipmentId) => {
+  return axiosClient.get(`/shipments/${shipmentId}/download-delivery-label`, {
+    responseType: "blob",
+    headers: { Accept: "application/pdf, application/octet-stream, */*" },
+  });
+};
+
 export function parseShipmentsListResponse(res) {
   const d = res?.data?.data;
   const pag = d?.pagination || {};
