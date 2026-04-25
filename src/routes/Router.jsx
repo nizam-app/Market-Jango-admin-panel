@@ -27,6 +27,7 @@ import AffiliateLinks from "../pages/AffiliateLinks";
 import PaymentManagement from "../pages/PaymentManagement";
 import OrderManagement from "../pages/OrderManagement";
 import DriverAssignments from "../pages/DriverAssignments";
+import ActivityManagement from "../pages/ActivityManagement";
 
 const Router = createBrowserRouter([
   // 🔓 Public route
@@ -135,6 +136,10 @@ const Router = createBrowserRouter([
           {
             path: "payment-management",
             Component: PaymentManagement,
+          },
+          {
+            path: "activity-management",
+            Component: ActivityManagement,
           },
         ],
       },
