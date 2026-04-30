@@ -1,5 +1,5 @@
 // src/pages/PaymentManagement.jsx
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Settings,
   DollarSign,
@@ -8,9 +8,15 @@ import {
   Receipt,
   Search,
 } from "lucide-react";
+import Swal from "sweetalert2";
 import RefundsPanel from "../components/payment/RefundsPanel";
 import WalletsPayoutsTab from "../components/payment/WalletsPayoutsTab";
 import OrderTransactionsPanel from "../components/payment/OrderTransactionsPanel";
+import {
+  getZones,
+  getPaymentSettings,
+  savePaymentSettings,
+} from "../api/adminApi";
 
 const BRAND = "#FF8C00";
 
@@ -29,7 +35,7 @@ const TABS = [
 const PaymentManagement = () => {
   const [activeTab, setActiveTab] = useState("settings");
 
-  // Settings state (UI only)
+  // Settings state (loaded from API; zone-scoped)
   const [zone, setZone] = useState("");
   const [vendorPayoutCycle, setVendorPayoutCycle] = useState("weekly");
   const [vendorMinThreshold, setVendorMinThreshold] = useState("");
@@ -57,6 +63,198 @@ const PaymentManagement = () => {
 
   const [platformCommission, setPlatformCommission] = useState("");
   const [taxRules, setTaxRules] = useState("");
+
+  const [zonesList, setZonesList] = useState([]);
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [buyerFlutterwaveOptions, setBuyerFlutterwaveOptions] = useState("");
+  const [buyerApiKeyConfigured, setBuyerApiKeyConfigured] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await getZones(500);
+        const payload = res.data?.data;
+        const list = payload?.data ?? payload ?? [];
+        if (!cancelled) setZonesList(Array.isArray(list) ? list : []);
+      } catch (e) {
+        console.error(e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (activeTab !== "settings") return;
+    let cancelled = false;
+    (async () => {
+      setSettingsLoading(true);
+      try {
+        const res = await getPaymentSettings(zone === "" ? undefined : zone);
+        const d = res.data?.data;
+        if (cancelled || !d) return;
+        const p = d.payload;
+        if (!p) return;
+        setBuyerApiKeyConfigured(!!d.buyer_api_key_configured);
+        setVendorPayoutCycle(p.vendor_payout_cycle ?? "weekly");
+        setVendorMinThreshold(
+          p.vendor_min_threshold != null && p.vendor_min_threshold !== ""
+            ? String(p.vendor_min_threshold)
+            : ""
+        );
+        setVendorMethods({
+          bank: !!p.vendor_methods?.bank,
+          mobile_money: !!p.vendor_methods?.mobile_money,
+          paypal: !!p.vendor_methods?.paypal,
+          stripe: !!p.vendor_methods?.stripe,
+        });
+        setBuyerCurrency(p.buyer_currency ?? "USD");
+        setBuyerGatewaysEnabled(p.buyer_gateways_enabled !== false);
+        setBuyerDefaultGateway(p.buyer_default_gateway ?? "stripe");
+        setBuyerFlutterwaveOptions(p.buyer_flutterwave_payment_options ?? "");
+        setAffiliatePayoutCycle(p.affiliate_payout_cycle ?? "monthly");
+        setAffiliateMinThreshold(
+          p.affiliate_min_threshold != null && p.affiliate_min_threshold !== ""
+            ? String(p.affiliate_min_threshold)
+            : ""
+        );
+        setAffiliateMinCommission(
+          p.affiliate_min_commission != null && p.affiliate_min_commission !== ""
+            ? String(p.affiliate_min_commission)
+            : ""
+        );
+        setAffiliateMethods({
+          bank: !!p.affiliate_methods?.bank,
+          paypal: !!p.affiliate_methods?.paypal,
+          mobile_money: !!p.affiliate_methods?.mobile_money,
+          stripe: !!p.affiliate_methods?.stripe,
+        });
+        setPlatformCommission(
+          p.platform_commission != null && p.platform_commission !== ""
+            ? String(p.platform_commission)
+            : ""
+        );
+        setTaxRules(p.tax_rules ?? "");
+        setBuyerApiKey("");
+      } catch (e) {
+        console.error(e);
+        if (!cancelled) {
+          Swal.fire({
+            icon: "error",
+            title: "Could not load settings",
+            text: e?.response?.data?.message || e.message,
+            confirmButtonColor: BRAND,
+          });
+        }
+      } finally {
+        if (!cancelled) setSettingsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, zone]);
+
+  const handleSavePaymentSettings = async () => {
+    setSavingSettings(true);
+    try {
+      const payload = {
+        vendor_payout_cycle: vendorPayoutCycle,
+        vendor_min_threshold:
+          vendorMinThreshold === "" ? null : Number(vendorMinThreshold),
+        vendor_methods: vendorMethods,
+        buyer_currency: buyerCurrency,
+        buyer_gateways_enabled: buyerGatewaysEnabled,
+        buyer_default_gateway: buyerDefaultGateway,
+        buyer_flutterwave_payment_options: buyerFlutterwaveOptions || null,
+        affiliate_payout_cycle: affiliatePayoutCycle,
+        affiliate_min_threshold:
+          affiliateMinThreshold === "" ? null : Number(affiliateMinThreshold),
+        affiliate_min_commission:
+          affiliateMinCommission === "" ? null : Number(affiliateMinCommission),
+        affiliate_methods: affiliateMethods,
+        platform_commission:
+          platformCommission === "" ? null : Number(platformCommission),
+        tax_rules: taxRules || null,
+      };
+      const body = {
+        zone_id: zone === "" ? null : parseInt(zone, 10),
+        payload,
+      };
+      if (buyerApiKey.trim()) {
+        body.buyer_api_key = buyerApiKey.trim();
+      }
+      await savePaymentSettings(body);
+      setBuyerApiKey("");
+      Swal.fire({
+        toast: true,
+        position: "top-end",
+        icon: "success",
+        title: "Payment settings saved",
+        showConfirmButton: false,
+        timer: 2000,
+      });
+      const refresh = await getPaymentSettings(zone === "" ? undefined : zone);
+      const d = refresh.data?.data;
+      if (d) setBuyerApiKeyConfigured(!!d.buyer_api_key_configured);
+    } catch (e) {
+      console.error(e);
+      Swal.fire({
+        icon: "error",
+        title: "Save failed",
+        text: e?.response?.data?.message || e.message,
+        confirmButtonColor: BRAND,
+      });
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  const handleClearBuyerApiKey = async () => {
+    const r = await Swal.fire({
+      icon: "warning",
+      title: "Remove stored API key?",
+      showCancelButton: true,
+      confirmButtonColor: BRAND,
+    });
+    if (!r.isConfirmed) return;
+    setSavingSettings(true);
+    try {
+      const payload = {
+        vendor_payout_cycle: vendorPayoutCycle,
+        vendor_min_threshold:
+          vendorMinThreshold === "" ? null : Number(vendorMinThreshold),
+        vendor_methods: vendorMethods,
+        buyer_currency: buyerCurrency,
+        buyer_gateways_enabled: buyerGatewaysEnabled,
+        buyer_default_gateway: buyerDefaultGateway,
+        buyer_flutterwave_payment_options: buyerFlutterwaveOptions || null,
+        affiliate_payout_cycle: affiliatePayoutCycle,
+        affiliate_min_threshold:
+          affiliateMinThreshold === "" ? null : Number(affiliateMinThreshold),
+        affiliate_min_commission:
+          affiliateMinCommission === "" ? null : Number(affiliateMinCommission),
+        affiliate_methods: affiliateMethods,
+        platform_commission:
+          platformCommission === "" ? null : Number(platformCommission),
+        tax_rules: taxRules || null,
+      };
+      await savePaymentSettings({
+        zone_id: zone === "" ? null : parseInt(zone, 10),
+        payload,
+        clear_buyer_api_key: true,
+      });
+      setBuyerApiKeyConfigured(false);
+      Swal.fire({ toast: true, position: "top-end", icon: "success", title: "API key removed", showConfirmButton: false, timer: 1800 });
+    } catch (e) {
+      Swal.fire({ icon: "error", title: "Failed", text: e?.response?.data?.message || e.message, confirmButtonColor: BRAND });
+    } finally {
+      setSavingSettings(false);
+    }
+  };
 
   // Common filter UI state
   const [filterCountry, setFilterCountry] = useState("");
@@ -171,6 +369,9 @@ const PaymentManagement = () => {
       {/* SETTINGS TAB */}
       {activeTab === "settings" && (
         <div className="space-y-6">
+          {settingsLoading && (
+            <div className="text-sm text-gray-500">Loading zone settings…</div>
+          )}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
               <h2 className="text-base font-semibold text-gray-800">
@@ -181,12 +382,20 @@ const PaymentManagement = () => {
               <select
                 value={zone}
                 onChange={(e) => setZone(e.target.value)}
+                disabled={settingsLoading || savingSettings}
                 className="w-full max-w-xs px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/40"
               >
-                <option value="">All zones</option>
-                <option value="uganda">Uganda</option>
-                <option value="bangladesh">Bangladesh</option>
+                <option value="">All zones (defaults)</option>
+                {zonesList.map((z) => (
+                  <option key={z.id} value={String(z.id)}>
+                    {z.name || `Zone #${z.id}`}
+                  </option>
+                ))}
               </select>
+              <p className="text-xs text-gray-500 mt-2">
+                Choose a zone to override buyer checkout and payout options, or edit
+                global defaults for all zones.
+              </p>
             </div>
           </div>
 
@@ -270,13 +479,34 @@ const PaymentManagement = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   API key configure keys
                 </label>
+                {buyerApiKeyConfigured && (
+                  <p className="text-xs text-green-700 mb-1">
+                    A secret key is stored for this zone. Enter a new value only to replace it.
+                  </p>
+                )}
                 <input
-                  type="text"
+                  type="password"
+                  autoComplete="new-password"
                   value={buyerApiKey}
                   onChange={(e) => setBuyerApiKey(e.target.value)}
-                  placeholder="API key (masked in production)"
+                  placeholder={
+                    buyerApiKeyConfigured
+                      ? "Enter new API key to replace stored key"
+                      : "API key (stored encrypted)"
+                  }
+                  disabled={settingsLoading || savingSettings}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/40"
                 />
+                {buyerApiKeyConfigured && (
+                  <button
+                    type="button"
+                    onClick={handleClearBuyerApiKey}
+                    disabled={savingSettings}
+                    className="mt-2 text-xs text-red-600 hover:underline"
+                  >
+                    Remove stored API key
+                  </button>
+                )}
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -311,6 +541,19 @@ const PaymentManagement = () => {
                     {buyerGatewaysEnabled ? "Gateways enabled" : "Gateways disabled"}
                   </button>
                 </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Flutterwave payment options (comma-separated)
+                </label>
+                <textarea
+                  value={buyerFlutterwaveOptions}
+                  onChange={(e) => setBuyerFlutterwaveOptions(e.target.value)}
+                  rows={2}
+                  disabled={settingsLoading || savingSettings}
+                  placeholder="e.g. card,mpesa,mobilemoneyuganda"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/40"
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -446,10 +689,12 @@ const PaymentManagement = () => {
               </div>
               <button
                 type="button"
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg hover:opacity-90"
+                onClick={handleSavePaymentSettings}
+                disabled={savingSettings || settingsLoading}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg hover:opacity-90 disabled:opacity-50"
                 style={{ backgroundColor: BRAND }}
               >
-                Save payment settings
+                {savingSettings ? "Saving…" : "Save payment settings"}
               </button>
             </div>
           </div>

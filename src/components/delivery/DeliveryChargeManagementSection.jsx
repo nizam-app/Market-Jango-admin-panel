@@ -25,6 +25,8 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
   const [loading, setLoading] = useState(false);
   const [dashboardData, setDashboardData] = useState(null);
   const [vendors, setVendors] = useState([]);
+  /** @type {Array<{ code: string, name: string, symbol: string }>} */
+  const [currencies, setCurrencies] = useState([]);
 
   const [chargeRoutesSearch, setChargeRoutesSearch] = useState('');
   const [deliveryChargeRoutes, setDeliveryChargeRoutes] = useState([]);
@@ -52,6 +54,24 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
     cube_ranges: [defaultCubeRange()],
     cube_enabled: false,
   });
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: body } = await axiosClient.get('/currency');
+        const list = body?.data;
+        if (!cancelled && Array.isArray(list) && list.length > 0) {
+          setCurrencies(list);
+        }
+      } catch (e) {
+        console.warn('Failed to load currencies', e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (activeTab === 'dashboard') {
@@ -825,8 +845,19 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
                       onChange={(e) => setDeliveryChargeForm({ ...deliveryChargeForm, currency: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                     >
-                      <option value="USD">USD</option>
                       <option value="">None</option>
+                      {currencies.map((c) => (
+                        <option key={c.code} value={c.code}>
+                          {c.code} — {c.name}
+                          {c.symbol ? ` (${c.symbol})` : ''}
+                        </option>
+                      ))}
+                      {deliveryChargeForm.currency &&
+                        !currencies.some((c) => c.code === deliveryChargeForm.currency) && (
+                          <option value={deliveryChargeForm.currency}>
+                            {deliveryChargeForm.currency} (current)
+                          </option>
+                        )}
                     </select>
                   </div>
                 </div>

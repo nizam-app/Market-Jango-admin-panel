@@ -91,6 +91,19 @@ export const getZone = (zoneId) => {
   return axiosClient.get(`/zones/${zoneId}`);
 };
 
+// Admin: zone-wise payment settings (Payment Management)
+export const getPaymentSettings = (zoneId) => {
+  const params = {};
+  if (zoneId !== undefined && zoneId !== null && zoneId !== "") {
+    params.zone_id = zoneId;
+  }
+  return axiosClient.get("/payment-settings", { params });
+};
+
+export const savePaymentSettings = (body) => {
+  return axiosClient.put("/payment-settings", body);
+};
+
 // Create zone (body: name, center_latitude, center_longitude, radius_km, price, status).
 export const createZone = (payload) => {
   return axiosClient.post("/zones", payload);
@@ -273,4 +286,10 @@ export const getConversions = (params = {}) => {
   if (per_page != null) query.per_page = Number(per_page) || 20;
   if (page != null) query.page = Number(page) || 1;
   return axiosClient.get("/conversions", { params: query });
+};
+
+// ==================== CHAT (Admin audit) ====================
+// Paginated messages where user is sender or receiver. user_id = vendor's User id.
+export const getAdminUserChatHistory = (userId, params = {}) => {
+  return axiosClient.get(`/admin/users/${userId}/chat-history`, { params });
 };

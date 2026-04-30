@@ -64,6 +64,7 @@ const Navbar = () => {
     { navTitle: "Payment Management", path: "/payment-management" },
     { navTitle: "Admin Management", path: "/admin-user" },
     { navTitle: "Settings", path: "/setting" },
+    { navTitle: "Notifications", path: "/notifications" },
   ];
 
   const currentTitle =
@@ -184,6 +185,16 @@ const Navbar = () => {
                     </div>
                   </button>
                 ))}
+              </div>
+
+              <div className="px-3 py-2.5 border-t border-[#E6EEF6]">
+                <NavLink
+                  to="/notifications"
+                  className="block w-full text-center text-xs font-medium text-[#0059A0] hover:underline py-1"
+                  onClick={() => setShowNoti(false)}
+                >
+                  View all notifications
+                </NavLink>
               </div>
             </div>
           )}

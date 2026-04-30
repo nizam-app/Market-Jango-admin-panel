@@ -20,6 +20,7 @@ import Transportmanagement from "../pages/Transportmanagement";
 import ShipmentManagement from "../pages/ShipmentManagement";
 import RouteManagement from "../pages/RouteManagement";
 import SubscriptionPlans from "../pages/SubscriptionPlans";
+import Notifications from "../pages/Notifications";
 import Rankings from "../pages/Rankings";
 import CategoryManagement from "../pages/CategoryManagement";
 import VisibilityManagement from "../pages/VisibilityManagement";
@@ -120,6 +121,10 @@ const Router = createBrowserRouter([
           {
             path: "subscription-plans",
             Component: SubscriptionPlans,
+          },
+          {
+            path: "notifications",
+            Component: Notifications,
           },
           {
             path: "rankings",

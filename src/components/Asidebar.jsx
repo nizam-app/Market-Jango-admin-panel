@@ -110,6 +110,13 @@ const Asidebar = () => {
                 path : '/setting'
             },
             {
+                name : 'Notifications',
+                navTitle : 'Notifications',
+                icon : "M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9 M13.73 21a2 2 0 0 1-3.46 0",
+                viewBox: "0 0 24 24",
+                path : '/notifications'
+            },
+            {
                 name : 'Subscription Plans',
                 navTitle : 'Subscription Plans',
                 icon : "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z",

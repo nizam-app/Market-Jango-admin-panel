@@ -182,6 +182,22 @@ const ProductModal = ({ product, closeModal, onStatusChange }) => {
               </div>
             </div>
 
+            <div className="mb-6 rounded-xl border border-gray-200 bg-[#F8FAFC] p-5">
+              <p className="font-medium text-xl mb-3 text-[#343C6A]">
+                Terms &amp; conditions
+              </p>
+              {product.terms_and_conditions &&
+              String(product.terms_and_conditions).trim() ? (
+                <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                  {String(product.terms_and_conditions).trim()}
+                </p>
+              ) : (
+                <p className="text-sm text-gray-500 italic">
+                  No terms and conditions provided for this product.
+                </p>
+              )}
+            </div>
+
             <div className="mb-6">
               <p className="font-medium text-2xl mb-2">Specifications</p>
               <p className="mb-2">

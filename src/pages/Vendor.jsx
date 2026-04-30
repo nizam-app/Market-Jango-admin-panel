@@ -8,8 +8,9 @@ import { VendorModal } from '../components/vendor/VendorModal';
 import { createVendor } from "../api/vendorAPI";
 import { updateUserInfo } from "../api/userApi";
 import { getRoutes } from "../api/routeApi";
-import { getAllPlans, manualAssignSubscription, updateVendorLimits } from "../api/adminApi";
+import { getAllPlans, manualAssignSubscription, updateVendorLimits, getAdminUserChatHistory } from "../api/adminApi";
 import { CheckCircle2, XCircle, Clock, MoreVertical, Edit3, Trash2, Search, X } from "lucide-react";
+import AdminChatHistoryPanel from "../components/admin/AdminChatHistoryPanel";
 
 const BRAND = '#FF8C00';
 
@@ -98,7 +99,6 @@ const Vendor = () => {
   const [isSearching, setIsSearching] = useState(false);
   const debounceTimerRef = useRef(null);
 
-  console.log("lala", vendors )
 
 
   // modal state
@@ -108,6 +108,9 @@ const Vendor = () => {
   const [modalProducts, setModalProducts] = useState([]);
   const [modalLoading, setModalLoading] = useState(false);
   const [modalError, setModalError] = useState(null);
+  const [modalChatMessages, setModalChatMessages] = useState([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatError, setChatError] = useState(null);
   const [isVendorModalOpen, setIsVendorModalOpen] = useState(false);
   const [openMenuId, setOpenMenuId] = useState(null);
   const [editingVendor, setEditingVendor] = useState(null);
@@ -391,6 +394,9 @@ const Vendor = () => {
     setModalProducts(Array.isArray(vendorRaw?.vendor?.products) ? vendorRaw.vendor.products : []);
     setModalLoading(true);
     setModalError(null);
+    setModalChatMessages([]);
+    setChatError(null);
+    setChatLoading(true);
 
     try {
       // Try to fetch vendor detail (if endpoint exists)
@@ -416,11 +422,30 @@ const Vendor = () => {
 
       setModalVendorDetail(detail);
       setModalProducts(products);
+
+      // Chat history (admin audit — all messages where vendor user is sender or receiver)
+      try {
+        const { data: chatResp } = await getAdminUserChatHistory(vendorId, { per_page: 200 });
+        if (chatResp?.status === 'success' && chatResp?.data?.data) {
+          setModalChatMessages(chatResp.data.data);
+        } else if (Array.isArray(chatResp?.data?.data)) {
+          setModalChatMessages(chatResp.data.data);
+        } else {
+          setModalChatMessages([]);
+        }
+      } catch (errChat) {
+        console.warn('vendor chat history fetch failed', errChat);
+        setChatError(errChat?.response?.data?.message || errChat.message || 'Could not load chat.');
+        setModalChatMessages([]);
+      } finally {
+        setChatLoading(false);
+      }
     } catch (err) {
       console.error('modal load err', err);
       setModalError('Failed to load vendor details.');
     } finally {
       setModalLoading(false);
+      setChatLoading(false);
     }
   };
 
@@ -430,6 +455,9 @@ const Vendor = () => {
     setModalVendorDetail(null);
     setModalProducts([]);
     setModalError(null);
+    setModalChatMessages([]);
+    setChatError(null);
+    setChatLoading(false);
   };
 
   const filterNames = useMemo(() => Object.keys(STATUS_MAP), []);
@@ -1065,6 +1093,20 @@ const Vendor = () => {
                     </div>
                   )}
                 </div>
+                
+
+                <AdminChatHistoryPanel
+                  subjectUserId={
+                    modalVendorRaw?.id ??
+                    modalVendorDetail?.id ??
+                    modalVendorDetail?.user_id
+                  }
+                  messages={modalChatMessages}
+                  loading={chatLoading}
+                  error={chatError}
+                  brandColor={BRAND}
+                  outgoingLabel="Vendor"
+                />
 
                 <div style={{ marginTop: 12 }}>
                   <div style={{ fontWeight: 800, marginBottom: 8 }}>Products</div>
@@ -1077,6 +1119,7 @@ const Vendor = () => {
                           <th style={styles.productTh}>Name</th>
                           <th style={styles.productTh}>Price</th>
                           <th style={styles.productTh}>Stock</th>
+                          <th style={styles.productTh}>Terms & conditions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1095,6 +1138,29 @@ const Vendor = () => {
                                 : p.quantity != null
                                   ? p.quantity
                                   : '-'}
+                            </td>
+                            <td
+                              style={{
+                                ...styles.productTd,
+                                maxWidth: 260,
+                                verticalAlign: 'top',
+                                fontSize: 12,
+                                lineHeight: 1.35,
+                                wordBreak: 'break-word',
+                              }}
+                              title={
+                                p.terms_and_conditions &&
+                                String(p.terms_and_conditions).trim()
+                                  ? String(p.terms_and_conditions).trim()
+                                  : undefined
+                              }
+                            >
+                              {(() => {
+                                const t = p.terms_and_conditions;
+                                if (t == null || String(t).trim() === '') return '—';
+                                const s = String(t).trim();
+                                return s.length > 140 ? `${s.slice(0, 140)}…` : s;
+                              })()}
                             </td>
                           </tr>
                         ))}

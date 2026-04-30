@@ -26,7 +26,8 @@ import {
 } from "../api/driverApiUpdate";
 import { updateUserInfo } from "../api/userApi";
 import axiosClient from "../api/axiosClient";
-import { getAllPlans, manualAssignSubscription } from "../api/adminApi";
+import { getAllPlans, manualAssignSubscription, getAdminUserChatHistory } from "../api/adminApi";
+import AdminChatHistoryPanel from "../components/admin/AdminChatHistoryPanel";
 
 const BRAND = "#FF8C00";
 const STATUS_TABS = ["All", "Approved", "Pending", "Rejected"];
@@ -100,6 +101,9 @@ const DriverManagement = () => {
   // Detail modal state
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [detailDriver, setDetailDriver] = useState(null);
+  const [detailChatMessages, setDetailChatMessages] = useState([]);
+  const [detailChatLoading, setDetailChatLoading] = useState(false);
+  const [detailChatError, setDetailChatError] = useState(null);
 
   const [routes, setRoutes] = useState([]);
   const [isDriverModalOpen, setIsDriverModalOpen] = useState(false);
@@ -264,14 +268,39 @@ const DriverManagement = () => {
     setIsSearching(false);
   };
 
-  const openDetailModal = (driverRow) => {
+  const openDetailModal = async (driverRow) => {
     setDetailDriver(driverRow);
     setIsDetailModalOpen(true);
+    setDetailChatMessages([]);
+    setDetailChatError(null);
+    setDetailChatLoading(true);
+
+    try {
+      const { data: chatResp } = await getAdminUserChatHistory(driverRow.id, {
+        per_page: 200,
+      });
+      const paginator = chatResp?.data;
+      const list = paginator?.data;
+      setDetailChatMessages(Array.isArray(list) ? list : []);
+    } catch (err) {
+      console.warn("driver chat history fetch failed", err);
+      setDetailChatError(
+        err?.response?.data?.message ||
+          err.message ||
+          "Could not load chat history."
+      );
+      setDetailChatMessages([]);
+    } finally {
+      setDetailChatLoading(false);
+    }
   };
 
   const closeDetailModal = () => {
     setIsDetailModalOpen(false);
     setDetailDriver(null);
+    setDetailChatMessages([]);
+    setDetailChatError(null);
+    setDetailChatLoading(false);
   };
 
   const _getStatusBadge = (statusRaw) => {
@@ -1191,6 +1220,15 @@ const DriverManagement = () => {
                   </div>
                 </div>
               </div>
+
+              <AdminChatHistoryPanel
+                subjectUserId={detailDriver?.id}
+                messages={detailChatMessages}
+                loading={detailChatLoading}
+                error={detailChatError}
+                brandColor={BRAND}
+                outgoingLabel="Driver"
+              />
             </div>
 
             <div className="px-6 py-4 border-t border-gray-200 flex justify-end">
