@@ -5,7 +5,6 @@ const PaymentConfirmModal = ({ order, driver, onClose, onConfirm }) => {
   const [processing, setProcessing] = useState(false);
 
   if (!order || !driver) return null;
-  console.log(order, 'order')
 
   const handleSubmit = async () => {
     if (!onConfirm) return;
@@ -28,7 +27,7 @@ const PaymentConfirmModal = ({ order, driver, onClose, onConfirm }) => {
       >
         {/* Header */}
         <div className="flex justify-between items-center p-5 border-b border-gray-200">
-          <h2 className="text-lg font-semibold">Confirm payment &amp; assign</h2>
+          <h2 className="text-lg font-semibold">Confirm assign driver</h2>
           <button
             onClick={onClose}
             className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xl cursor-pointer"
@@ -64,12 +63,10 @@ const PaymentConfirmModal = ({ order, driver, onClose, onConfirm }) => {
           </div>
 
           <div>
-            <h3 className="font-semibold mb-1">Payment</h3>
-            <p>Payment method: Online payment</p>
-            <p className="text-xs text-gray-500 mt-1">
-              After you continue, a secure payment page (Flutterwave) will open
-              in a new tab. Once the payment is completed successfully, the
-              order will be assigned to this driver.
+            <h3 className="font-semibold mb-1">Driver payment</h3>
+            <p className="text-xs text-gray-600 mt-1">
+              No online payment is collected here. The platform or admin pays
+              the driver through your normal settlement process.
             </p>
           </div>
         </div>
@@ -88,7 +85,7 @@ const PaymentConfirmModal = ({ order, driver, onClose, onConfirm }) => {
             disabled={processing}
             className="px-5 py-2 rounded-[8px] bg-[#55A946] text-[#051522] text-sm font-medium cursor-pointer disabled:opacity-60"
           >
-            {processing ? "Processing..." : "Continue to payment"}
+            {processing ? "Processing..." : "Assign driver"}
           </button>
         </div>
       </div>

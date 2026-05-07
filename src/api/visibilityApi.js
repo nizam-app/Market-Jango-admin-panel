@@ -64,6 +64,19 @@ const visibilityApi = {
       headers: adminHeaders(),
     });
   },
+
+  // ——— Delivery charge options (dropdown helpers for visibility form) ———
+  deliveryChargeZones: () => {
+    return axiosClient.get("/delivery-charge/options/zones", {
+      headers: adminHeaders(),
+    });
+  },
+  deliveryChargeCities: (zoneName) => {
+    return axiosClient.get("/delivery-charge/options/cities", {
+      params: { zone_name: zoneName },
+      headers: adminHeaders(),
+    });
+  },
 };
 
 export default visibilityApi;

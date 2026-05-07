@@ -72,54 +72,30 @@ const AssignOrderPage = () => {
     setShowPayment(true);
   };
 
-  // ✅ এখন এখানে real payment API use হচ্ছে
- 
-  const handleConfirmPayment = async () => {
-  if (!selectedOrder || !driver) return;
+  const handleConfirmAssign = async () => {
+    if (!selectedOrder || !driver) return;
 
-  try {
-    // debugging জন্য – console এ দেখবে এখন
-    console.log("payment driver object:", driver);
-    console.log("payment order object:", selectedOrder);
+    try {
+      const driverId = driver.id ?? driver.user_id;
+      const orderItemId = selectedOrder.id;
 
-    // ✅ backend er jonno:
-    //  - driverId  → driver table er id (driver.id)
-    //  - orderItemId → order.id
-    const driverId = driver.id ?? driver.user_id;   // প্রধানত driver.id পাঠাচ্ছি
-    const orderItemId = selectedOrder.id;
+      const res = await assignOrderToDriver(driverId, orderItemId);
+      const message =
+        res?.data?.message || "Driver assigned. Platform will settle payment with the driver.";
 
-    const res = await assignOrderToDriver(driverId, orderItemId);
-
-    const paymentData = res?.data?.data?.[0];
-    const paymentUrl = paymentData?.paymentMethod?.payment_url;
-    const total = paymentData?.total ?? paymentData?.payable;
-
-    if (paymentUrl) {
-      // নতুন tab এ flutterwave page open হবে
-      window.open(paymentUrl, "_blank", "noopener,noreferrer");
+      setOrders((prev) => prev.filter((o) => o.id !== selectedOrder.id));
+      setShowPayment(false);
+      setSelectedOrder(null);
+      alert(message);
+    } catch (err) {
+      console.error("Failed to assign driver", err);
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to assign driver. Please try again.";
+      alert(msg);
     }
-
-    // সফল হলে order list থেকে remove করি
-    setOrders((prev) => prev.filter((o) => o.id !== selectedOrder.id));
-
-    setShowPayment(false);
-    setSelectedOrder(null);
-
-    alert(
-      `Payment started successfully.${
-        total ? ` Payable amount: ${total}` : ""
-      }`
-    );
-  } catch (err) {
-    console.error("Failed to create payment / assign order", err);
-
-    const msg =
-      err?.response?.data?.message ||
-      err?.message ||
-      "Failed to create payment. Please try again.";
-    alert(msg);
-  }
-};
+  };
 
 
   const goBack = () => navigate(-1);
@@ -251,7 +227,7 @@ const AssignOrderPage = () => {
                         onClick={() => handleSelectOrder(order)}
                         className="px-4 py-2 rounded-[10px] bg-[#FF8C00] text-xs font-medium text-[#051522] cursor-pointer"
                       >
-                        Pay &amp; assign
+                        Assign driver
                       </button>
                     </td>
                   </tr>
@@ -294,7 +270,7 @@ const AssignOrderPage = () => {
             setShowPayment(false);
             setSelectedOrder(null);
           }}
-          onConfirm={handleConfirmPayment}
+          onConfirm={handleConfirmAssign}
         />
       )}
     </div>

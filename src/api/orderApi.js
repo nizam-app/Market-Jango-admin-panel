@@ -11,8 +11,11 @@ export const getNotDeliveredOrders = (page = 1) => {
   return axiosClient.get(`/not/delivered/order?page=${page}`);
 };
 
+/** POST /all/order/{lineId}/assign-driver — no online payment; platform/admin pays driver separately */
 export const assignOrderToDriver = (driverId, orderItemId) => {
-  return axiosClient.post(`/admin/invoice/create/${driverId}/${orderItemId}`, {});
+  return axiosClient.post(`/all/order/${orderItemId}/assign-driver`, {
+    driver_id: driverId,
+  });
 };
 
 /**
