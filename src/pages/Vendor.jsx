@@ -8,7 +8,7 @@ import { VendorModal } from '../components/vendor/VendorModal';
 import { createVendor } from "../api/vendorAPI";
 import { updateUserInfo } from "../api/userApi";
 import { getRoutes } from "../api/routeApi";
-import { getAllPlans, manualAssignSubscription, updateVendorLimits, getAdminUserChatHistory } from "../api/adminApi";
+import { getAllPlans, manualAssignSubscription, updateVendorLimits, getAdminUserChatHistory, getAdminUserBlockList } from "../api/adminApi";
 import { CheckCircle2, XCircle, Clock, MoreVertical, Edit3, Trash2, Search, X } from "lucide-react";
 import AdminChatHistoryPanel from "../components/admin/AdminChatHistoryPanel";
 
@@ -111,6 +111,7 @@ const Vendor = () => {
   const [modalChatMessages, setModalChatMessages] = useState([]);
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState(null);
+  const [modalBlockData, setModalBlockData] = useState(null);
   const [isVendorModalOpen, setIsVendorModalOpen] = useState(false);
   const [openMenuId, setOpenMenuId] = useState(null);
   const [editingVendor, setEditingVendor] = useState(null);
@@ -390,13 +391,13 @@ const Vendor = () => {
     setIsModalOpen(true);
     setModalVendorRaw(vendorRaw ?? null);
     setModalVendorDetail(null);
-    // Use products from admin-vendor list response (vendor.vendor.products) so list shows immediately
     setModalProducts(Array.isArray(vendorRaw?.vendor?.products) ? vendorRaw.vendor.products : []);
     setModalLoading(true);
     setModalError(null);
     setModalChatMessages([]);
     setChatError(null);
     setChatLoading(true);
+    setModalBlockData(null);
 
     try {
       // Try to fetch vendor detail (if endpoint exists)
@@ -423,20 +424,34 @@ const Vendor = () => {
       setModalVendorDetail(detail);
       setModalProducts(products);
 
-      // Chat history (admin audit — all messages where vendor user is sender or receiver)
+      // Chat history + block list — fetch in parallel
       try {
-        const { data: chatResp } = await getAdminUserChatHistory(vendorId, { per_page: 200 });
-        if (chatResp?.status === 'success' && chatResp?.data?.data) {
-          setModalChatMessages(chatResp.data.data);
-        } else if (Array.isArray(chatResp?.data?.data)) {
-          setModalChatMessages(chatResp.data.data);
+        const [chatResult, blockResult] = await Promise.allSettled([
+          getAdminUserChatHistory(vendorId, { per_page: 200 }),
+          getAdminUserBlockList(vendorId),
+        ]);
+
+        if (chatResult.status === 'fulfilled') {
+          const chatResp = chatResult.value?.data;
+          if (chatResp?.data?.data) {
+            setModalChatMessages(chatResp.data.data);
+          } else {
+            setModalChatMessages([]);
+          }
         } else {
+          console.warn('vendor chat history fetch failed', chatResult.reason);
+          setChatError(chatResult.reason?.response?.data?.message || chatResult.reason?.message || 'Could not load chat.');
           setModalChatMessages([]);
         }
-      } catch (errChat) {
-        console.warn('vendor chat history fetch failed', errChat);
-        setChatError(errChat?.response?.data?.message || errChat.message || 'Could not load chat.');
-        setModalChatMessages([]);
+
+        if (blockResult.status === 'fulfilled') {
+          const blockResp = blockResult.value?.data;
+          if (blockResp?.status === 'success' && blockResp?.data) {
+            setModalBlockData(blockResp.data);
+          }
+        } else {
+          console.warn('vendor block list fetch failed', blockResult.reason);
+        }
       } finally {
         setChatLoading(false);
       }
@@ -457,6 +472,7 @@ const Vendor = () => {
     setModalError(null);
     setModalChatMessages([]);
     setChatError(null);
+    setModalBlockData(null);
     setChatLoading(false);
   };
 
@@ -1106,6 +1122,7 @@ const Vendor = () => {
                   error={chatError}
                   brandColor={BRAND}
                   outgoingLabel="Vendor"
+                  blockData={modalBlockData}
                 />
 
                 <div style={{ marginTop: 12 }}>

@@ -1,6 +1,6 @@
 // Admin audit: group flat API messages by conversation partner (buyer, vendor, driver, transport…).
 import React, { useMemo, useState, useEffect } from "react";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, ShieldOff } from "lucide-react";
 
 function groupIntoConversations(messages, subjectUserId) {
   const uid = Number(subjectUserId);
@@ -46,8 +46,9 @@ function groupIntoConversations(messages, subjectUserId) {
 /**
  * Two-panel chat viewer for admin: conversations list + selected thread.
  *
- * @param {number|string} subjectUserId — vendor/driver user id (the account being inspected)
- * @param {string} outgoingLabel — shown on outbound bubbles, e.g. "Vendor" or "Driver"
+ * @param {number|string} subjectUserId  — vendor/driver user id (the account being inspected)
+ * @param {string}        outgoingLabel  — shown on outbound bubbles, e.g. "Vendor" or "Driver"
+ * @param {object}        blockData      — { blocked_by_user: [...], blocked_user: [...] }
  */
 export default function AdminChatHistoryPanel({
   subjectUserId,
@@ -56,7 +57,24 @@ export default function AdminChatHistoryPanel({
   error,
   brandColor = "#FF8C00",
   outgoingLabel = "Account",
+  blockData = null,
 }) {
+  // Build fast lookup sets from blockData
+  const blockedBySubject = useMemo(() => {
+    const ids = new Set();
+    if (Array.isArray(blockData?.blocked_by_user)) {
+      blockData.blocked_by_user.forEach((u) => ids.add(Number(u.user_id)));
+    }
+    return ids;
+  }, [blockData]);
+
+  const blockedSubject = useMemo(() => {
+    const ids = new Set();
+    if (Array.isArray(blockData?.blocked_user)) {
+      blockData.blocked_user.forEach((u) => ids.add(Number(u.user_id)));
+    }
+    return ids;
+  }, [blockData]);
   const conversations = useMemo(
     () => groupIntoConversations(messages, subjectUserId),
     [messages, subjectUserId]
@@ -124,6 +142,9 @@ export default function AdminChatHistoryPanel({
             {conversations.map((c) => {
               const sel = c.partnerId === selectedPartnerId;
               const pt = partnerType(c.partner);
+              const subjectBlockedPartner = blockedBySubject.has(c.partnerId);
+              const partnerBlockedSubject = blockedSubject.has(c.partnerId);
+              const hasBlock = subjectBlockedPartner || partnerBlockedSubject;
               return (
                 <button
                   key={c.partnerId}
@@ -139,7 +160,7 @@ export default function AdminChatHistoryPanel({
                   <div className="font-semibold text-sm text-gray-900 truncate">
                     {partnerTitle(c.partner)}
                   </div>
-                  <div className="flex items-center gap-1 mt-0.5">
+                  <div className="flex items-center gap-1 mt-0.5 flex-wrap">
                     {pt && (
                       <span className="text-[10px] font-bold uppercase px-1.5 py-0 rounded bg-gray-200 text-gray-700">
                         {pt}
@@ -148,6 +169,12 @@ export default function AdminChatHistoryPanel({
                     <span className="text-[11px] text-gray-500">
                       {c.messages.length} msg{c.messages.length !== 1 ? "s" : ""}
                     </span>
+                    {hasBlock && (
+                      <span className="flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0 rounded bg-red-100 text-red-700">
+                        <ShieldOff className="w-2.5 h-2.5" />
+                        Blocked
+                      </span>
+                    )}
                   </div>
                   <div className="text-[11px] text-gray-500 truncate mt-1">
                     {c.preview}
@@ -171,6 +198,19 @@ export default function AdminChatHistoryPanel({
                       </span>
                     )}
                   </div>
+                  {/* Block status banners */}
+                  {blockedBySubject.has(active.partnerId) && (
+                    <div className="flex items-center gap-1.5 mt-1.5 px-2 py-1 rounded bg-red-50 border border-red-200 text-red-700 text-[11px] font-semibold">
+                      <ShieldOff className="w-3 h-3 shrink-0" />
+                      {outgoingLabel} has blocked this user
+                    </div>
+                  )}
+                  {blockedSubject.has(active.partnerId) && (
+                    <div className="flex items-center gap-1.5 mt-1 px-2 py-1 rounded bg-orange-50 border border-orange-200 text-orange-700 text-[11px] font-semibold">
+                      <ShieldOff className="w-3 h-3 shrink-0" />
+                      This user has blocked {outgoingLabel}
+                    </div>
+                  )}
                 </div>
                 <div className="flex-1 overflow-y-auto p-3 space-y-3">
                   {active.messages.map((msg, idx) => {

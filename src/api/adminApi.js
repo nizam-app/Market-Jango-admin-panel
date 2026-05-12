@@ -293,3 +293,8 @@ export const getConversions = (params = {}) => {
 export const getAdminUserChatHistory = (userId, params = {}) => {
   return axiosClient.get(`/admin/users/${userId}/chat-history`, { params });
 };
+
+// Block info for a user: who they blocked + who blocked them.
+export const getAdminUserBlockList = (userId) => {
+  return axiosClient.get(`/admin/users/${userId}/block-list`);
+};
