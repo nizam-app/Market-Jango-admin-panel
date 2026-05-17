@@ -1,5 +1,5 @@
 // src/pages/DriverManagement.jsx
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { Link } from "react-router";
 import {
   Plus,
@@ -23,6 +23,9 @@ import {
   getDriversByStatus,
   createDriver,
   updateDriverStatus,
+  getRequestDrivers,
+  getApprovedDrivers,
+  getSuspendedDrivers,
 } from "../api/driverApiUpdate";
 import { updateUserInfo } from "../api/userApi";
 import axiosClient from "../api/axiosClient";
@@ -31,6 +34,37 @@ import AdminChatHistoryPanel from "../components/admin/AdminChatHistoryPanel";
 
 const BRAND = "#FF8C00";
 const STATUS_TABS = ["All", "Approved", "Pending", "Rejected"];
+
+const isPdfDocument = (path = "") => {
+  const lower = String(path).toLowerCase().split("?")[0];
+  return lower.endsWith(".pdf");
+};
+
+/** Images from admin-driver (driver.images) or request/approved APIs (images on driver row). */
+const collectDriverImages = (...sources) => {
+  const merged = [];
+  const seen = new Set();
+  for (const source of sources) {
+    if (!source) continue;
+    const list = source?.driver?.images ?? source?.images ?? [];
+    if (!Array.isArray(list)) continue;
+    for (const img of list) {
+      if (!img?.image_path) continue;
+      const key = img.id ?? img.image_path;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(img);
+    }
+  }
+  return merged;
+};
+
+const driverListFromResponse = (resp) => {
+  const payload = resp?.data?.data ?? resp?.data;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload)) return payload;
+  return [];
+};
 
 const formatTransportTypeLabel = (raw) => {
   if (raw == null || String(raw).trim() === "") return "—";
@@ -119,6 +153,7 @@ const DriverManagement = () => {
   const [detailChatLoading, setDetailChatLoading] = useState(false);
   const [detailChatError, setDetailChatError] = useState(null);
   const [detailBlockData, setDetailBlockData] = useState(null);
+  const [detailDriverImages, setDetailDriverImages] = useState([]);
 
   const [routes, setRoutes] = useState([]);
   const [isDriverModalOpen, setIsDriverModalOpen] = useState(false);
@@ -287,6 +322,29 @@ const DriverManagement = () => {
     setIsSearching(false);
   };
 
+  const fetchDriverImagesForProfile = async (driverProfileId, status) => {
+    if (!driverProfileId) return [];
+
+    const loaders = {
+      Pending: () => getRequestDrivers(1),
+      Approved: () => getApprovedDrivers(1),
+      Rejected: () => getSuspendedDrivers(1),
+    };
+    const load = loaders[status] ?? loaders.Pending;
+
+    try {
+      const res = await load();
+      const list = driverListFromResponse(res);
+      const match = list.find(
+        (row) => Number(row.id) === Number(driverProfileId)
+      );
+      return Array.isArray(match?.images) ? match.images : [];
+    } catch (err) {
+      console.warn("driver images fetch failed", err);
+      return [];
+    }
+  };
+
   const openDetailModal = async (driverRow) => {
     setDetailDriver(driverRow);
     setIsDetailModalOpen(true);
@@ -294,8 +352,20 @@ const DriverManagement = () => {
     setDetailChatError(null);
     setDetailChatLoading(true);
     setDetailBlockData(null);
+    setDetailDriverImages(collectDriverImages(driverRow.raw));
+
+    const driverProfileId = driverRow.driverId ?? driverRow.raw?.driver?.id ?? null;
+    const driverStatus = driverRow.status ?? "Pending";
 
     try {
+      const listImages = await fetchDriverImagesForProfile(
+        driverProfileId,
+        driverStatus
+      );
+      setDetailDriverImages(
+        collectDriverImages(driverRow.raw, { images: listImages })
+      );
+
       const [chatResult, blockResult] = await Promise.allSettled([
         getAdminUserChatHistory(driverRow.id, { per_page: 200 }),
         getAdminUserBlockList(driverRow.id),
@@ -334,7 +404,15 @@ const DriverManagement = () => {
     setDetailChatError(null);
     setDetailChatLoading(false);
     setDetailBlockData(null);
+    setDetailDriverImages([]);
   };
+
+  const detailDriverDocuments = useMemo(() => {
+    return collectDriverImages(
+      { images: detailDriverImages },
+      detailDriver?.raw
+    );
+  }, [detailDriverImages, detailDriver]);
 
   const _getStatusBadge = (statusRaw) => {
     const status = (statusRaw || "").toLowerCase();
@@ -1268,6 +1346,58 @@ const DriverManagement = () => {
                     </div>
                   </div>
                 </div>
+              </div>
+
+              {/* Documents / license uploads (driver.images or request-driver images[]) */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                  Documents ({detailDriverDocuments.length})
+                </h3>
+                {detailDriverDocuments.length === 0 ? (
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">
+                    No documents uploaded for this driver.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {detailDriverDocuments.map((doc) => {
+                      const url = doc.image_path;
+                      const isPdf = isPdfDocument(url);
+                      return (
+                        <div
+                          key={doc.id ?? url}
+                          className="overflow-hidden rounded-lg border border-gray-200 bg-gray-50"
+                        >
+                          {isPdf ? (
+                            <iframe
+                              title="Driver document"
+                              src={url}
+                              className="h-64 w-full border-0 bg-white"
+                            />
+                          ) : (
+                            <img
+                              src={url}
+                              alt="Driver document"
+                              className="h-52 w-full object-contain bg-white"
+                            />
+                          )}
+                          <div className="flex items-center justify-between px-3 py-2 text-xs">
+                            <span className="text-gray-600">
+                              {isPdf ? "PDF document" : "Image"}
+                            </span>
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-semibold text-[#FF8C00] hover:underline"
+                            >
+                              Open
+                            </a>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               <AdminChatHistoryPanel

@@ -29,3 +29,13 @@ export const updateDriverStatus = (driverId, status, note = "") =>
     status,
     note,
   });
+
+// Driver rows with images[] (same shape as pending vendor list)
+export const getRequestDrivers = (page = 1) =>
+  apiClient.get("/request-driver", { params: { page } });
+
+export const getApprovedDrivers = (page = 1) =>
+  apiClient.get("/approved-driver", { params: { page } });
+
+export const getSuspendedDrivers = (page = 1) =>
+  apiClient.get("/suspended-driver", { params: { page } });

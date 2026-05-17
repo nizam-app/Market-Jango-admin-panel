@@ -5,7 +5,12 @@ import axiosClient from '../api/axiosClient'; // keep axiosClient untouched
 import Swal from 'sweetalert2';
 import 'sweetalert2/dist/sweetalert2.min.css';
 import { VendorModal } from '../components/vendor/VendorModal';
-import { createVendor } from "../api/vendorAPI";
+import {
+  createVendor,
+  getPendingVendors,
+  getActiveVendors,
+  getSuspendedVendors,
+} from "../api/vendorAPI";
 import { updateUserInfo } from "../api/userApi";
 import { getRoutes } from "../api/routeApi";
 import { getAllPlans, manualAssignSubscription, updateVendorLimits, getAdminUserChatHistory, getAdminUserBlockList } from "../api/adminApi";
@@ -87,6 +92,37 @@ const STATUS_MAP = {
 
 const PAGE_SIZE = 10;
 
+const isPdfDocument = (path = '') => {
+  const lower = String(path).toLowerCase().split('?')[0];
+  return lower.endsWith('.pdf');
+};
+
+/** Images from admin-vendor (vendor.images) or pending/active APIs (images on vendor row). */
+const collectVendorImages = (...sources) => {
+  const merged = [];
+  const seen = new Set();
+  for (const source of sources) {
+    if (!source) continue;
+    const list = source?.vendor?.images ?? source?.images ?? [];
+    if (!Array.isArray(list)) continue;
+    for (const img of list) {
+      if (!img?.image_path) continue;
+      const key = img.id ?? img.image_path;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(img);
+    }
+  }
+  return merged;
+};
+
+const vendorListFromResponse = (resp) => {
+  const payload = resp?.data?.data ?? resp?.data;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload)) return payload;
+  return [];
+};
+
 const Vendor = () => {
   const [filter, setFilter] = useState('All');
   const [vendors, setVendors] = useState([]);
@@ -106,6 +142,7 @@ const Vendor = () => {
   const [modalVendorRaw, setModalVendorRaw] = useState(null);
   const [modalVendorDetail, setModalVendorDetail] = useState(null);
   const [modalProducts, setModalProducts] = useState([]);
+  const [modalVendorImages, setModalVendorImages] = useState([]);
   const [modalLoading, setModalLoading] = useState(false);
   const [modalError, setModalError] = useState(null);
   const [modalChatMessages, setModalChatMessages] = useState([]);
@@ -387,10 +424,32 @@ const Vendor = () => {
   };
 
   // -------- Modal logic ----------
+  const fetchVendorImagesForProfile = async (vendorProfileId, status) => {
+    if (!vendorProfileId) return [];
+
+    const loaders = {
+      Pending: () => getPendingVendors(1),
+      Approved: () => getActiveVendors({ per_page: 500, page: 1 }),
+      Rejected: () => getSuspendedVendors(1),
+    };
+    const load = loaders[status] ?? loaders.Pending;
+
+    try {
+      const res = await load();
+      const list = vendorListFromResponse(res);
+      const match = list.find((row) => Number(row.id) === Number(vendorProfileId));
+      return Array.isArray(match?.images) ? match.images : [];
+    } catch (err) {
+      console.warn('vendor images fetch failed', err);
+      return [];
+    }
+  };
+
   const openVendorModal = async (vendorId, vendorRaw) => {
     setIsModalOpen(true);
     setModalVendorRaw(vendorRaw ?? null);
     setModalVendorDetail(null);
+    setModalVendorImages(collectVendorImages(vendorRaw));
     setModalProducts(Array.isArray(vendorRaw?.vendor?.products) ? vendorRaw.vendor.products : []);
     setModalLoading(true);
     setModalError(null);
@@ -398,6 +457,9 @@ const Vendor = () => {
     setChatError(null);
     setChatLoading(true);
     setModalBlockData(null);
+
+    const vendorProfileId = vendorRaw?.vendor?.id ?? null;
+    const vendorStatus = vendorRaw?.status ?? 'Pending';
 
     try {
       // Try to fetch vendor detail (if endpoint exists)
@@ -421,8 +483,12 @@ const Vendor = () => {
         console.warn('vendor products fetch failed', errProd);
       }
 
+      const listImages = await fetchVendorImagesForProfile(vendorProfileId, vendorStatus);
+      const images = collectVendorImages(vendorRaw, detail, { images: listImages });
+
       setModalVendorDetail(detail);
       setModalProducts(products);
+      setModalVendorImages(images);
 
       // Chat history + block list — fetch in parallel
       try {
@@ -469,6 +535,7 @@ const Vendor = () => {
     setModalVendorRaw(null);
     setModalVendorDetail(null);
     setModalProducts([]);
+    setModalVendorImages([]);
     setModalError(null);
     setModalChatMessages([]);
     setChatError(null);
@@ -477,6 +544,14 @@ const Vendor = () => {
   };
 
   const filterNames = useMemo(() => Object.keys(STATUS_MAP), []);
+
+  const vendorDocuments = useMemo(() => {
+    return collectVendorImages(
+      { images: modalVendorImages },
+      modalVendorDetail,
+      modalVendorRaw,
+    );
+  }, [modalVendorImages, modalVendorDetail, modalVendorRaw]);
 
   // Handle Edit
   const handleEdit = (vendor) => {
@@ -1046,6 +1121,38 @@ const Vendor = () => {
                       </div>
                     )}
                   </div>
+                </div>
+
+                {/* Documents / images from GET /pending/vendor (images[]) or admin-vendor (vendor.images) */}
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ fontWeight: 800, marginBottom: 8 }}>
+                    Documents ({vendorDocuments.length})
+                  </div>
+                  {vendorDocuments.length === 0 ? (
+                    <div style={{ padding: 12, color: '#999', textAlign: 'center', background: '#fafafa', borderRadius: 8, border: '1px solid #f0f0f3' }}>
+                      No documents uploaded for this vendor.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
+                      {vendorDocuments.map((doc) => {
+                        const url = doc.image_path;
+                        const isPdf = isPdfDocument(url);
+                        return (
+                          <div key={doc.id ?? url} style={{ border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden', background: '#fafafa' }}>
+                            {isPdf ? (
+                              <iframe title="PDF" src={url} style={{ width: '100%', height: 280, border: 'none' }} />
+                            ) : (
+                              <img src={url} alt="Vendor document" style={{ width: '100%', height: 220, objectFit: 'contain', display: 'block', background: '#f3f4f6' }} />
+                            )}
+                            <div style={{ padding: '8px 10px', display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                              <span style={{ color: '#666' }}>{isPdf ? 'PDF' : 'Image'}</span>
+                              <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: BRAND, fontWeight: 700, textDecoration: 'none' }}>Open</a>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 {/* Click section - conditionally rendered */}
