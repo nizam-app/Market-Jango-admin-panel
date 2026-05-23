@@ -285,24 +285,76 @@ export default function WalletsPayoutsTab() {
     }
   };
 
-  const payoutAction = async (row, kind) => {
-    const labels = {
-      process: { title: "Mark as processing?", api: () => processPayout(row.id, {}) },
-      complete: { title: "Mark as paid / complete?", api: () => completePayout(row.id, {}) },
-      reject: { title: "Reject and refund to wallet?", api: () => rejectPayout(row.id, {}) },
+  const confirmPayoutAction = async (row, kind) => {
+    const recipient = escHtml(payoutRecipientLabel(row));
+    const amount = fmtMoney(
+      row.amount ?? row.requested_amount ?? row.total_amount ?? row.payout_amount
+    );
+    const currency = escHtml(row.currency || row.currency_code || "");
+    const noteRequired = kind === "reject";
+
+    const titles = {
+      process: "Mark as processing?",
+      complete: "Mark as paid / complete?",
+      reject: "Reject and refund to wallet?",
     };
-    const cfg = labels[kind];
-    const confirm = await Swal.fire({
-      title: cfg.title,
-      icon: "question",
+
+    const noteHint = noteRequired
+      ? "Required — reason for rejection (shown in admin records)"
+      : "Optional — payment reference or internal note";
+
+    const { value: formValues } = await Swal.fire({
+      title: titles[kind],
+      width: 480,
+      icon: kind === "reject" ? "warning" : "question",
+      showCloseButton: true,
+      html: `
+        <div class="text-left space-y-4">
+          <div class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Payout #${row.id}</p>
+            <p class="text-base font-semibold text-gray-900 mt-1">${recipient}</p>
+            <p class="text-sm text-gray-600 mt-1 tabular-nums">${amount}${currency ? ` ${currency}` : ""}</p>
+          </div>
+          <div class="space-y-1.5">
+            <label for="swal-payout-note" class="block text-sm font-medium text-gray-800">
+              Note ${noteRequired ? '<span class="text-red-600">*</span>' : '<span class="font-normal text-gray-400">(optional)</span>'}
+            </label>
+            <textarea id="swal-payout-note" rows="3" placeholder="${noteRequired ? "Reason for rejection…" : "Reference, receipt ID, or internal note…"}"
+              class="!m-0 w-full min-h-[5rem] rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-[#FF8C00]/50 focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/30 resize-y"></textarea>
+            <p class="text-xs text-gray-500">${noteHint}</p>
+          </div>
+        </div>
+      `,
+      focusConfirm: false,
       showCancelButton: true,
-      confirmButtonColor: BRAND,
-      confirmButtonText: "Confirm",
+      confirmButtonText: kind === "reject" ? "Reject & refund" : "Confirm",
+      cancelButtonText: "Cancel",
+      confirmButtonColor: kind === "reject" ? "#dc2626" : BRAND,
+      reverseButtons: true,
+      didOpen: () => document.getElementById("swal-payout-note")?.focus(),
+      preConfirm: () => {
+        const note = document.getElementById("swal-payout-note")?.value?.trim() || "";
+        if (noteRequired && !note) {
+          Swal.showValidationMessage("Please enter a note");
+          return false;
+        }
+        return { note: note || undefined };
+      },
     });
-    if (!confirm.isConfirmed) return;
+
+    if (!formValues) return;
+
+    const body = formValues.note ? { note: formValues.note } : {};
+    const apiCall =
+      kind === "process"
+        ? () => processPayout(row.id, body)
+        : kind === "complete"
+          ? () => completePayout(row.id, body)
+          : () => rejectPayout(row.id, { note: formValues.note });
+
     try {
       Swal.fire({ title: "Working…", didOpen: () => Swal.showLoading(), allowOutsideClick: false });
-      await cfg.api();
+      await apiCall();
       Swal.close();
       await Swal.fire({ icon: "success", title: "Updated", confirmButtonColor: BRAND });
       loadPayouts(payoutMeta.current_page);
@@ -582,7 +634,7 @@ export default function WalletsPayoutsTab() {
                             <button
                               type="button"
                               disabled={!canProcess}
-                              onClick={() => payoutAction(row, "process")}
+                              onClick={() => confirmPayoutAction(row, "process")}
                               className="px-2 py-1 text-xs font-medium rounded-lg bg-blue-50 text-blue-800 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-blue-100"
                             >
                               Processing
@@ -590,7 +642,7 @@ export default function WalletsPayoutsTab() {
                             <button
                               type="button"
                               disabled={!canComplete}
-                              onClick={() => payoutAction(row, "complete")}
+                              onClick={() => confirmPayoutAction(row, "complete")}
                               className="px-2 py-1 text-xs font-medium rounded-lg bg-emerald-50 text-emerald-800 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-emerald-100"
                             >
                               Mark paid
@@ -598,7 +650,7 @@ export default function WalletsPayoutsTab() {
                             <button
                               type="button"
                               disabled={!canReject}
-                              onClick={() => payoutAction(row, "reject")}
+                              onClick={() => confirmPayoutAction(row, "reject")}
                               className="px-2 py-1 text-xs font-medium rounded-lg bg-red-50 text-red-800 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-red-100"
                             >
                               Reject
