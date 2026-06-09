@@ -266,6 +266,7 @@ export function VendorModal({ vendor, routes = [], onSave, onClose }) {
                   <option value="Pakistan">Pakistan</option>
                   <option value="Sri Lanka">Sri Lanka</option>
                   <option value="Nepal">Nepal</option>
+                  <option value="Uganda">Uganda</option>
                   <option value="USA">United States</option>
                   <option value="UK">United Kingdom</option>
                   <option value="Canada">Canada</option>

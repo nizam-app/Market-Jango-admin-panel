@@ -605,9 +605,13 @@ const DriverManagement = () => {
       ...row,
       carName: row.vehicleType || "",
       carModel: row.vehicleNumber || "",
-      location: row.location || "",
-      price: row.price || "",
-      routeIds: row.routeIds || [],
+      transportType: row.transportType || row.raw?.driver?.transport_type || "",
+      location: row.raw?.driver?.location || row.location || "",
+      price: row.raw?.driver?.price ?? row.price ?? "",
+      routeIds:
+        row.routeIds ||
+        row.raw?.driver?.routes?.map((r) => String(r.id)) ||
+        [],
     };
 
     setEditingDriver(mappedForModal);
@@ -755,6 +759,9 @@ const DriverManagement = () => {
       if (modalData.password.trim()) formData.append("password", modalData.password);
       if (modalData.carName.trim()) formData.append("car_name", modalData.carName);
       if (modalData.carModel.trim()) formData.append("car_model", modalData.carModel);
+      if (modalData.transportType?.trim()) {
+        formData.append("transport_type", modalData.transportType.trim());
+      }
       if (modalData.location.trim()) formData.append("location", modalData.location);
       if (modalData.price) formData.append("price", String(modalData.price));
 

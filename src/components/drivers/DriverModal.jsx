@@ -10,6 +10,13 @@ import Swal from "sweetalert2";
  * - onSave: (payload) => void
  * - onClose: () => void
  */
+const TRANSPORT_TYPE_OPTIONS = [
+  { value: "motorcycle", label: "Motorcycle" },
+  { value: "car", label: "Car" },
+  { value: "air", label: "Air" },
+  { value: "water", label: "Water" },
+];
+
 export function DriverModal({ driver, routes = [], onSave, onClose }) {
   const [name, setName] = useState(driver?.name || "");
   const [email, setEmail] = useState(driver?.email || "");
@@ -17,6 +24,9 @@ export function DriverModal({ driver, routes = [], onSave, onClose }) {
   const [password, setPassword] = useState(driver?.password || "");
   const [carName, setCarName] = useState(driver?.carName || "");
   const [carModel, setCarModel] = useState(driver?.carModel || "");
+  const [transportType, setTransportType] = useState(
+    driver?.transportType || driver?.transport_type || ""
+  );
   const [location, setLocation] = useState(driver?.location || "");
   const [price, setPrice] = useState(driver?.price?.toString() || "");
   const [routeIds, setRouteIds] = useState(
@@ -36,6 +46,7 @@ export function DriverModal({ driver, routes = [], onSave, onClose }) {
         !password.trim() ||
         !carName.trim() ||
         !carModel.trim() ||
+        !transportType.trim() ||
         !location.trim() ||
         !price.trim() ||
         routeIds.length === 0
@@ -57,6 +68,7 @@ export function DriverModal({ driver, routes = [], onSave, onClose }) {
       password: password.trim(),
       carName: carName.trim(),
       carModel: carModel.trim(),
+      transportType: transportType.trim(),
       vehicleNumber: driver?.vehicleNumber || "",
       location: location.trim(),
       price: parseFloat(price) || 0,
@@ -226,6 +238,33 @@ export function DriverModal({ driver, routes = [], onSave, onClose }) {
                   required={!driver}
                 />
               </div>
+            </div>
+
+            {/* Transport Type */}
+            <div>
+              <label
+                htmlFor="transport-type"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Transport Type {!driver && "*"}
+              </label>
+              <select
+                id="transport-type"
+                value={transportType}
+                onChange={(e) => setTransportType(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                required={!driver}
+              >
+                <option value="">Select transport type</option>
+                {TRANSPORT_TYPE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-500">
+                Used when transport users search transporters by type (car, motorcycle, air, water).
+              </p>
             </div>
 
             {/* Location & Price */}
@@ -409,6 +448,7 @@ export function DriverModal({ driver, routes = [], onSave, onClose }) {
                   !password.trim() ||
                   !carName.trim() ||
                   !carModel.trim() ||
+                  !transportType.trim() ||
                   !location.trim() ||
                   !price.trim() ||
                   routeIds.length === 0
