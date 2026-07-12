@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import Swal from "sweetalert2";
 import { Plus, Edit3, Trash2, Search, UploadCloud, Download } from "lucide-react";
 import categoryApi from "../api/categoryApi";
+import businessTypeApi from "../api/businessTypeApi";
 
 const BRAND = "#FF8C00";
 
@@ -45,10 +46,13 @@ const CategoryManagement = () => {
   const [saving, setSaving] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
   const [parentOptions, setParentOptions] = useState([]);
+  const [businessTypes, setBusinessTypes] = useState([]);
+  const [filterBusinessTypeId, setFilterBusinessTypeId] = useState("");
   const [form, setForm] = useState({
     name: "",
     description: "",
     parent_id: "",
+    business_type_id: "",
     slug: "",
     meta_title: "",
     status: "Active",
@@ -63,6 +67,7 @@ const CategoryManagement = () => {
         page: pageNum,
         per_page: PER_PAGE,
         search: search.trim() || undefined,
+        business_type_id: filterBusinessTypeId || undefined,
       });
       const data = res.data?.data;
       const items = Array.isArray(data?.items) ? data.items : [];
@@ -87,11 +92,23 @@ const CategoryManagement = () => {
 
   useEffect(() => {
     fetchCategories(page, searchQuery);
-  }, [page, searchQuery]);
+  }, [page, searchQuery, filterBusinessTypeId]);
 
-  const fetchParentOptions = async () => {
+  useEffect(() => {
+    businessTypeApi
+      .getPublicBusinessTypes()
+      .then((res) => {
+        const list = res.data?.data || [];
+        setBusinessTypes(Array.isArray(list) ? list : []);
+      })
+      .catch(() => setBusinessTypes([]));
+  }, []);
+
+  const fetchParentOptions = async (businessTypeId) => {
     try {
-      const res = await categoryApi.getParentOptions();
+      const res = await categoryApi.getParentOptions({
+        business_type_id: businessTypeId || undefined,
+      });
       const data = res.data?.data;
       let list = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
       if (list.length === 0) {
@@ -115,8 +132,8 @@ const CategoryManagement = () => {
   };
 
   useEffect(() => {
-    fetchParentOptions();
-  }, []);
+    fetchParentOptions(form.business_type_id);
+  }, [form.business_type_id]);
 
   const handleSearchSubmit = (e) => {
     e?.preventDefault();
@@ -142,6 +159,7 @@ const CategoryManagement = () => {
       name: "",
       description: "",
       parent_id: "",
+      business_type_id: "",
       slug: "",
       meta_title: "",
       status: "Active",
@@ -157,6 +175,7 @@ const CategoryManagement = () => {
       name: cat.name || "",
       description: cat.description || "",
       parent_id: cat.parent_id ?? "",
+      business_type_id: cat.business_type_id ?? "",
       slug: cat.slug || slugify(cat.name),
       meta_title: cat.meta_title || "",
       status: cat.status === "Inactive" ? "Inactive" : "Active",
@@ -179,6 +198,7 @@ const CategoryManagement = () => {
     const slug = (form.slug || "").trim() || slugify(name);
     const meta_title = (form.meta_title || "").trim();
     const parent_id = form.parent_id ? Number(form.parent_id) : null;
+    const business_type_id = form.business_type_id ? Number(form.business_type_id) : null;
     const status = form.status || "Active";
 
     const fd = new FormData();
@@ -186,6 +206,7 @@ const CategoryManagement = () => {
     fd.append("description", description);
     fd.append("slug", slug);
     fd.append("meta_title", meta_title);
+    fd.append("business_type_id", business_type_id === null ? "" : String(business_type_id));
     fd.append("parent_id", parent_id === null ? "" : String(parent_id));
     fd.append("status", status);
     if (form.image) {
@@ -199,6 +220,10 @@ const CategoryManagement = () => {
     const name = (form.name || "").trim();
     if (!name) {
       Swal.fire({ icon: "warning", title: "Validation", text: "Name of category is required.", confirmButtonColor: BRAND });
+      return;
+    }
+    if (!form.business_type_id) {
+      Swal.fire({ icon: "warning", title: "Validation", text: "Business type is required.", confirmButtonColor: BRAND });
       return;
     }
     try {
@@ -382,6 +407,21 @@ const CategoryManagement = () => {
             />
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Business type <span className="text-red-500">*</span></label>
+            <select
+              value={String(form.business_type_id ?? "")}
+              onChange={(e) => setForm((f) => ({ ...f, business_type_id: e.target.value, parent_id: "" }))}
+              className="w-full max-w-md px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/50"
+              required
+            >
+              <option value="">Select business type</option>
+              {businessTypes.map((bt) => (
+                <option key={bt.id} value={String(bt.id)}>{bt.name}</option>
+              ))}
+            </select>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Parent category</label>
@@ -490,24 +530,42 @@ const CategoryManagement = () => {
 
       {/* ——— Table (bottom) ——— */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 border-b border-gray-200">
-          <form onSubmit={handleSearchSubmit} className="relative flex-1 max-w-sm flex gap-2">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-            <input
-              type="text"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search categories..."
-              className="flex-1 pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/50"
-            />
-            <button
-              type="submit"
-              className="px-4 py-2 rounded-lg text-sm font-medium text-white hover:opacity-90"
-              style={{ backgroundColor: BRAND }}
-            >
-              Search
-            </button>
-          </form>
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 p-4 border-b border-gray-200">
+          <div className="flex flex-col sm:flex-row sm:items-end gap-4 flex-1 flex-wrap">
+            <form onSubmit={handleSearchSubmit} className="relative flex-1 min-w-[200px] max-w-sm flex gap-2">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Search categories..."
+                className="flex-1 pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/50"
+              />
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-lg text-sm font-medium text-white hover:opacity-90"
+                style={{ backgroundColor: BRAND }}
+              >
+                Search
+              </button>
+            </form>
+            <div className="min-w-[200px] max-w-xs">
+              <label className="block text-xs font-medium text-gray-600 mb-1">Filter by business type</label>
+              <select
+                value={String(filterBusinessTypeId)}
+                onChange={(e) => {
+                  setFilterBusinessTypeId(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/50"
+              >
+                <option value="">All business types</option>
+                {businessTypes.map((bt) => (
+                  <option key={bt.id} value={String(bt.id)}>{bt.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -542,6 +600,7 @@ const CategoryManagement = () => {
                     className="rounded border-gray-300"
                   />
                 </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Business type</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Category name / Image</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Slug / URL</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Parent category</th>
@@ -554,12 +613,14 @@ const CategoryManagement = () => {
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-sm text-gray-500">Loading...</td>
+                  <td colSpan={9} className="px-4 py-12 text-center text-sm text-gray-500">Loading...</td>
                 </tr>
               ) : flatList.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-sm text-gray-500">
-                    {searchQuery.trim() ? "No categories match your search." : "No categories yet. Add one in the form above."}
+                  <td colSpan={9} className="px-4 py-12 text-center text-sm text-gray-500">
+                    {searchQuery.trim() || filterBusinessTypeId
+                      ? "No categories match your search or filter."
+                      : "No categories yet. Add one in the form above."}
                   </td>
                 </tr>
               ) : (
@@ -573,6 +634,7 @@ const CategoryManagement = () => {
                         className="rounded border-gray-300"
                       />
                     </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{cat.business_type_name || "—"}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         {(cat.image || cat.icon) && (

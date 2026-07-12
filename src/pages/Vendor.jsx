@@ -16,6 +16,7 @@ import { getRoutes } from "../api/routeApi";
 import { getAllPlans, manualAssignSubscription, updateVendorLimits, getAdminUserChatHistory, getAdminUserBlockList } from "../api/adminApi";
 import { CheckCircle2, XCircle, Clock, MoreVertical, Edit3, Trash2, Search, X } from "lucide-react";
 import AdminChatHistoryPanel from "../components/admin/AdminChatHistoryPanel";
+import AdminFollowPanel from "../components/admin/AdminFollowPanel";
 
 const BRAND = '#FF8C00';
 
@@ -564,6 +565,7 @@ const Vendor = () => {
       email: vendor.email,
       phone: vendor.raw?.phone || '',
       businessName: vendor.raw?.vendor?.business_name || '',
+      businessTypeIds: (vendor.raw?.vendor?.business_types || []).map((bt) => bt.id),
       address: vendor.raw?.vendor?.address || '',
       latitude: vendor.raw?.vendor?.latitude || null,
       longitude: vendor.raw?.vendor?.longitude || null,
@@ -1218,6 +1220,27 @@ const Vendor = () => {
                 </div>
                 
 
+                <AdminFollowPanel
+                  userId={
+                    modalVendorRaw?.id ??
+                    modalVendorDetail?.id ??
+                    modalVendorDetail?.user_id
+                  }
+                  variant="followers"
+                  initialData={{
+                    following_count: 0,
+                    followers_count:
+                      modalVendorRaw?.followers_count ??
+                      modalVendorDetail?.followers_count,
+                    following: [],
+                    followers:
+                      modalVendorRaw?.followers ??
+                      modalVendorDetail?.followers ??
+                      [],
+                  }}
+                  brandColor={BRAND}
+                />
+
                 <AdminChatHistoryPanel
                   subjectUserId={
                     modalVendorRaw?.id ??
@@ -1351,7 +1374,11 @@ const Vendor = () => {
         // Only append if value exists (all fields optional for edit)
         if (formValues.country) formData.append("country", formValues.country.toLowerCase());
         if (formValues.businessName) formData.append("business_name", formValues.businessName);
-        if (formValues.businessType) formData.append("business_type", formValues.businessType);
+        if (formValues.businessTypeIds?.length) {
+          formValues.businessTypeIds.forEach((id) => {
+            formData.append("business_type_ids[]", String(id));
+          });
+        }
         if (formValues.address) formData.append("address", formValues.address);
         if (formValues.longitude) formData.append("longitude", String(formValues.longitude));
         if (formValues.latitude) formData.append("latitude", String(formValues.latitude));

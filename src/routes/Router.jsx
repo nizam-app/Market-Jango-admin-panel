@@ -23,6 +23,7 @@ import SubscriptionPlans from "../pages/SubscriptionPlans";
 import Notifications from "../pages/Notifications";
 import Rankings from "../pages/Rankings";
 import CategoryManagement from "../pages/CategoryManagement";
+import BusinessTypeManagement from "../pages/BusinessTypeManagement";
 import VisibilityManagement from "../pages/VisibilityManagement";
 import AffiliateLinks from "../pages/AffiliateLinks";
 import PaymentManagement from "../pages/PaymentManagement";
@@ -61,6 +62,10 @@ const Router = createBrowserRouter([
           {
             path: "category-management",
             Component: CategoryManagement,
+          },
+          {
+            path: "business-type-management",
+            Component: BusinessTypeManagement,
           },
           {
             path: "buyer-management",

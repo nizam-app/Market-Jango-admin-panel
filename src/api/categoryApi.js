@@ -15,8 +15,8 @@ const categoryApi = {
    * GET /api/category/parent-options
    * Returns categories that can be selected as parent (for dropdown). Root categories and/or all categories per backend.
    */
-  getParentOptions: () => {
-    return axiosClient.get("/category/parent-options");
+  getParentOptions: (params = {}) => {
+    return axiosClient.get("/category/parent-options", { params });
   },
 
   /**

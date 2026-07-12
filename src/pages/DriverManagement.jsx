@@ -31,6 +31,7 @@ import { updateUserInfo } from "../api/userApi";
 import axiosClient from "../api/axiosClient";
 import { getAllPlans, manualAssignSubscription, getAdminUserChatHistory, getAdminUserBlockList } from "../api/adminApi";
 import AdminChatHistoryPanel from "../components/admin/AdminChatHistoryPanel";
+import AdminFollowPanel from "../components/admin/AdminFollowPanel";
 
 const BRAND = "#FF8C00";
 const STATUS_TABS = ["All", "Approved", "Pending", "Rejected"];
@@ -105,6 +106,9 @@ const mapApiDriverToRow = (item) => {
     lastSeen: item.last_seen || null,
     subscriptionPlanName: item.subscription_plan_name || null,
     subscriptionExpiresAt: item.subscription_expires_at || null,
+
+    followers_count: item.followers_count ?? 0,
+    followers: item.followers ?? [],
 
     raw: item,
   };
@@ -1406,6 +1410,18 @@ const DriverManagement = () => {
                   </div>
                 )}
               </div>
+
+              <AdminFollowPanel
+                userId={detailDriver?.id}
+                variant="followers"
+                initialData={{
+                  following_count: 0,
+                  followers_count: detailDriver?.followers_count,
+                  following: [],
+                  followers: detailDriver?.followers,
+                }}
+                brandColor={BRAND}
+              />
 
               <AdminChatHistoryPanel
                 subjectUserId={detailDriver?.id}

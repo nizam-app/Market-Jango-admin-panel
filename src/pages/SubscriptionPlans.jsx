@@ -22,6 +22,7 @@ const SubscriptionPlans = () => {
     currency: 'USD',
     billing_period: 'monthly',
     category_limit: '',
+    business_type_limit: '',
     image_limit: '',
     visibility_limit: '',
     moderator_limit: '',
@@ -76,6 +77,7 @@ const SubscriptionPlans = () => {
         currency: plan.currency || 'USD',
         billing_period: plan.billing_period || 'monthly',
         category_limit: plan.category_limit ?? '',
+        business_type_limit: plan.business_type_limit ?? '',
         image_limit: plan.image_limit ?? '',
         visibility_limit: plan.visibility_limit ?? '',
         moderator_limit: plan.moderator_limit ?? '',
@@ -96,6 +98,7 @@ const SubscriptionPlans = () => {
         currency: 'USD',
         billing_period: 'monthly',
         category_limit: '',
+        business_type_limit: '',
         image_limit: '',
         visibility_limit: '',
         moderator_limit: '',
@@ -140,6 +143,7 @@ const SubscriptionPlans = () => {
         currency: formData.currency,
         billing_period: formData.billing_period,
         category_limit: formData.category_limit ? parseInt(formData.category_limit) : 0,
+        business_type_limit: formData.business_type_limit ? parseInt(formData.business_type_limit) : 1,
         image_limit: formData.image_limit ? parseInt(formData.image_limit) : 0,
         visibility_limit: formData.visibility_limit ? parseInt(formData.visibility_limit) : 0,
         moderator_limit: formData.moderator_limit !== '' ? parseInt(formData.moderator_limit, 10) : 0,
@@ -344,6 +348,7 @@ const SubscriptionPlans = () => {
                     </td>
                     <td style={{ padding: '12px 14px', borderBottom: '1px solid #fbfbfc', fontSize: 13 }}>
                       <div>Categories: {plan.category_limit === 0 ? 'Unlimited' : plan.category_limit}</div>
+                      <div>Business types: {plan.business_type_limit === 0 ? 'Unlimited' : plan.business_type_limit}</div>
                       <div>Images: {plan.image_limit === 0 ? 'Unlimited' : plan.image_limit}</div>
                       <div>Visibility: {plan.visibility_limit === 0 ? 'Unlimited' : plan.visibility_limit}</div>
                       <div>
@@ -503,7 +508,17 @@ const SubscriptionPlans = () => {
                 {/* Limits */}
                 <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Category Limit (0 = unlimited)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Business Type Limit (0 = unlimited)</label>
+                    <input
+                      type="number"
+                      value={formData.business_type_limit}
+                      onChange={(e) => setFormData({ ...formData, business_type_limit: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      min="0"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Category Limit (legacy)</label>
                     <input
                       type="number"
                       value={formData.category_limit}

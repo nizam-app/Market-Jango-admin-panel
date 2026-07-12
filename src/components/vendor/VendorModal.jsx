@@ -12,8 +12,8 @@ export function VendorModal({ vendor, routes = [], onSave, onClose }) {
     vendor?.businessName || ""
   );
   
-  const [businessType, setBusinessType] = useState(
-    vendor?.businessType || ""
+  const [businessTypeIds, setBusinessTypeIds] = useState(
+    vendor?.businessTypeIds?.map(String) || []
   );
   const [password, setPassword] = useState("");
   const [country, setCountry] = useState("");
@@ -76,6 +76,13 @@ export function VendorModal({ vendor, routes = [], onSave, onClose }) {
     );
   };
 
+  const handleBusinessTypeToggle = (id) => {
+    const value = String(id);
+    setBusinessTypeIds((prev) =>
+      prev.includes(value) ? prev.filter((x) => x !== value) : [...prev, value]
+    );
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
 
@@ -101,7 +108,7 @@ export function VendorModal({ vendor, routes = [], onSave, onClose }) {
       latitude,
       longitude,
       country,
-      businessType,
+      businessTypeIds,
       routeIds, // Add route IDs
       // backend e currently static "password" pathaccho
       password: password.trim(),
@@ -215,26 +222,27 @@ export function VendorModal({ vendor, routes = [], onSave, onClose }) {
               </div>
 
               <div>
-                <label
-                  htmlFor="business-type"
-                  className="block text-sm font-medium text-gray-700 mb-2"
-                >
-                  Business Type {!vendor && "*"}
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Business Types {!vendor && "*"}
                 </label>
-                <select
-                  id="business-type"
-                  value={businessType}
-                  onChange={(e) => setBusinessType(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required={!vendor}
-                >
-                  <option value="">Select Type</option>
-                  {businessTypes.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
-                </select>
+                <div className="border border-gray-300 rounded-lg p-3 max-h-40 overflow-y-auto space-y-2">
+                  {businessTypes.map((type) => {
+                    const id = String(type.id);
+                    return (
+                      <label key={type.id} className="flex items-center gap-2 text-sm text-gray-700">
+                        <input
+                          type="checkbox"
+                          checked={businessTypeIds.includes(id)}
+                          onChange={() => handleBusinessTypeToggle(type.id)}
+                        />
+                        <span>{type.name}</span>
+                      </label>
+                    );
+                  })}
+                  {!businessTypes.length && !btLoading && (
+                    <p className="text-xs text-gray-400">No business types available</p>
+                  )}
+                </div>
                 {btLoading && (
                   <p className="mt-1 text-xs text-gray-400">Loading types...</p>
                 )}

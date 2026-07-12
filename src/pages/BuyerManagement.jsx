@@ -7,6 +7,7 @@ import buyerApi from "../api/buyerApi";
 import { BuyerModal } from "../components/buyers/BuyerModal";
 import { updateUserInfo } from "../api/userApi";
 import axiosClient from "../api/axiosClient";
+import AdminFollowPanel from "../components/admin/AdminFollowPanel";
 
 const BuyerManagement = () => {
   const [buyers, setBuyers] = useState([]);
@@ -357,7 +358,7 @@ const BuyerManagement = () => {
           onClick={closeDetailModal}
         >
           <div
-            className="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[85vh] overflow-y-auto"
+            className="bg-white rounded-xl shadow-2xl max-w-4xl w-full mx-4 max-h-[85vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
@@ -447,6 +448,18 @@ const BuyerManagement = () => {
                   </div>
                 </div>
               </div>
+
+              <AdminFollowPanel
+                userId={detailBuyer.user?.id}
+                variant="following"
+                initialData={{
+                  following_count: detailBuyer.following_count,
+                  followers_count: 0,
+                  following: detailBuyer.following,
+                  followers: [],
+                }}
+                brandColor="#FF8C00"
+              />
             </div>
 
             <div className="px-6 py-4 border-t border-gray-200 flex justify-end">
