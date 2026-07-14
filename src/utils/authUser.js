@@ -20,3 +20,9 @@ export const setAuthUser = (user) => {
 export const clearAuthUser = () => {
   localStorage.removeItem("auth_user");
 };
+
+export const getUserType = () => getAuthUser()?.user_type || "admin";
+
+export const isOutletUser = () => getUserType() === "outlet";
+
+export const isAdminUser = () => getUserType() === "admin";

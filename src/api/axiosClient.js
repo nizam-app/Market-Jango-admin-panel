@@ -25,7 +25,7 @@ axiosClient.interceptors.request.use(
       if (uid != null && uid !== "") {
         config.headers["id"] = String(uid);
       }
-      config.headers["user_type"] = "admin";
+      config.headers["user_type"] = user?.user_type || "admin";
     }
     return config;
   },

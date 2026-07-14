@@ -30,6 +30,11 @@ import PaymentManagement from "../pages/PaymentManagement";
 import OrderManagement from "../pages/OrderManagement";
 import DriverAssignments from "../pages/DriverAssignments";
 import ActivityManagement from "../pages/ActivityManagement";
+import OutletManagement from "../pages/OutletManagement";
+import OutletOrders from "../pages/OutletOrders";
+import OutletBin from "../pages/OutletBin";
+import OutletDriverBin from "../pages/OutletDriverBin";
+import OutletAssignments from "../pages/OutletAssignments";
 
 const Router = createBrowserRouter([
   // 🔓 Public route
@@ -150,6 +155,26 @@ const Router = createBrowserRouter([
           {
             path: "activity-management",
             Component: ActivityManagement,
+          },
+          {
+            path: "outlet-management",
+            Component: OutletManagement,
+          },
+          {
+            path: "outlet/orders",
+            Component: OutletOrders,
+          },
+          {
+            path: "outlet/bin",
+            Component: OutletBin,
+          },
+          {
+            path: "outlet/drivers",
+            Component: OutletDriverBin,
+          },
+          {
+            path: "outlet/assignments",
+            Component: OutletAssignments,
           },
         ],
       },
