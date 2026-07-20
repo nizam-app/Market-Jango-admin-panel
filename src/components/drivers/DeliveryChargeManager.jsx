@@ -246,7 +246,7 @@ const DeliveryChargeManager = () => {
     <div className="my-10">
       <div className="flex items-center gap-2 mb-6">
         <DollarSign className="w-7 h-7 text-orange-500" />
-        <h2 className="text-[26px] font-semibold">Delivery Charge Management</h2>
+        <h2 className="text-[26px] font-semibold">Delivery Charge Managementaa</h2>
       </div>
 
       {/* Add/Edit Delivery Charge Form */}

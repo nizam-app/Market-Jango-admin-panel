@@ -27,6 +27,7 @@ const ADMIN_ONLY_PREFIXES = [
   "/visibility-management",
   "/affiliate-links",
   "/payment-management",
+  "/currency-management",
   "/activity-management",
   "/outlet-management",
 ];

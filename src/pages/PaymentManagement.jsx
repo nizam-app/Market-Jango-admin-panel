@@ -17,8 +17,11 @@ import {
   getPaymentSettings,
   savePaymentSettings,
 } from "../api/adminApi";
+import { getCurrencies } from "../api/currencyApi";
 
 const BRAND = "#FF8C00";
+
+const FALLBACK_CURRENCIES = ["UGX", "KES", "RWF", "TZS", "SSP", "AED", "CDF"];
 
 const TABS = [
   { id: "settings", label: "Settings", icon: Settings },
@@ -47,7 +50,9 @@ const PaymentManagement = () => {
   });
 
   const [buyerApiKey, setBuyerApiKey] = useState("");
-  const [buyerCurrency, setBuyerCurrency] = useState("USD");
+  const [buyerCurrency, setBuyerCurrency] = useState("UGX");
+  const [payoutCurrency, setPayoutCurrency] = useState("UGX");
+  const [currencyOptions, setCurrencyOptions] = useState(FALLBACK_CURRENCIES);
   const [buyerGatewaysEnabled, setBuyerGatewaysEnabled] = useState(true);
   const [buyerDefaultGateway, setBuyerDefaultGateway] = useState("stripe");
 
@@ -81,6 +86,14 @@ const PaymentManagement = () => {
       } catch (e) {
         console.error(e);
       }
+      try {
+        const cres = await getCurrencies();
+        const list = cres.data?.data ?? [];
+        const codes = (Array.isArray(list) ? list : []).map((c) => c.code).filter(Boolean);
+        if (!cancelled && codes.length) setCurrencyOptions(codes);
+      } catch (e) {
+        console.error(e);
+      }
     })();
     return () => {
       cancelled = true;
@@ -111,7 +124,8 @@ const PaymentManagement = () => {
           paypal: !!p.vendor_methods?.paypal,
           stripe: !!p.vendor_methods?.stripe,
         });
-        setBuyerCurrency(p.buyer_currency ?? "USD");
+        setBuyerCurrency(p.buyer_currency ?? "UGX");
+        setPayoutCurrency(p.payout_currency ?? "UGX");
         setBuyerGatewaysEnabled(p.buyer_gateways_enabled !== false);
         setBuyerDefaultGateway(p.buyer_default_gateway ?? "stripe");
         setBuyerFlutterwaveOptions(p.buyer_flutterwave_payment_options ?? "");
@@ -167,6 +181,7 @@ const PaymentManagement = () => {
           vendorMinThreshold === "" ? null : Number(vendorMinThreshold),
         vendor_methods: vendorMethods,
         buyer_currency: buyerCurrency,
+        payout_currency: payoutCurrency,
         buyer_gateways_enabled: buyerGatewaysEnabled,
         buyer_default_gateway: buyerDefaultGateway,
         buyer_flutterwave_payment_options: buyerFlutterwaveOptions || null,
@@ -229,6 +244,7 @@ const PaymentManagement = () => {
           vendorMinThreshold === "" ? null : Number(vendorMinThreshold),
         vendor_methods: vendorMethods,
         buyer_currency: buyerCurrency,
+        payout_currency: payoutCurrency,
         buyer_gateways_enabled: buyerGatewaysEnabled,
         buyer_default_gateway: buyerDefaultGateway,
         buyer_flutterwave_payment_options: buyerFlutterwaveOptions || null,
@@ -511,17 +527,32 @@ const PaymentManagement = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Currency support
+                    Buyer display / checkout currency
                   </label>
                   <select
                     value={buyerCurrency}
                     onChange={(e) => setBuyerCurrency(e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/40"
                   >
-                    <option value="USD">USD</option>
-                    <option value="UGX">UGX</option>
-                    <option value="BDT">BDT</option>
+                    {currencyOptions.map((code) => (
+                      <option key={code} value={code}>{code}</option>
+                    ))}
                   </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Zone payout currency
+                  </label>
+                  <select
+                    value={payoutCurrency}
+                    onChange={(e) => setPayoutCurrency(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/40"
+                  >
+                    {currencyOptions.map((code) => (
+                      <option key={`payout-${code}`} value={code}>{code}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">Vendor withdrawals for this zone use this currency (amounts still ledgered in UGX).</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">

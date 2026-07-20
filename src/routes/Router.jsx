@@ -35,6 +35,7 @@ import OutletOrders from "../pages/OutletOrders";
 import OutletBin from "../pages/OutletBin";
 import OutletDriverBin from "../pages/OutletDriverBin";
 import OutletAssignments from "../pages/OutletAssignments";
+import CurrencyManagement from "../pages/CurrencyManagement";
 
 const Router = createBrowserRouter([
   // 🔓 Public route
@@ -151,6 +152,10 @@ const Router = createBrowserRouter([
           {
             path: "payment-management",
             Component: PaymentManagement,
+          },
+          {
+            path: "currency-management",
+            Component: CurrencyManagement,
           },
           {
             path: "activity-management",

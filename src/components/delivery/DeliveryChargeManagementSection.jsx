@@ -43,6 +43,7 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
     from_point: '',
     to_point: '',
     vendor_id: '',
+    delivery_timeline: '',
     flat_base_charge: '',
     flat_enabled: true,
     status: 'Active',
@@ -208,6 +209,7 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
       from_point: route.from_point ?? route.start_point ?? '',
       to_point: route.to_point ?? route.end_point ?? '',
       vendor_id: route.vendor_id ?? '',
+      delivery_timeline: route.delivery_timeline ?? '',
       flat_base_charge: route.flat_base_charge ?? route.flat_base_price ?? '',
       flat_enabled: route.flat_enabled !== false,
       status: route.status || 'Active',
@@ -247,6 +249,7 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
         from_point: '',
         to_point: '',
         vendor_id: '',
+        delivery_timeline: '',
         flat_base_charge: '',
         flat_enabled: true,
         status: 'Active',
@@ -273,10 +276,12 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
 
   const buildDeliveryChargePayload = () => {
     const flatBase = parseFloat(deliveryChargeForm.flat_base_charge);
+    const timeline = String(deliveryChargeForm.delivery_timeline || '').trim();
     const payload = {
       zone_name: String(deliveryChargeForm.zone_name).trim(),
       from_point: String(deliveryChargeForm.from_point).trim(),
       to_point: String(deliveryChargeForm.to_point).trim(),
+      delivery_timeline: timeline || null,
       flat_base_charge: Number.isNaN(flatBase) ? 0 : flatBase,
       flat_enabled: !!deliveryChargeForm.flat_enabled,
       status: deliveryChargeForm.status || 'Active',
@@ -522,6 +527,7 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
                     <th style={{ textAlign: 'left', padding: '12px 14px', borderBottom: '1px solid #f0f0f3', color: '#666', fontSize: 13 }}>Zone name</th>
                     <th style={{ textAlign: 'left', padding: '12px 14px', borderBottom: '1px solid #f0f0f3', color: '#666', fontSize: 13 }}>Start point</th>
                     <th style={{ textAlign: 'left', padding: '12px 14px', borderBottom: '1px solid #f0f0f3', color: '#666', fontSize: 13 }}>End point</th>
+                    <th style={{ textAlign: 'left', padding: '12px 14px', borderBottom: '1px solid #f0f0f3', color: '#666', fontSize: 13 }}>Delivery timeline</th>
                     <th style={{ textAlign: 'left', padding: '12px 14px', borderBottom: '1px solid #f0f0f3', color: '#666', fontSize: 13 }}>Flat base price</th>
                     <th style={{ textAlign: 'left', padding: '12px 14px', borderBottom: '1px solid #f0f0f3', color: '#666', fontSize: 13 }}>Weight base range</th>
                     <th style={{ textAlign: 'left', padding: '12px 14px', borderBottom: '1px solid #f0f0f3', color: '#666', fontSize: 13 }}>Distance base range</th>
@@ -535,6 +541,7 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
                       <td style={{ padding: '12px 14px', borderBottom: '1px solid #fbfbfc', fontWeight: 600 }}>{row.zone_name || '—'}</td>
                       <td style={{ padding: '12px 14px', borderBottom: '1px solid #fbfbfc' }}>{row.start_point ?? row.from_point ?? '—'}</td>
                       <td style={{ padding: '12px 14px', borderBottom: '1px solid #fbfbfc' }}>{row.end_point ?? row.to_point ?? '—'}</td>
+                      <td style={{ padding: '12px 14px', borderBottom: '1px solid #fbfbfc', fontSize: 13 }}>{row.delivery_timeline || '—'}</td>
                       <td style={{ padding: '12px 14px', borderBottom: '1px solid #fbfbfc' }}>{row.flat_base_price != null ? `${row.flat_base_price} ${row.currency || 'USD'}` : '—'}</td>
                       <td style={{ padding: '12px 14px', borderBottom: '1px solid #fbfbfc', fontSize: 13 }}>{row.weight_base_range || '—'}</td>
                       <td style={{ padding: '12px 14px', borderBottom: '1px solid #fbfbfc', fontSize: 13 }}>{row.distance_base_range || '—'}</td>
@@ -630,6 +637,18 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
                       ))}
                     </select>
                   </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Delivery timeline</label>
+                  <input
+                    type="text"
+                    maxLength={100}
+                    value={deliveryChargeForm.delivery_timeline}
+                    onChange={(e) => setDeliveryChargeForm({ ...deliveryChargeForm, delivery_timeline: e.target.value })}
+                    placeholder="e.g. 2 hours, 1 day, 1 week, 2 weeks, 1 month"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">Free text shown to buyers as the estimated delivery duration for this route.</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Vendor (optional)</label>
