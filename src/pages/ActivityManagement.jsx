@@ -6,8 +6,8 @@ import ActivityLogList from "../components/activity/ActivityLogList";
 import AlertsPanel from "../components/activity/AlertsPanel";
 
 const TABS = [
-  { id: "feed", label: "Live Feed", icon: Activity },
-  { id: "logs", label: "All Logs", icon: List },
+  { id: "feed", label: "Recent Activity", icon: Activity },
+  { id: "logs", label: "Audit Log", icon: List },
   { id: "alerts", label: "Alerts", icon: Bell },
 ];
 
@@ -22,8 +22,7 @@ const ActivityManagement = () => {
           Activity & Alerts
         </h1>
         <p className="text-sm text-gray-500 mt-1">
-          Neutral audit trail of actions across all roles (admin, buyer, vendor, driver, transport, affiliate, outlet).
-          Filter by module, day and time, actor, status, and severity.
+          Review operational changes across the platform. Filter by module, date and time, actor, status, and severity.
         </p>
       </div>
 

@@ -3,7 +3,7 @@ import axiosClient from "./axiosClient";
 
 /**
  * GET /refunds
- * @param {Object} params — status, vendor_id, from_date, page, etc.
+ * @param {Object} params — status, vendor_id, from_date, to_date, zone_id, location, search, page
  */
 export const getRefunds = (params = {}) => {
   const clean = {};

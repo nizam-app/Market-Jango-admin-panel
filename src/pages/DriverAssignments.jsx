@@ -2,11 +2,15 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router";
 import Swal from "sweetalert2";
+import { Download } from "lucide-react";
 import {
   getDriverAssignments,
   getAdminDriversList,
   reassignDriverAssignment,
+  exportDriverAssignments,
+  downloadBlobResponse,
 } from "../api/driverAdminApi";
+import { getZones } from "../api/adminApi";
 
 const BRAND = "#FF8C00";
 
@@ -60,7 +64,8 @@ const driverVehicle = (d) => {
 
 const fmt = (v) => (v != null && String(v).trim() !== "" ? String(v) : "—");
 
-/** First non-empty string (APIs may use different keys for the same address). */
+const onlyDigits = (v) => String(v || "").replace(/\D/g, "");
+
 function firstNonEmpty(...vals) {
   for (const v of vals) {
     if (v == null) continue;
@@ -70,10 +75,6 @@ function firstNonEmpty(...vals) {
   return "";
 }
 
-/**
- * Pickup / origin — prefer invoice_item fields, then parent invoice, then vendor location.
- * If everything is null (common when checkout didn’t persist addresses), nothing to show until the API includes them.
- */
 function resolvePickupAddress(row) {
   const item = row?.invoice_item;
   const inv = item?.invoice;
@@ -90,9 +91,6 @@ function resolvePickupAddress(row) {
   );
 }
 
-/**
- * Drop / delivery — ship + alternate names, then invoice-level shipping, then current/live address.
- */
 function resolveDropAddress(row) {
   const item = row?.invoice_item;
   const inv = item?.invoice;
@@ -107,9 +105,6 @@ function resolveDropAddress(row) {
     item?.current_address
   );
 }
-
-const displayOrNotSet = (text) =>
-  text ? text : <span className="text-gray-400">Not set</span>;
 
 /** @param {"pickup"|"drop"} kind */
 function AddressCell({ row, kind }) {
@@ -130,141 +125,100 @@ function DetailSection({ title, children }) {
   );
 }
 
-function DetailRow({ label, value, className = "" }) {
+function DetailItem({ label, children }) {
   return (
-    <div className={className}>
+    <div className="min-w-0">
       <dt className="text-xs text-gray-500">{label}</dt>
-      <dd className="text-gray-900 mt-0.5 break-words">{value}</dd>
+      <dd className="mt-0.5 text-gray-900 break-words">{children}</dd>
     </div>
   );
 }
 
 function AssignmentDetailModal({ row, onClose, onReassign }) {
-  useEffect(() => {
-    if (!row) return undefined;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const onKey = (e) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = prev;
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [row, onClose]);
-
   if (!row) return null;
-
   const item = row.invoice_item;
   const inv = item?.invoice;
-  const product = item?.product;
   const driver = row.driver;
-  const orderNo = inv?.order_number || "—";
-  const customer = inv?.cus_name || item?.cus_name || "—";
+  const pickup = resolvePickupAddress(row);
+  const drop = resolveDropAddress(row);
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4 sm:p-6 bg-black/45 backdrop-blur-[2px]"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
       role="dialog"
       aria-modal="true"
       aria-labelledby="assignment-detail-title"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+      onClick={onClose}
     >
-      <div className="w-full max-w-2xl max-h-[min(90vh,720px)] overflow-hidden flex flex-col rounded-2xl bg-white shadow-xl border border-gray-200/90">
-        <div className="px-5 py-4 border-b border-gray-100 flex items-start justify-between gap-3 bg-[#F4F7FB]">
+      <div
+        className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-6 py-4 border-b border-gray-100 flex items-start justify-between gap-3">
           <div>
             <p id="assignment-detail-title" className="text-lg font-semibold text-[#343C6A]">
               Assignment #{row.id}
             </p>
-            <p className="text-xs text-gray-500 mt-0.5 font-mono">{orderNo}</p>
+            <p className="text-sm text-gray-500 mt-0.5">{inv?.order_number || "No order number"}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="shrink-0 rounded-lg p-2 text-gray-500 hover:bg-gray-200/80 hover:text-gray-800 transition"
+            className="text-gray-400 hover:text-gray-700 text-2xl leading-none px-2"
             aria-label="Close"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            &times;
           </button>
         </div>
-
-        <div className="px-5 py-4 overflow-y-auto space-y-4 text-sm">
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="p-6 overflow-y-auto space-y-4">
+          <div className="flex flex-wrap gap-2 items-center">
             <span
               className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ring-1 ring-inset ${assignmentStatusBadgeClass(row.status)}`}
             >
               {assignmentStatusLabel(row.status)}
             </span>
-            {row.rejection_reason ? (
-              <span className="text-xs text-red-600 max-w-full">{row.rejection_reason}</span>
-            ) : null}
+            {item?.zone?.name && (
+              <span className="inline-flex px-2.5 py-1 rounded-lg text-xs font-medium bg-gray-100 text-gray-700">
+                Zone: {item.zone.name}
+              </span>
+            )}
           </div>
-
-          <DetailSection title="Pickup & drop">
-            <DetailRow label="Pickup address" value={displayOrNotSet(resolvePickupAddress(row))} className="sm:col-span-2" />
-            <DetailRow label="Drop (ship) address" value={displayOrNotSet(resolveDropAddress(row))} className="sm:col-span-2" />
-            <DetailRow label="Pickup lat / lng" value={`${fmt(item?.pickup_latitude)} / ${fmt(item?.pickup_longitude)}`} />
-            <DetailRow label="Ship lat / lng" value={`${fmt(item?.ship_latitude)} / ${fmt(item?.ship_longitude)}`} />
+          <DetailSection title="Order">
+            <DetailItem label="Order number">{fmt(inv?.order_number)}</DetailItem>
+            <DetailItem label="Invoice item ID">{fmt(row.invoice_item_id)}</DetailItem>
+            <DetailItem label="Customer">{fmt(inv?.cus_name)}</DetailItem>
+            <DetailItem label="Product">{fmt(item?.product?.name)}</DetailItem>
           </DetailSection>
-
-          <DetailSection title="Order & line item">
-            <DetailRow label="Customer" value={customer} />
-            <DetailRow label="Product" value={product?.name || "—"} />
-            <DetailRow label="Order number" value={<span className="font-mono text-xs">{orderNo}</span>} />
-            <DetailRow label="Invoice item ID" value={item?.id != null ? String(item.id) : "—"} />
-            <DetailRow label="Qty" value={fmt(item?.quantity)} />
-            <DetailRow label="Total pay" value={fmt(item?.total_pay)} />
-            <DetailRow label="Sale price" value={fmt(item?.sale_price)} />
-            <DetailRow label="Delivery charge" value={fmt(item?.delivery_charge)} />
-            <DetailRow label="Payment" value={fmt(item?.payment_method)} />
-            <DetailRow label="Line status" value={fmt(item?.status)} />
-            <DetailRow label="Customer phone (line)" value={fmt(item?.cus_phone)} />
-            <DetailRow label="Note" value={fmt(item?.note)} className="sm:col-span-2" />
-          </DetailSection>
-
           <DetailSection title="Driver">
-            <DetailRow label="Name" value={driverDisplayName(driver)} />
-            <DetailRow label="Phone" value={fmt(driver?.user?.phone || driver?.phone)} />
-            <DetailRow label="Vehicle" value={driverVehicle(driver)} />
-            <DetailRow label="Location" value={fmt(driver?.location)} />
-            <DetailRow label="Driver ID" value={row.driver_id != null ? String(row.driver_id) : "—"} />
+            <DetailItem label="Driver ID">{fmt(row.driver_id)}</DetailItem>
+            <DetailItem label="Name">{driverDisplayName(driver)}</DetailItem>
+            <DetailItem label="Phone">{fmt(driver?.user?.phone || driver?.phone)}</DetailItem>
+            <DetailItem label="Vehicle">{driverVehicle(driver)}</DetailItem>
           </DetailSection>
-
           <DetailSection title="Vendor & assignment">
-            <DetailRow label="Vendor" value={row.vendor?.business_name || "—"} />
-            <DetailRow label="Vendor ID" value={row.vendor_id != null ? String(row.vendor_id) : "—"} />
-            <DetailRow label="Assigned by" value={row.assigned_by?.name || "—"} />
-            <DetailRow label="Assigned by ID" value={row.assigned_by?.id != null ? String(row.assigned_by.id) : "—"} />
+            <DetailItem label="Vendor ID">{fmt(row.vendor_id)}</DetailItem>
+            <DetailItem label="Vendor">{fmt(row.vendor?.business_name)}</DetailItem>
+            <DetailItem label="Assigned by">{fmt(row.assigned_by?.name)}</DetailItem>
+            <DetailItem label="Created">{formatDt(row.created_at)}</DetailItem>
           </DetailSection>
-
-          <DetailSection title="Timestamps">
-            <DetailRow label="Created" value={formatDt(row.created_at)} />
-            <DetailRow label="Updated" value={formatDt(row.updated_at)} />
-            <DetailRow label="Accepted" value={formatDt(row.accepted_at)} />
-            <DetailRow label="Picked up" value={formatDt(row.picked_up_at)} />
-            <DetailRow label="Delivered" value={formatDt(row.delivered_at)} />
+          <DetailSection title="Addresses">
+            <DetailItem label="Pickup">{pickup || "Not set"}</DetailItem>
+            <DetailItem label="Drop">{drop || "Not set"}</DetailItem>
           </DetailSection>
         </div>
-
-        <div className="px-5 py-4 border-t border-gray-100 flex flex-wrap justify-end gap-2 bg-white">
+        <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-2 bg-gray-50/80">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2.5 text-sm font-medium border border-gray-200 rounded-xl bg-white hover:bg-gray-50"
+            className="px-4 py-2 text-sm font-medium rounded-xl border border-gray-200 bg-white hover:bg-gray-50"
           >
             Close
           </button>
           <button
             type="button"
-            onClick={() => {
-              onReassign(row);
-            }}
-            className="px-4 py-2.5 text-sm font-medium rounded-xl border border-[#FF8C00] text-[#FF8C00] bg-white hover:bg-orange-50"
+            onClick={() => onReassign(row)}
+            className="px-4 py-2 text-sm font-semibold text-white rounded-xl"
+            style={{ backgroundColor: BRAND }}
           >
             Reassign
           </button>
@@ -283,12 +237,33 @@ const DriverAssignments = () => {
     total: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [driverIdFilter, setDriverIdFilter] = useState("");
   const [vendorIdFilter, setVendorIdFilter] = useState("");
   const [invoiceItemIdFilter, setInvoiceItemIdFilter] = useState("");
+  const [zoneIdFilter, setZoneIdFilter] = useState("");
+  const [locationFilter, setLocationFilter] = useState("");
+  const [searchFilter, setSearchFilter] = useState("");
   const [drivers, setDrivers] = useState([]);
+  const [zones, setZones] = useState([]);
+  const [zonesLoading, setZonesLoading] = useState(true);
+
+  const buildParams = (page = 1) => {
+    const params = { page };
+    if (statusFilter.trim()) params.status = statusFilter.trim();
+    const driverId = onlyDigits(driverIdFilter);
+    const vendorId = onlyDigits(vendorIdFilter);
+    const itemId = onlyDigits(invoiceItemIdFilter);
+    if (driverId) params.driver_id = driverId;
+    if (vendorId) params.vendor_id = vendorId;
+    if (itemId) params.invoice_item_id = itemId;
+    if (zoneIdFilter) params.zone_id = zoneIdFilter;
+    if (locationFilter.trim()) params.location = locationFilter.trim();
+    if (searchFilter.trim()) params.search = searchFilter.trim();
+    return params;
+  };
 
   const loadDrivers = async () => {
     try {
@@ -304,12 +279,7 @@ const DriverAssignments = () => {
     try {
       setLoading(true);
       setError("");
-      const params = { page };
-      if (statusFilter.trim()) params.status = statusFilter.trim();
-      if (driverIdFilter.trim()) params.driver_id = driverIdFilter.trim();
-      if (vendorIdFilter.trim()) params.vendor_id = vendorIdFilter.trim();
-      if (invoiceItemIdFilter.trim()) params.invoice_item_id = invoiceItemIdFilter.trim();
-      const res = await getDriverAssignments(params);
+      const res = await getDriverAssignments(buildParams(page));
       const root = res.data?.data;
       const pag =
         root && Array.isArray(root.data) && root.current_page != null
@@ -337,6 +307,23 @@ const DriverAssignments = () => {
   useEffect(() => {
     loadDrivers();
     fetchAssignments(1);
+    let cancelled = false;
+    (async () => {
+      try {
+        setZonesLoading(true);
+        const res = await getZones(500);
+        const payload = res?.data?.data;
+        const list = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload) ? payload : [];
+        if (!cancelled) setZones(list);
+      } catch {
+        if (!cancelled) setZones([]);
+      } finally {
+        if (!cancelled) setZonesLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -344,6 +331,36 @@ const DriverAssignments = () => {
     const name = d.name || d.user?.name || `ID ${d.id}`;
     const car = d.car || d.car_name || "";
     return `${name}${car ? ` — ${car}` : ""} (ID ${d.id})`;
+  };
+
+  const handleDownload = async () => {
+    try {
+      setExporting(true);
+      const params = buildParams(1);
+      delete params.page;
+      const res = await exportDriverAssignments(params);
+      const contentType = String(res?.headers?.["content-type"] || "");
+      if (contentType.includes("application/json")) {
+        const text = await res.data.text();
+        let message = "Export failed";
+        try {
+          message = JSON.parse(text)?.message || message;
+        } catch {
+          /* ignore */
+        }
+        throw new Error(message);
+      }
+      downloadBlobResponse(res, `driver-assignments-${new Date().toISOString().slice(0, 10)}.csv`);
+    } catch (e) {
+      Swal.fire({
+        icon: "error",
+        title: "Download failed",
+        text: e?.response?.data?.message || e.message || "Could not export assignments",
+        confirmButtonColor: BRAND,
+      });
+    } finally {
+      setExporting(false);
+    }
   };
 
   const handleReassign = async (assignment) => {
@@ -405,15 +422,20 @@ const DriverAssignments = () => {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-[#343C6A]">Driver assignments</h1>
           <p className="text-sm text-gray-500 mt-1 max-w-2xl">
-            Filters: <code className="text-xs bg-gray-100 px-1 rounded">status</code>,{" "}
-            <code className="text-xs bg-gray-100 px-1 rounded">driver_id</code>,{" "}
-            <code className="text-xs bg-gray-100 px-1 rounded">vendor_id</code>,{" "}
-            <code className="text-xs bg-gray-100 px-1 rounded">invoice_item_id</code>. Reassign:{" "}
-            <code className="text-xs bg-gray-100 px-1 rounded">POST .../reassign</code> with{" "}
-            <code className="text-xs bg-gray-100 px-1 rounded">driver_id</code>.
+            Filter by status, driver, vendor, invoice item, or zone — then download the results.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={handleDownload}
+            disabled={exporting || loading}
+            className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-2.5 rounded-xl text-white shadow-md disabled:opacity-50"
+            style={{ backgroundColor: BRAND }}
+          >
+            <Download className={`w-4 h-4 ${exporting ? "animate-pulse" : ""}`} />
+            {exporting ? "Preparing…" : "Download CSV"}
+          </button>
           <Link
             to="/drivers"
             className="text-sm font-medium px-4 py-2.5 rounded-xl border border-gray-200 bg-white shadow-sm hover:bg-gray-50"
@@ -429,78 +451,114 @@ const DriverAssignments = () => {
         </div>
       </div>
 
-      <section className="bg-white rounded-2xl border border-gray-200/80 shadow-sm p-5 flex flex-wrap gap-4 items-end">
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1.5">Status</label>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className={inputSelectClass}
-            aria-label="Filter assignments by status"
+      <section className="bg-white rounded-2xl border border-gray-200/80 shadow-sm p-5 space-y-4">
+        <div className="flex flex-wrap gap-4 items-end">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">Status</label>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className={inputSelectClass}
+              aria-label="Filter assignments by status"
+            >
+              {ASSIGNMENT_STATUS_OPTIONS.map((opt) => (
+                <option key={opt.value === "" ? "all" : opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">Driver ID</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={driverIdFilter}
+              onChange={(e) => setDriverIdFilter(onlyDigits(e.target.value))}
+              placeholder="All"
+              className="w-28 px-3 py-2.5 border border-gray-200 rounded-xl text-sm min-w-0"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">Vendor ID</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={vendorIdFilter}
+              onChange={(e) => setVendorIdFilter(onlyDigits(e.target.value))}
+              placeholder="All"
+              className="w-28 px-3 py-2.5 border border-gray-200 rounded-xl text-sm min-w-0"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">Invoice item ID</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={invoiceItemIdFilter}
+              onChange={(e) => setInvoiceItemIdFilter(onlyDigits(e.target.value))}
+              placeholder="All"
+              className="w-32 px-3 py-2.5 border border-gray-200 rounded-xl text-sm min-w-0"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">Zone</label>
+            <select
+              value={zoneIdFilter}
+              onChange={(e) => setZoneIdFilter(e.target.value)}
+              disabled={zonesLoading}
+              className={inputSelectClass}
+            >
+              <option value="">All zones</option>
+              {zones.map((z) => (
+                <option key={z.id} value={String(z.id)}>
+                  {z.name || `Zone #${z.id}`}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">Location</label>
+            <input
+              type="text"
+              value={locationFilter}
+              onChange={(e) => setLocationFilter(e.target.value)}
+              placeholder="Pickup / drop / zone name"
+              className="min-w-[12rem] px-3 py-2.5 border border-gray-200 rounded-xl text-sm"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => fetchAssignments(1)}
+            className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl shadow-md shadow-orange-200/40 hover:brightness-105 transition"
+            style={{ backgroundColor: BRAND }}
           >
-            {ASSIGNMENT_STATUS_OPTIONS.map((opt) => (
-              <option key={opt.value === "" ? "all" : opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
+            Apply filters
+          </button>
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1.5">Driver ID</label>
+          <label className="block text-xs font-medium text-gray-600 mb-1.5">Search</label>
           <input
-            type="text"
-            inputMode="numeric"
-            value={driverIdFilter}
-            onChange={(e) => setDriverIdFilter(e.target.value)}
-            placeholder="All"
-            className="w-28 px-3 py-2.5 border border-gray-200 rounded-xl text-sm min-w-0"
+            type="search"
+            value={searchFilter}
+            onChange={(e) => setSearchFilter(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && fetchAssignments(1)}
+            placeholder="Order number, driver, vendor, or zone…"
+            className="w-full max-w-xl px-3 py-2.5 border border-gray-200 rounded-xl text-sm"
           />
         </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1.5">Vendor ID</label>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={vendorIdFilter}
-            onChange={(e) => setVendorIdFilter(e.target.value)}
-            placeholder="All"
-            className="w-28 px-3 py-2.5 border border-gray-200 rounded-xl text-sm min-w-0"
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1.5">Invoice item ID</label>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={invoiceItemIdFilter}
-            onChange={(e) => setInvoiceItemIdFilter(e.target.value)}
-            placeholder="All"
-            className="w-32 px-3 py-2.5 border border-gray-200 rounded-xl text-sm min-w-0"
-          />
-        </div>
-        <button
-          type="button"
-          onClick={() => fetchAssignments(1)}
-          className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl shadow-md shadow-orange-200/40 hover:brightness-105 transition"
-          style={{ backgroundColor: BRAND }}
-        >
-          Apply filters
-        </button>
       </section>
 
       {drivers.length > 0 && (
         <div className="rounded-2xl border border-gray-200 bg-gradient-to-b from-gray-50/80 to-white p-5 text-sm">
-          <p className="font-semibold text-[#343C6A]">
-            Drivers available for reassign{" "}
-            {/* <span className="font-normal text-gray-500">(GET /drivers · {drivers.length})</span> */}
-          </p>
+          <p className="font-semibold text-[#343C6A]">Drivers available for reassign</p>
           <ul className="mt-3 grid sm:grid-cols-2 lg:grid-cols-3 gap-2 text-gray-700">
             {drivers.map((d) => (
               <li key={d.id} className="truncate border border-gray-100 rounded-lg px-3 py-2 bg-white/80">
                 <span className="font-medium text-gray-900">{d.name || d.user?.name || `#${d.id}`}</span>
                 <span className="text-gray-500"> — {d.car || d.car_name || "—"}</span>
                 <span className="block text-xs text-gray-400 mt-0.5">
-                  {d.is_on_delivery ? "On delivery" : "Available"}
+                  ID {d.id} · {d.is_on_delivery ? "On delivery" : "Available"}
                 </span>
               </li>
             ))}
@@ -516,14 +574,11 @@ const DriverAssignments = () => {
 
       <div className="bg-white rounded-2xl border border-gray-200/80 overflow-hidden shadow-sm">
         <div className="px-4 py-3 border-b border-gray-100 bg-[#F4F7FB] flex flex-wrap items-center justify-between gap-2">
-          <span className="text-xs font-semibold uppercase tracking-wide text-[#5a6489]">
-            Assignments
-          </span>
+          <span className="text-xs font-semibold uppercase tracking-wide text-[#5a6489]">Assignments</span>
           {!loading && (
             <span className="text-xs text-gray-500">
               {meta.total} total
-              {meta.last_page > 1 &&
-                ` · Page ${meta.current_page} / ${meta.last_page}`}
+              {meta.last_page > 1 && ` · Page ${meta.current_page} / ${meta.last_page}`}
             </span>
           )}
         </div>
@@ -531,36 +586,28 @@ const DriverAssignments = () => {
           <table className="min-w-full text-sm">
             <thead>
               <tr className="border-b border-[#E6EEF6]">
-                <th className="px-4 py-3.5 text-left text-xs font-semibold text-[#5a6489] whitespace-nowrap">
-                  ID
-                </th>
-                <th className="px-4 py-3.5 text-left text-xs font-semibold text-[#5a6489] whitespace-nowrap">
-                  Status
-                </th>
-                <th className="px-4 py-3.5 text-left text-xs font-semibold text-[#5a6489] whitespace-nowrap">
-                  Order
-                </th>
-                <th className="px-4 py-3.5 text-left text-xs font-semibold text-[#5a6489] min-w-[140px] max-w-[14rem]">
-                  Pickup
-                </th>
-                <th className="px-4 py-3.5 text-left text-xs font-semibold text-[#5a6489] min-w-[140px] max-w-[14rem]">
-                  Drop
-                </th>
-                <th className="px-4 py-3.5 text-right text-xs font-semibold text-[#5a6489] whitespace-nowrap">
-                  Actions
-                </th>
+                <th className="px-4 py-3.5 text-left text-xs font-semibold text-[#5a6489] whitespace-nowrap">ID</th>
+                <th className="px-4 py-3.5 text-left text-xs font-semibold text-[#5a6489] whitespace-nowrap">Status</th>
+                <th className="px-4 py-3.5 text-left text-xs font-semibold text-[#5a6489] whitespace-nowrap">Driver</th>
+                <th className="px-4 py-3.5 text-left text-xs font-semibold text-[#5a6489] whitespace-nowrap">Vendor</th>
+                <th className="px-4 py-3.5 text-left text-xs font-semibold text-[#5a6489] whitespace-nowrap">Item ID</th>
+                <th className="px-4 py-3.5 text-left text-xs font-semibold text-[#5a6489] whitespace-nowrap">Order</th>
+                <th className="px-4 py-3.5 text-left text-xs font-semibold text-[#5a6489] whitespace-nowrap">Zone</th>
+                <th className="px-4 py-3.5 text-left text-xs font-semibold text-[#5a6489] min-w-[140px] max-w-[14rem]">Pickup</th>
+                <th className="px-4 py-3.5 text-left text-xs font-semibold text-[#5a6489] min-w-[140px] max-w-[14rem]">Drop</th>
+                <th className="px-4 py-3.5 text-right text-xs font-semibold text-[#5a6489] whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-16 text-center text-gray-500">
+                  <td colSpan={10} className="px-4 py-16 text-center text-gray-500">
                     Loading…
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-16 text-center text-gray-500">
+                  <td colSpan={10} className="px-4 py-16 text-center text-gray-500">
                     No assignments match this filter.
                   </td>
                 </tr>
@@ -569,12 +616,11 @@ const DriverAssignments = () => {
                   const item = row.invoice_item;
                   const inv = item?.invoice;
                   const orderNo = inv?.order_number || "—";
+                  const driverName = driverDisplayName(row.driver);
 
                   return (
                     <tr key={row.id} className="hover:bg-[#FAFCFF] transition-colors align-top">
-                      <td className="px-4 py-3.5 font-mono text-xs text-[#343C6A] whitespace-nowrap">
-                        {row.id}
-                      </td>
+                      <td className="px-4 py-3.5 font-mono text-xs text-[#343C6A] whitespace-nowrap">{row.id}</td>
                       <td className="px-4 py-3.5">
                         <span
                           className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ring-1 ring-inset ${assignmentStatusBadgeClass(row.status)}`}
@@ -583,8 +629,29 @@ const DriverAssignments = () => {
                           {assignmentStatusLabel(row.status)}
                         </span>
                       </td>
-                      <td className="px-4 py-3.5 font-mono text-xs text-[#343C6A] whitespace-nowrap max-w-[11rem] truncate" title={orderNo}>
+                      <td className="px-4 py-3.5 text-xs">
+                        <div className="font-medium text-gray-900 truncate max-w-[9rem]" title={driverName}>
+                          {driverName}
+                        </div>
+                        <div className="text-gray-400">ID {row.driver_id ?? "—"}</div>
+                      </td>
+                      <td className="px-4 py-3.5 text-xs">
+                        <div className="truncate max-w-[9rem]" title={row.vendor?.business_name || ""}>
+                          {row.vendor?.business_name || "—"}
+                        </div>
+                        <div className="text-gray-400">ID {row.vendor_id ?? "—"}</div>
+                      </td>
+                      <td className="px-4 py-3.5 font-mono text-xs text-gray-700 whitespace-nowrap">
+                        {row.invoice_item_id ?? "—"}
+                      </td>
+                      <td
+                        className="px-4 py-3.5 font-mono text-xs text-[#343C6A] whitespace-nowrap max-w-[11rem] truncate"
+                        title={orderNo}
+                      >
                         {orderNo}
+                      </td>
+                      <td className="px-4 py-3.5 text-xs text-gray-700 whitespace-nowrap">
+                        {item?.zone?.name || "—"}
                       </td>
                       <td className="px-4 py-3.5">
                         <AddressCell row={row} kind="pickup" />

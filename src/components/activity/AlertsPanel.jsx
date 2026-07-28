@@ -1,6 +1,7 @@
 // src/components/activity/AlertsPanel.jsx
 import { useEffect, useState } from "react";
 import { getAlerts, resolveAlert, dismissAlert } from "../../api/activityApi";
+import { formatActivitySummary } from "../../utils/activitySummary";
 import Swal from "sweetalert2";
 
 const STATUS_TABS = ["pending", "resolved", "dismissed"];
@@ -145,7 +146,7 @@ const AlertsPanel = ({ onPendingCount }) => {
                       </span>
                       <span className="text-xs text-gray-400">{log?.actor_role}</span>
                     </div>
-                    <p className="text-sm text-gray-700">{log?.description || log?.action || "—"}</p>
+                    <p className="text-sm text-gray-700">{log ? formatActivitySummary(log) : "—"}</p>
                     <p className="text-xs text-gray-400 mt-1">
                       {formatDate(alert.created_at)}
                       {log?.target_type && (

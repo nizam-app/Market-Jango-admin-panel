@@ -1,7 +1,7 @@
 // src/components/payment/WalletsPayoutsTab.jsx — GET /wallets, /payouts + admin actions
 import React, { useCallback, useEffect, useState } from "react";
 import Swal from "sweetalert2";
-import { RefreshCw, Wallet, ArrowDownCircle, List } from "lucide-react";
+import { RefreshCw, Wallet, ArrowDownCircle, List, Search } from "lucide-react";
 import {
   getWallets,
   parseWalletsResponse,
@@ -14,8 +14,17 @@ import {
   completePayout,
   rejectPayout,
 } from "../../api/walletApi";
+import { getZones } from "../../api/adminApi";
 
 const BRAND = "#FF8C00";
+
+const USER_TYPE_OPTIONS = [
+  { value: "", label: "All types" },
+  { value: "buyer", label: "Buyer" },
+  { value: "vendor", label: "Vendor" },
+  { value: "driver", label: "Driver" },
+  { value: "transport", label: "Transport" },
+];
 
 const escHtml = (s) =>
   String(s ?? "")
@@ -58,7 +67,7 @@ function payoutStatusMeta(status) {
   return { terminal, processing, raw: st };
 }
 
-export default function WalletsPayoutsTab() {
+export default function WalletsPayoutsTab({ zones: zonesProp = null } = {}) {
   const [overview, setOverview] = useState({});
   const [wallets, setWallets] = useState([]);
   const [walletsMeta, setWalletsMeta] = useState({
@@ -68,6 +77,12 @@ export default function WalletsPayoutsTab() {
   });
   const [walletsLoading, setWalletsLoading] = useState(false);
   const [walletsError, setWalletsError] = useState("");
+
+  const [walletSearch, setWalletSearch] = useState("");
+  const [walletSearchInput, setWalletSearchInput] = useState("");
+  const [walletUserType, setWalletUserType] = useState("");
+  const [walletZoneId, setWalletZoneId] = useState("");
+  const [zonesList, setZonesList] = useState(Array.isArray(zonesProp) ? zonesProp : []);
 
   const [payoutRows, setPayoutRows] = useState([]);
   const [payoutMeta, setPayoutMeta] = useState({
@@ -79,11 +94,37 @@ export default function WalletsPayoutsTab() {
   const [payoutError, setPayoutError] = useState("");
   const [payoutSearch, setPayoutSearch] = useState("");
 
+  useEffect(() => {
+    if (Array.isArray(zonesProp) && zonesProp.length) {
+      setZonesList(zonesProp);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await getZones(500);
+        const payload = res.data?.data;
+        const list = payload?.data ?? payload ?? [];
+        if (!cancelled) setZonesList(Array.isArray(list) ? list : []);
+      } catch (e) {
+        console.error(e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [zonesProp]);
+
   const loadWallets = useCallback(async (page = 1) => {
     try {
       setWalletsLoading(true);
       setWalletsError("");
-      const res = await getWallets({ page });
+      const res = await getWallets({
+        page,
+        search: walletSearch.trim() || undefined,
+        user_type: walletUserType || undefined,
+        zone_id: walletZoneId || undefined,
+      });
       const { overview: ov, list, meta } = parseWalletsResponse(res);
       setOverview(ov || {});
       setWallets(list);
@@ -96,7 +137,7 @@ export default function WalletsPayoutsTab() {
     } finally {
       setWalletsLoading(false);
     }
-  }, []);
+  }, [walletSearch, walletUserType, walletZoneId]);
 
   const loadPayouts = useCallback(async (page = 1) => {
     try {
@@ -117,8 +158,23 @@ export default function WalletsPayoutsTab() {
 
   useEffect(() => {
     loadWallets(1);
+  }, [loadWallets]);
+
+  useEffect(() => {
     loadPayouts(1);
-  }, [loadWallets, loadPayouts]);
+  }, [loadPayouts]);
+
+  const applyWalletFilters = (e) => {
+    e?.preventDefault?.();
+    setWalletSearch(walletSearchInput.trim());
+  };
+
+  const resetWalletFilters = () => {
+    setWalletSearchInput("");
+    setWalletSearch("");
+    setWalletUserType("");
+    setWalletZoneId("");
+  };
 
   const handleTopup = async (w) => {
     const uid = w.user_id;
@@ -417,6 +473,75 @@ export default function WalletsPayoutsTab() {
             {walletsError}
           </div>
         )}
+
+        <form
+          onSubmit={applyWalletFilters}
+          className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm"
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                Search by name
+              </label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="search"
+                  value={walletSearchInput}
+                  onChange={(e) => setWalletSearchInput(e.target.value)}
+                  placeholder="Buyer, vendor, driver, or transport name…"
+                  className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/40"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">User type</label>
+              <select
+                value={walletUserType}
+                onChange={(e) => setWalletUserType(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/40"
+              >
+                {USER_TYPE_OPTIONS.map((opt) => (
+                  <option key={opt.value || "all"} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Zone</label>
+              <select
+                value={walletZoneId}
+                onChange={(e) => setWalletZoneId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/40"
+              >
+                <option value="">All zones</option>
+                {zonesList.map((z) => (
+                  <option key={z.id} value={String(z.id)}>
+                    {z.name || `Zone #${z.id}`}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2 mt-3">
+            <button
+              type="submit"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg hover:opacity-90"
+              style={{ backgroundColor: BRAND }}
+            >
+              <Search className="w-4 h-4" />
+              Search
+            </button>
+            <button
+              type="button"
+              onClick={resetWalletFilters}
+              className="px-4 py-2 text-sm font-medium text-gray-700 rounded-lg border border-gray-200 bg-white hover:bg-gray-50"
+            >
+              Reset
+            </button>
+          </div>
+        </form>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">

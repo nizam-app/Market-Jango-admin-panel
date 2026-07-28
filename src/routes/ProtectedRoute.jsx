@@ -28,6 +28,8 @@ const ADMIN_ONLY_PREFIXES = [
   "/affiliate-links",
   "/payment-management",
   "/currency-management",
+  "/ai-management",
+  "/ai-assistant",
   "/activity-management",
   "/outlet-management",
 ];

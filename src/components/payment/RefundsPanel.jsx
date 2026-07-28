@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import Swal from "sweetalert2";
 import { Search, RefreshCw } from "lucide-react";
 import { getRefunds, approveRefund, rejectRefund } from "../../api/refundApi";
+import { getZones } from "../../api/adminApi";
 
 const BRAND = "#FF8C00";
 
@@ -26,7 +27,33 @@ export default function RefundsPanel() {
   const [status, setStatus] = useState("pending");
   const [vendorId, setVendorId] = useState("");
   const [fromDate, setFromDate] = useState("");
+  const [zoneId, setZoneId] = useState("");
+  const [location, setLocation] = useState("");
   const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [locationInput, setLocationInput] = useState("");
+  const [zones, setZones] = useState([]);
+  const [zonesLoading, setZonesLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setZonesLoading(true);
+        const res = await getZones(500);
+        const payload = res?.data?.data;
+        const list = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload) ? payload : [];
+        if (!cancelled) setZones(list);
+      } catch {
+        if (!cancelled) setZones([]);
+      } finally {
+        if (!cancelled) setZonesLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const load = useCallback(
     async (page = 1) => {
@@ -36,6 +63,9 @@ export default function RefundsPanel() {
         const params = { page, status };
         if (vendorId.trim()) params.vendor_id = vendorId.trim();
         if (fromDate) params.from_date = fromDate;
+        if (zoneId) params.zone_id = zoneId;
+        if (location.trim()) params.location = location.trim();
+        if (search.trim()) params.search = search.trim();
 
         const res = await getRefunds(params);
         const root = res.data?.data || {};
@@ -58,24 +88,18 @@ export default function RefundsPanel() {
         setLoading(false);
       }
     },
-    [status, vendorId, fromDate]
+    [status, vendorId, fromDate, zoneId, location, search]
   );
 
   useEffect(() => {
     load(1);
   }, [load]);
 
-  const filteredRows = search.trim()
-    ? rows.filter((r) => {
-        const q = search.toLowerCase();
-        return (
-          String(r.id).includes(q) ||
-          (r.invoice?.order_number || "").toLowerCase().includes(q) ||
-          (r.user?.name || "").toLowerCase().includes(q) ||
-          (r.vendor?.business_name || "").toLowerCase().includes(q)
-        );
-      })
-    : rows;
+  const applyFilters = (e) => {
+    e?.preventDefault?.();
+    setSearch(searchInput.trim());
+    setLocation(locationInput.trim());
+  };
 
   const handleApprove = async (refund) => {
     const { value: note } = await Swal.fire({
@@ -161,7 +185,7 @@ export default function RefundsPanel() {
           <div>
             <h2 className="text-base font-semibold text-gray-800">Refund requests</h2>
             <p className="text-xs text-gray-500 mt-0.5 max-w-xl">
-              Buyers, vendors, drivers, and transport — all eligible roles for refunds and payouts.
+              Filter by status, zone, or location across buyers, vendors, drivers, and transport.
             </p>
           </div>
           <button
@@ -174,7 +198,7 @@ export default function RefundsPanel() {
           </button>
         </div>
 
-        <div className="p-6 space-y-4">
+        <form onSubmit={applyFilters} className="p-6 space-y-4">
           <div className="flex flex-wrap gap-3 items-end">
             <div>
               <label className="block text-xs text-gray-600 mb-1">Status</label>
@@ -187,6 +211,32 @@ export default function RefundsPanel() {
                 <option value="approved">approved</option>
                 <option value="rejected">rejected</option>
               </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">Zone</label>
+              <select
+                value={zoneId}
+                onChange={(e) => setZoneId(e.target.value)}
+                disabled={zonesLoading}
+                className="min-w-[10rem] px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              >
+                <option value="">All zones</option>
+                {zones.map((z) => (
+                  <option key={z.id} value={String(z.id)}>
+                    {z.name || `Zone #${z.id}`}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">Location</label>
+              <input
+                type="text"
+                value={locationInput}
+                onChange={(e) => setLocationInput(e.target.value)}
+                placeholder="City, town, address…"
+                className="w-44 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              />
             </div>
             <div>
               <label className="block text-xs text-gray-600 mb-1">Vendor ID</label>
@@ -208,8 +258,7 @@ export default function RefundsPanel() {
               />
             </div>
             <button
-              type="button"
-              onClick={() => load(1)}
+              type="submit"
               className="px-4 py-2 text-sm font-medium text-white rounded-lg"
               style={{ backgroundColor: BRAND }}
             >
@@ -220,14 +269,14 @@ export default function RefundsPanel() {
           <div className="relative max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              type="search"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Search order #, customer, vendor…"
               className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm"
             />
           </div>
-        </div>
+        </form>
 
         {error && (
           <div className="px-6 pb-2 text-sm text-red-600">{error}</div>
@@ -250,6 +299,9 @@ export default function RefundsPanel() {
                   Vendor
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">
+                  Zone
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">
                   Reason
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">
@@ -266,18 +318,18 @@ export default function RefundsPanel() {
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-sm text-gray-500">
+                  <td colSpan={9} className="px-4 py-12 text-center text-sm text-gray-500">
                     Loading…
                   </td>
                 </tr>
-              ) : filteredRows.length === 0 ? (
+              ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-sm text-gray-500">
+                  <td colSpan={9} className="px-4 py-12 text-center text-sm text-gray-500">
                     No refunds found.
                   </td>
                 </tr>
               ) : (
-                filteredRows.map((r) => (
+                rows.map((r) => (
                   <tr key={r.id} className="hover:bg-gray-50/50">
                     <td className="px-4 py-3 text-sm text-gray-900">{r.id}</td>
                     <td className="px-4 py-3 text-sm text-gray-700">
@@ -288,6 +340,9 @@ export default function RefundsPanel() {
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600">
                       {r.vendor?.business_name || "—"}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {r.invoice_item?.zone?.name || "—"}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600 max-w-xs truncate" title={r.reason}>
                       {r.reason || "—"}

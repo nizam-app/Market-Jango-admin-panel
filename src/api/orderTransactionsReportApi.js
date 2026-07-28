@@ -10,11 +10,7 @@ function cleanParams(obj) {
   return out;
 }
 
-/**
- * GET /reports/order-transactions
- * Query: from_date, to_date, country, zone_id, state, town, search, per_page (1–100, default 20)
- */
-export function getOrderTransactions(params = {}) {
+function normalizePerPage(params = {}) {
   const p = { ...params };
   if (p.per_page != null) {
     const n = Number(p.per_page);
@@ -24,7 +20,30 @@ export function getOrderTransactions(params = {}) {
       delete p.per_page;
     }
   }
-  return axiosClient.get("/reports/order-transactions", { params: cleanParams(p) });
+  return p;
+}
+
+/**
+ * GET /reports/order-transactions
+ * Query: from_date, to_date, country, zone_id, state, town, search, per_page (1–100, default 20)
+ */
+export function getOrderTransactions(params = {}) {
+  return axiosClient.get("/reports/order-transactions", {
+    params: cleanParams(normalizePerPage(params)),
+  });
+}
+
+/**
+ * GET /reports/order-transactions/export — CSV download (same filters as the list)
+ */
+export function exportOrderTransactions(params = {}) {
+  const p = { ...params };
+  delete p.page;
+  delete p.per_page;
+  return axiosClient.get("/reports/order-transactions/export", {
+    params: cleanParams(p),
+    responseType: "blob",
+  });
 }
 
 /**
@@ -42,4 +61,25 @@ export function parseOrderTransactionsResponse(res) {
     per_page: pag.per_page || 20,
   };
   return { notes, list, meta };
+}
+
+/** Trigger browser download from an axios blob response */
+export function downloadBlobResponse(res, fallbackName = "order-transactions.csv") {
+  const blob = res?.data instanceof Blob ? res.data : new Blob([res?.data || ""], { type: "text/csv" });
+  let filename = fallbackName;
+  const disposition = res?.headers?.["content-disposition"] || res?.headers?.["Content-Disposition"];
+  if (disposition) {
+    const match = /filename\*?=(?:UTF-8''|")?([^\";]+)/i.exec(disposition);
+    if (match?.[1]) {
+      filename = decodeURIComponent(match[1].replace(/"/g, "").trim());
+    }
+  }
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
 }

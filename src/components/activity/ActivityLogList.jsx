@@ -2,7 +2,8 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import { getActivityLogs, getActivityLog } from "../../api/activityApi";
-import { ACTIVITY_MODULES } from "../../utils/activityModules";
+import { ACTIVITY_MODULES, moduleLabel } from "../../utils/activityModules";
+import { formatActionLabel, formatActivitySummary } from "../../utils/activitySummary";
 
 const SEVERITY_BADGE = {
   critical: "bg-red-100 text-red-700",
@@ -74,14 +75,12 @@ const DetailModal = ({ logId, onClose }) => {
             <dl className="space-y-3 text-sm">
               {[
                 ["Actor", `${data.actor_name || "—"} (${data.actor_role || "—"})`],
-                ["Module", data.module || "—"],
-                ["Action", data.action],
+                ["Module", moduleLabel(data.module)],
+                ["Action", formatActionLabel(data.action)],
                 ["Status", <span key="st" className={`px-2 py-0.5 rounded-full text-xs font-semibold ${st}`}>{data.status || "success"}</span>],
                 ["Target", data.target_type ? `${data.target_type} #${data.target_id ?? "-"}` : "-"],
-                ["Description", data.description || "-"],
+                ["Summary", formatActivitySummary(data)],
                 ["Severity", <span key="sev" className={`px-2 py-0.5 rounded-full text-xs font-semibold ${sev}`}>{data.severity}</span>],
-                ["HTTP", data.http_method ? `${data.http_method} ${data.http_path || ""}` : "-"],
-                ["Response", data.response_status ?? "-"],
                 ["IP Address", data.ip_address || "-"],
                 ["Time", formatDate(data.created_at)],
               ].map(([label, value]) => (
@@ -92,7 +91,7 @@ const DetailModal = ({ logId, onClose }) => {
               ))}
               {data.metadata && Object.keys(data.metadata).length > 0 && (
                 <div>
-                  <dt className="text-gray-500 font-medium mb-1">Metadata (sanitized)</dt>
+                  <dt className="text-gray-500 font-medium mb-1">Additional details</dt>
                   <dd>
                     <pre className="bg-gray-50 rounded-lg p-3 text-xs text-gray-700 overflow-auto max-h-40">
                       {JSON.stringify(data.metadata, null, 2)}
@@ -210,12 +209,12 @@ const ActivityLogList = () => {
         <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
           <div className="flex flex-col gap-4">
             <div>
-              <h2 className="text-base font-semibold text-gray-800">Activity Logs</h2>
-              {!loading && <p className="text-xs text-gray-400 mt-0.5">{total} total records</p>}
+              <h2 className="text-base font-semibold text-gray-800">Audit Log</h2>
+              {!loading && <p className="text-xs text-gray-400 mt-0.5">{total} records</p>}
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2 items-end">
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Module / page</label>
+                <label className="block text-xs text-gray-500 mb-1">Module</label>
                 <select
                   value={module}
                   onChange={(e) => setModule(e.target.value)}
@@ -347,7 +346,7 @@ const ActivityLogList = () => {
               ) : logs.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-10 text-center text-sm text-gray-400">
-                    No logs found.
+                    No audit records found.
                   </td>
                 </tr>
               ) : (
@@ -358,8 +357,10 @@ const ActivityLogList = () => {
                     <tr key={log.id} className="hover:bg-gray-50/50">
                       <td className="px-4 py-3 text-sm font-medium text-gray-800">{log.actor_name || "—"}</td>
                       <td className="px-4 py-3 text-sm text-gray-500">{log.actor_role || "—"}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{log.module || "—"}</td>
-                      <td className="px-4 py-3 text-sm text-gray-700">{log.action}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{moduleLabel(log.module)}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700 max-w-xs truncate" title={formatActivitySummary(log)}>
+                        {formatActionLabel(log.action)}
+                      </td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${st}`}>
                           {log.status || "success"}

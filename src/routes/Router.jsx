@@ -36,6 +36,8 @@ import OutletBin from "../pages/OutletBin";
 import OutletDriverBin from "../pages/OutletDriverBin";
 import OutletAssignments from "../pages/OutletAssignments";
 import CurrencyManagement from "../pages/CurrencyManagement";
+import AiManagement from "../pages/AiManagement";
+import AiAssistant from "../pages/AiAssistant";
 
 const Router = createBrowserRouter([
   // 🔓 Public route
@@ -156,6 +158,14 @@ const Router = createBrowserRouter([
           {
             path: "currency-management",
             Component: CurrencyManagement,
+          },
+          {
+            path: "ai-management",
+            Component: AiManagement,
+          },
+          {
+            path: "ai-assistant",
+            Component: AiAssistant,
           },
           {
             path: "activity-management",

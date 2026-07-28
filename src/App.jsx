@@ -1,6 +1,5 @@
 import Asidebar from './components/Asidebar'
 import Navbar from './components/Navbar'
-import ContextualActivityPanel from './components/activity/ContextualActivityPanel'
 import { Outlet } from 'react-router'
 
 function App() {
@@ -17,7 +16,6 @@ function App() {
           <section className="bg-[#F5F7FA]  p-10 pt-30 min-h-screen ">
             <div className="max-w-7xl mx-auto">
               <Outlet />
-              <ContextualActivityPanel />
             </div>
           </section>
         </main>

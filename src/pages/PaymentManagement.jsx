@@ -735,7 +735,7 @@ const PaymentManagement = () => {
       {/* VENDOR / DRIVER PAYOUT SYSTEM TAB — wallets + payout requests (API-backed) */}
       {activeTab === "vendor-payouts" && (
         <div className="space-y-6">
-          <WalletsPayoutsTab />
+          <WalletsPayoutsTab zones={zonesList} />
         </div>
       )}
 

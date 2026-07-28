@@ -1,9 +1,12 @@
 // src/components/payment/OrderTransactionsPanel.jsx — GET /reports/order-transactions
 import React, { useCallback, useEffect, useState } from "react";
-import { Search, RefreshCw } from "lucide-react";
+import { Search, RefreshCw, Download } from "lucide-react";
+import Swal from "sweetalert2";
 import {
   getOrderTransactions,
   parseOrderTransactionsResponse,
+  exportOrderTransactions,
+  downloadBlobResponse,
 } from "../../api/orderTransactionsReportApi";
 import { getZones } from "../../api/adminApi";
 
@@ -52,9 +55,7 @@ function formatStatusCell(status) {
             <span className="text-gray-500">Fulfillment:</span> {String(fulfillment)}
           </span>
         )}
-        {payment == null && fulfillment == null && (
-          <span className="text-gray-600">{JSON.stringify(status)}</span>
-        )}
+        {payment == null && fulfillment == null && <span className="text-gray-600">—</span>}
       </div>
     );
   }
@@ -64,14 +65,20 @@ function formatStatusCell(status) {
 function NotesBanner({ notes }) {
   if (notes == null || notes === "") return null;
   let text;
-  if (Array.isArray(notes)) text = notes.map((n) => (typeof n === "object" ? JSON.stringify(n) : String(n))).join(" ");
-  else if (typeof notes === "object") text = JSON.stringify(notes);
-  else text = String(notes);
+  if (Array.isArray(notes)) {
+    text = notes.map((n) => (typeof n === "object" ? "" : String(n))).filter(Boolean).join(" ");
+  } else if (typeof notes === "object") {
+    // Never dump raw JSON objects into the admin UI
+    text = Object.values(notes)
+      .filter((v) => typeof v === "string" && v.trim())
+      .join(" ");
+  } else {
+    text = String(notes);
+  }
   if (!text.trim()) return null;
   return (
-    <div className="text-sm text-sky-900 bg-sky-50 border border-sky-200 rounded-xl px-4 py-3 flex gap-2">
-      <span className="font-semibold shrink-0">Note:</span>
-      <span className="text-sky-950">{text}</span>
+    <div className="text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
+      {text}
     </div>
   );
 }
@@ -86,6 +93,7 @@ export default function OrderTransactionsPanel() {
   });
   const [notes, setNotes] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
 
   const [fromDate, setFromDate] = useState("");
@@ -106,7 +114,7 @@ export default function OrderTransactionsPanel() {
         setZonesLoading(true);
         const res = await getZones(100);
         const zpag = res?.data?.data;
-        const list = Array.isArray(zpag?.data) ? zpag.data : [];
+        const list = Array.isArray(zpag?.data) ? zpag.data : Array.isArray(zpag) ? zpag : [];
         if (!cancelled) setZones(list);
       } catch {
         if (!cancelled) setZones([]);
@@ -163,6 +171,38 @@ export default function OrderTransactionsPanel() {
 
   const applyFilters = () => load(1);
 
+  const handleDownload = async () => {
+    try {
+      setExporting(true);
+      const params = buildParams(1);
+      delete params.page;
+      delete params.per_page;
+      const res = await exportOrderTransactions(params);
+      const contentType = String(res?.headers?.["content-type"] || "");
+      if (contentType.includes("application/json")) {
+        const text = await res.data.text();
+        let message = "Export failed";
+        try {
+          message = JSON.parse(text)?.message || message;
+        } catch {
+          /* ignore */
+        }
+        throw new Error(message);
+      }
+      downloadBlobResponse(res, `order-transactions-${new Date().toISOString().slice(0, 10)}.csv`);
+    } catch (e) {
+      console.error(e);
+      Swal.fire({
+        icon: "error",
+        title: "Download failed",
+        text: e?.response?.data?.message || e.message || "Could not export transactions",
+        confirmButtonColor: BRAND,
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const rowKey = (row, i) =>
     row.transaction_id != null ? String(row.transaction_id) : `row-${row.invoice_item_id ?? i}-${i}`;
 
@@ -172,8 +212,22 @@ export default function OrderTransactionsPanel() {
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-base font-semibold text-gray-800">Order transactions</h2>
-          <span className="text-xs text-gray-500">GET /reports/order-transactions</span>
+          <div>
+            <h2 className="text-base font-semibold text-gray-800">Order transactions</h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Search by order number, vendor, driver, buyer, or affiliate — then download results as CSV.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleDownload}
+            disabled={exporting || loading}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg hover:opacity-90 disabled:opacity-50"
+            style={{ backgroundColor: BRAND }}
+          >
+            <Download className={`w-4 h-4 ${exporting ? "animate-pulse" : ""}`} />
+            {exporting ? "Preparing…" : "Download CSV"}
+          </button>
         </div>
 
         <div className="p-6 space-y-4 min-w-0 max-w-full">
@@ -205,7 +259,7 @@ export default function OrderTransactionsPanel() {
               </select>
             </div>
             <div className="min-w-0">
-              <label className="block text-xs font-medium text-gray-600 mb-1">State (zone name LIKE)</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">State</label>
               <input
                 type="text"
                 value={state}
@@ -215,14 +269,14 @@ export default function OrderTransactionsPanel() {
               />
             </div>
             <div className="min-w-0">
-              <label className="block text-xs font-medium text-gray-600 mb-1">Town (zone name LIKE)</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Town</label>
               <input
                 type="text"
                 value={town}
                 onChange={(e) => setTown(e.target.value)}
                 placeholder="All"
                 className={inputClass}
-                />
+              />
             </div>
             <div className="min-w-0">
               <label className="block text-xs font-medium text-gray-600 mb-1">From date</label>
@@ -257,13 +311,13 @@ export default function OrderTransactionsPanel() {
                   type="search"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search…"
+                  placeholder="Order number, vendor, driver, buyer, or affiliate…"
                   className={`${inputClass} pl-9`}
                   onKeyDown={(e) => e.key === "Enter" && applyFilters()}
                 />
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <button
                 type="button"
                 onClick={applyFilters}
@@ -271,6 +325,15 @@ export default function OrderTransactionsPanel() {
                 style={{ backgroundColor: BRAND }}
               >
                 Apply filters
+              </button>
+              <button
+                type="button"
+                onClick={handleDownload}
+                disabled={exporting || loading}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-[#FF8C00] text-[#FF8C00] bg-white hover:bg-orange-50 disabled:opacity-50"
+              >
+                <Download className={`w-4 h-4 ${exporting ? "animate-pulse" : ""}`} />
+                {exporting ? "Preparing…" : "Download"}
               </button>
               <button
                 type="button"
@@ -300,6 +363,8 @@ export default function OrderTransactionsPanel() {
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-600 uppercase whitespace-nowrap">Invoice item</th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-600 uppercase whitespace-nowrap">Counterparty</th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-600 uppercase whitespace-nowrap">Vendor</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-600 uppercase whitespace-nowrap">Driver</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-600 uppercase whitespace-nowrap">Affiliate</th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-600 uppercase whitespace-nowrap">Payment</th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-600 uppercase whitespace-nowrap">Gross</th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-600 uppercase whitespace-nowrap">Comm.</th>
@@ -316,13 +381,13 @@ export default function OrderTransactionsPanel() {
             <tbody className="divide-y divide-gray-100">
               {loading && rows.length === 0 ? (
                 <tr>
-                  <td colSpan={16} className="px-4 py-12 text-center text-gray-500">
+                  <td colSpan={18} className="px-4 py-12 text-center text-gray-500">
                     Loading…
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={16} className="px-4 py-12 text-center text-gray-500">
+                  <td colSpan={18} className="px-4 py-12 text-center text-gray-500">
                     No transactions match your filters.
                   </td>
                 </tr>
@@ -339,12 +404,20 @@ export default function OrderTransactionsPanel() {
                       </td>
                       <td className="px-3 py-2 text-xs">{row.invoice_item_id ?? "—"}</td>
                       <td className="px-3 py-2 text-xs max-w-[10rem]">
-                        <div className="truncate" title={cpLine}>{cpLine || "—"}</div>
+                        <div className="truncate" title={cpLine}>
+                          {cpLine || "—"}
+                        </div>
                         {cp.user_id != null && <div className="text-gray-400">#{cp.user_id}</div>}
                       </td>
                       <td className="px-3 py-2 text-xs max-w-[8rem]">
                         <div className="truncate">{row.vendor_name || "—"}</div>
                         {row.vendor_id != null && <div className="text-gray-400">id {row.vendor_id}</div>}
+                      </td>
+                      <td className="px-3 py-2 text-xs max-w-[8rem] truncate" title={row.driver_name || ""}>
+                        {row.driver_name || "—"}
+                      </td>
+                      <td className="px-3 py-2 text-xs max-w-[8rem] truncate" title={row.affiliate_name || ""}>
+                        {row.affiliate_name || "—"}
                       </td>
                       <td className="px-3 py-2 text-xs capitalize">{row.payment_method ?? "—"}</td>
                       <td className="px-3 py-2 text-xs tabular-nums whitespace-nowrap">
@@ -356,8 +429,11 @@ export default function OrderTransactionsPanel() {
                       <td className="px-3 py-2 text-xs tabular-nums">{formatMoney(row.vendor_driver_net, row.currency)}</td>
                       <td className="px-3 py-2 text-xs min-w-[7rem]">{formatStatusCell(row.status)}</td>
                       <td className="px-3 py-2 text-xs">{row.is_manual_order ? "Yes" : "No"}</td>
-                      <td className="px-3 py-2 text-xs max-w-[8rem] truncate" title={row.zone != null ? String(row.zone) : ""}>
-                        {typeof row.zone === "object" ? row.zone?.name ?? JSON.stringify(row.zone) : row.zone ?? "—"}
+                      <td
+                        className="px-3 py-2 text-xs max-w-[8rem] truncate"
+                        title={row.zone != null ? String(row.zone?.name || row.zone) : ""}
+                      >
+                        {typeof row.zone === "object" ? row.zone?.name ?? "—" : row.zone ?? "—"}
                       </td>
                       <td className="px-3 py-2 text-xs">{row.vendor_country ?? "—"}</td>
                       <td className="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">{formatDate(row.date)}</td>

@@ -1,6 +1,8 @@
 // src/components/activity/ActivityFeed.jsx
 import { useEffect, useRef, useState } from "react";
 import { getActivityFeed } from "../../api/activityApi";
+import { formatActivitySummary } from "../../utils/activitySummary";
+import { moduleLabel } from "../../utils/activityModules";
 
 const SEVERITY_STYLES = {
   critical: { dot: "bg-red-500", badge: "bg-red-100 text-red-700", border: "border-red-200" },
@@ -60,7 +62,7 @@ const ActivityFeed = () => {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FF8C00] opacity-75" />
             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#FF8C00]" />
           </span>
-          <h2 className="text-base font-semibold text-gray-800">Live Activity Feed</h2>
+          <h2 className="text-base font-semibold text-gray-800">Recent Activity</h2>
         </div>
         <div className="flex items-center gap-3">
           {lastUpdated && (
@@ -97,7 +99,9 @@ const ActivityFeed = () => {
                     <span className="text-sm font-medium text-gray-800 truncate">{log.actor_name || "—"}</span>
                     <span className="text-xs text-gray-400">{log.actor_role}</span>
                     {log.module && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">{log.module}</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                        {moduleLabel(log.module)}
+                      </span>
                     )}
                     <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wide ${sev.badge}`}>
                       {log.severity}
@@ -106,7 +110,7 @@ const ActivityFeed = () => {
                       {log.status || "success"}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-600 truncate">{log.description || log.action}</p>
+                  <p className="text-sm text-gray-600 truncate">{formatActivitySummary(log)}</p>
                 </div>
                 <span className="flex-shrink-0 text-xs text-gray-400 whitespace-nowrap mt-0.5">
                   {formatTime(log.created_at)}

@@ -33,7 +33,7 @@ export function moduleFromPathname(pathname = "") {
   const path = String(pathname || "/").replace(/\/+$/, "") || "/";
 
   if (path === "/" || path === "") return "general";
-  if (path.startsWith("/activity-management")) return null; // hide panel on Activity page
+  if (path.startsWith("/activity-management")) return null;
   if (path.startsWith("/products")) return "products";
   if (path.startsWith("/category-management")) return "categories";
   if (path.startsWith("/business-type-management")) return "business_types";
