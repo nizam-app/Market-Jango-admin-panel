@@ -12,7 +12,7 @@ import {
   deleteDeliveryChargeRoute,
 } from '../../api/adminApi';
 import axiosClient from '../../api/axiosClient';
-import { getRoutesList } from '../../api/routeApi';
+import visibilityApi from '../../api/visibilityApi';
 
 const BRAND = '#FF8C00';
 
@@ -34,12 +34,16 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
   const [isDeliveryChargeModalOpen, setIsDeliveryChargeModalOpen] = useState(false);
   const [editingDeliveryChargeId, setEditingDeliveryChargeId] = useState(null);
   const chargeRoutesSearchDebounce = useRef(null);
-  const [routesList, setRoutesList] = useState([]);
   const [routesLoading, setRoutesLoading] = useState(false);
-  const [selectedRouteIdForCharge, setSelectedRouteIdForCharge] = useState(null);
+  const [visibilityZoneOptions, setVisibilityZoneOptions] = useState([]);
+  const [visibilityStateOptions, setVisibilityStateOptions] = useState([]);
+  const [visibilityTownOptions, setVisibilityTownOptions] = useState([]);
+  const [statesLoading, setStatesLoading] = useState(false);
+  const [townsLoading, setTownsLoading] = useState(false);
 
   const [deliveryChargeForm, setDeliveryChargeForm] = useState({
     zone_name: '',
+    state: '',
     from_point: '',
     to_point: '',
     vendor_id: '',
@@ -79,7 +83,7 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
       fetchDashboard();
     } else if (activeTab === 'charge-routes') {
       fetchDeliveryChargeRoutes(chargeRoutesSearch);
-      fetchRoutesForCharge();
+      fetchVisibilityZones();
     }
   }, [activeTab]);
 
@@ -95,10 +99,53 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
   }, [chargeRoutesSearch]);
 
   useEffect(() => {
-    if (!isDeliveryChargeModalOpen || !deliveryChargeForm.zone_name || routesList.length === 0) return;
-    const match = routesList.find((r) => r.name === deliveryChargeForm.zone_name);
-    if (match && selectedRouteIdForCharge !== match.id) setSelectedRouteIdForCharge(match.id);
-  }, [isDeliveryChargeModalOpen, deliveryChargeForm.zone_name, routesList]);
+    const zone = String(deliveryChargeForm.zone_name || '').trim();
+    if (!isDeliveryChargeModalOpen || !zone) {
+      setVisibilityStateOptions([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setStatesLoading(true);
+      try {
+        const res = await visibilityApi.optionStates(zone);
+        const items = res?.data?.data?.items ?? [];
+        if (!cancelled) setVisibilityStateOptions(Array.isArray(items) ? items : []);
+      } catch (e) {
+        if (!cancelled) setVisibilityStateOptions([]);
+      } finally {
+        if (!cancelled) setStatesLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isDeliveryChargeModalOpen, deliveryChargeForm.zone_name]);
+
+  useEffect(() => {
+    const zone = String(deliveryChargeForm.zone_name || '').trim();
+    const state = String(deliveryChargeForm.state || '').trim();
+    if (!isDeliveryChargeModalOpen || !zone || !state) {
+      setVisibilityTownOptions([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setTownsLoading(true);
+      try {
+        const res = await visibilityApi.optionTowns(zone, state);
+        const items = res?.data?.data?.items ?? [];
+        if (!cancelled) setVisibilityTownOptions(Array.isArray(items) ? items : []);
+      } catch (e) {
+        if (!cancelled) setVisibilityTownOptions([]);
+      } finally {
+        if (!cancelled) setTownsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isDeliveryChargeModalOpen, deliveryChargeForm.zone_name, deliveryChargeForm.state]);
 
   const fetchDashboard = async () => {
     setLoading(true);
@@ -137,16 +184,15 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
     }
   };
 
-  const fetchRoutesForCharge = async () => {
+  const fetchVisibilityZones = async () => {
     setRoutesLoading(true);
     try {
-      const res = await getRoutesList(100);
-      const payload = res.data?.data;
-      const list = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload) ? payload : [];
-      setRoutesList(list);
+      const res = await visibilityApi.optionZones();
+      const items = res?.data?.data?.items ?? [];
+      setVisibilityZoneOptions(Array.isArray(items) ? items : []);
     } catch (err) {
-      console.error('Failed to fetch routes for delivery charge', err);
-      setRoutesList([]);
+      console.error('Failed to fetch visibility zones for delivery charge', err);
+      setVisibilityZoneOptions([]);
     } finally {
       setRoutesLoading(false);
     }
@@ -206,6 +252,7 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
       : [defaultCubeRange()];
     return {
       zone_name: route.zone_name || '',
+      state: route.state || '',
       from_point: route.from_point ?? route.start_point ?? '',
       to_point: route.to_point ?? route.end_point ?? '',
       vendor_id: route.vendor_id ?? '',
@@ -246,6 +293,7 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
     } else {
       setDeliveryChargeForm({
         zone_name: '',
+        state: '',
         from_point: '',
         to_point: '',
         vendor_id: '',
@@ -263,15 +311,13 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
       });
     }
     fetchVendors();
-    fetchRoutesForCharge();
-    setSelectedRouteIdForCharge(null);
+    fetchVisibilityZones();
     setIsDeliveryChargeModalOpen(true);
   };
 
   const handleCloseDeliveryChargeModal = () => {
     setIsDeliveryChargeModalOpen(false);
     setEditingDeliveryChargeId(null);
-    setSelectedRouteIdForCharge(null);
   };
 
   const buildDeliveryChargePayload = () => {
@@ -279,6 +325,7 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
     const timeline = String(deliveryChargeForm.delivery_timeline || '').trim();
     const payload = {
       zone_name: String(deliveryChargeForm.zone_name).trim(),
+      state: String(deliveryChargeForm.state || '').trim() || null,
       from_point: String(deliveryChargeForm.from_point).trim(),
       to_point: String(deliveryChargeForm.to_point).trim(),
       delivery_timeline: timeline || null,
@@ -330,11 +377,16 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
   const handleSubmitDeliveryCharge = async (e) => {
     e.preventDefault();
     const zone = String(deliveryChargeForm.zone_name).trim();
+    const state = String(deliveryChargeForm.state || '').trim();
     const from = String(deliveryChargeForm.from_point).trim();
     const to = String(deliveryChargeForm.to_point).trim();
     const flat = parseFloat(deliveryChargeForm.flat_base_charge);
     if (!zone) {
-      Swal.fire({ icon: 'warning', title: 'Validation', text: 'Route zone name is required', confirmButtonColor: BRAND });
+      Swal.fire({ icon: 'warning', title: 'Validation', text: 'Zone is required', confirmButtonColor: BRAND });
+      return;
+    }
+    if (!state) {
+      Swal.fire({ icon: 'warning', title: 'Validation', text: 'State is required', confirmButtonColor: BRAND });
       return;
     }
     if (!from) {
@@ -415,9 +467,6 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
       });
     }
   };
-
-  const selectedRouteForCharge = routesList.find((r) => r.id === selectedRouteIdForCharge);
-  const chargeLocations = selectedRouteForCharge?.locations ?? [];
 
   const content = (
     <>
@@ -525,6 +574,7 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
                 <thead>
                   <tr>
                     <th style={{ textAlign: 'left', padding: '12px 14px', borderBottom: '1px solid #f0f0f3', color: '#666', fontSize: 13 }}>Zone name</th>
+                    <th style={{ textAlign: 'left', padding: '12px 14px', borderBottom: '1px solid #f0f0f3', color: '#666', fontSize: 13 }}>State</th>
                     <th style={{ textAlign: 'left', padding: '12px 14px', borderBottom: '1px solid #f0f0f3', color: '#666', fontSize: 13 }}>Start point</th>
                     <th style={{ textAlign: 'left', padding: '12px 14px', borderBottom: '1px solid #f0f0f3', color: '#666', fontSize: 13 }}>End point</th>
                     <th style={{ textAlign: 'left', padding: '12px 14px', borderBottom: '1px solid #f0f0f3', color: '#666', fontSize: 13 }}>Delivery timeline</th>
@@ -539,6 +589,7 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
                   {deliveryChargeRoutes.map((row) => (
                     <tr key={row.id}>
                       <td style={{ padding: '12px 14px', borderBottom: '1px solid #fbfbfc', fontWeight: 600 }}>{row.zone_name || '—'}</td>
+                      <td style={{ padding: '12px 14px', borderBottom: '1px solid #fbfbfc' }}>{row.state || '—'}</td>
                       <td style={{ padding: '12px 14px', borderBottom: '1px solid #fbfbfc' }}>{row.start_point ?? row.from_point ?? '—'}</td>
                       <td style={{ padding: '12px 14px', borderBottom: '1px solid #fbfbfc' }}>{row.end_point ?? row.to_point ?? '—'}</td>
                       <td style={{ padding: '12px 14px', borderBottom: '1px solid #fbfbfc', fontSize: 13 }}>{row.delivery_timeline || '—'}</td>
@@ -578,33 +629,62 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
             </div>
             <form onSubmit={handleSubmitDeliveryCharge} className="flex-1 overflow-y-auto">
               <div className="px-6 py-6 space-y-5">
-                <p className="text-xs text-gray-500">Route and points are from <strong>GET /api/route</strong>. Select a route, then choose start and end locations.</p>
+                <p className="text-xs text-gray-500">
+                  Zone, state, and towns come from <strong>Visibility zones</strong>. Add them under Visibility Management first.
+                </p>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Route <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Zone <span className="text-red-500">*</span></label>
                   <select
                     value={deliveryChargeForm.zone_name}
                     onChange={(e) => {
-                      const route = routesList.find((r) => r.name === e.target.value);
                       setDeliveryChargeForm({
                         ...deliveryChargeForm,
                         zone_name: e.target.value,
+                        state: '',
                         from_point: '',
                         to_point: '',
                       });
-                      setSelectedRouteIdForCharge(route?.id ?? null);
                     }}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                     required
                     disabled={routesLoading}
                   >
-                    <option value="">{routesLoading ? 'Loading routes…' : 'Select route'}</option>
-                    {routesList.map((r) => (
-                      <option key={r.id} value={r.name}>{r.name}</option>
+                    <option value="">{routesLoading ? 'Loading zones…' : 'Select zone'}</option>
+                    {visibilityZoneOptions.map((z) => (
+                      <option key={z} value={z}>{z}</option>
                     ))}
                   </select>
-                  {!routesLoading && routesList.length === 0 && (
-                    <p className="mt-1 text-xs text-amber-600">No routes found. Routes come from GET /api/route.</p>
+                  {!routesLoading && visibilityZoneOptions.length === 0 && (
+                    <p className="mt-1 text-xs text-amber-600">No visibility zones found. Create zones on Visibility Management.</p>
                   )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">State <span className="text-red-500">*</span></label>
+                  <select
+                    value={deliveryChargeForm.state}
+                    onChange={(e) => {
+                      setDeliveryChargeForm({
+                        ...deliveryChargeForm,
+                        state: e.target.value,
+                        from_point: '',
+                        to_point: '',
+                      });
+                    }}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                    required
+                    disabled={!deliveryChargeForm.zone_name || statesLoading}
+                  >
+                    <option value="">
+                      {!deliveryChargeForm.zone_name
+                        ? 'Select zone first'
+                        : statesLoading
+                          ? 'Loading states…'
+                          : 'Select state'}
+                    </option>
+                    {visibilityStateOptions.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -614,11 +694,17 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
                       onChange={(e) => setDeliveryChargeForm({ ...deliveryChargeForm, from_point: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                       required
-                      disabled={!selectedRouteForCharge || routesLoading}
+                      disabled={!deliveryChargeForm.state || townsLoading}
                     >
-                      <option value="">{!selectedRouteForCharge ? 'Select route first' : 'Select start point'}</option>
-                      {chargeLocations.map((loc) => (
-                        <option key={loc.id} value={loc.name}>{loc.name}</option>
+                      <option value="">
+                        {!deliveryChargeForm.state
+                          ? 'Select state first'
+                          : townsLoading
+                            ? 'Loading towns…'
+                            : 'Select start point'}
+                      </option>
+                      {visibilityTownOptions.map((town) => (
+                        <option key={`from-${town}`} value={town}>{town}</option>
                       ))}
                     </select>
                   </div>
@@ -629,11 +715,17 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
                       onChange={(e) => setDeliveryChargeForm({ ...deliveryChargeForm, to_point: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                       required
-                      disabled={!selectedRouteForCharge || routesLoading}
+                      disabled={!deliveryChargeForm.state || townsLoading}
                     >
-                      <option value="">{!selectedRouteForCharge ? 'Select route first' : 'Select end point'}</option>
-                      {chargeLocations.map((loc) => (
-                        <option key={loc.id} value={loc.name}>{loc.name}</option>
+                      <option value="">
+                        {!deliveryChargeForm.state
+                          ? 'Select state first'
+                          : townsLoading
+                            ? 'Loading towns…'
+                            : 'Select end point'}
+                      </option>
+                      {visibilityTownOptions.map((town) => (
+                        <option key={`to-${town}`} value={town}>{town}</option>
                       ))}
                     </select>
                   </div>

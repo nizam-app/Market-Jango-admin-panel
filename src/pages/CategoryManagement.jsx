@@ -17,6 +17,15 @@ const getApiErrorMessage = (err, fallback) => {
   if (isNetworkError) {
     return "Cannot reach the server. Check that the API is running and the proxy/base URL is correct (see vite.config.js or axiosClient baseURL).";
   }
+  const data = err?.response?.data?.data;
+  if (data && typeof data === "object" && !Array.isArray(data)) {
+    const fieldErrors = Object.values(data)
+      .flat()
+      .filter(Boolean);
+    if (fieldErrors.length) {
+      return fieldErrors.join(" ");
+    }
+  }
   return err?.response?.data?.message || err?.message || fallback;
 };
 
@@ -30,7 +39,7 @@ const slugify = (text) => {
 };
 
 const CategoryManagement = () => {
-  const PER_PAGE = 10;
+  const PER_PAGE = 50;
   const [categories, setCategories] = useState([]);
   const [pagination, setPagination] = useState({
     total: 0,
@@ -96,21 +105,30 @@ const CategoryManagement = () => {
 
   useEffect(() => {
     businessTypeApi
-      .getPublicBusinessTypes()
+      .getBusinessTypes({ per_page: 500 })
       .then((res) => {
-        const list = res.data?.data || [];
+        const list = res.data?.data?.data || res.data?.data || [];
         setBusinessTypes(Array.isArray(list) ? list : []);
       })
       .catch(() => setBusinessTypes([]));
   }, []);
 
-  const fetchParentOptions = async (businessTypeId) => {
+  const fetchParentOptions = async (businessTypeId, excludeId = null) => {
     try {
       const res = await categoryApi.getParentOptions({
         business_type_id: businessTypeId || undefined,
+        exclude_id: excludeId || undefined,
       });
       const data = res.data?.data;
-      let list = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
+      let list = Array.isArray(data?.options)
+        ? data.options
+        : Array.isArray(data)
+          ? data
+          : Array.isArray(data?.items)
+            ? data.items
+            : [];
+      // Drop the synthetic "None (root)" option — the select already has its own.
+      list = list.filter((c) => c?.id != null && c.id !== "");
       if (list.length === 0) {
         const listRes = await categoryApi.getCategories({ page: 1, per_page: 200 });
         const listData = listRes.data?.data;
@@ -132,8 +150,11 @@ const CategoryManagement = () => {
   };
 
   useEffect(() => {
-    fetchParentOptions(form.business_type_id);
-  }, [form.business_type_id]);
+    fetchParentOptions(
+      form.business_type_id,
+      editingCategory?.id ?? null
+    );
+  }, [form.business_type_id, editingCategory?.id]);
 
   const handleSearchSubmit = (e) => {
     e?.preventDefault();
@@ -194,7 +215,8 @@ const CategoryManagement = () => {
 
   const buildFormData = () => {
     const name = (form.name || "").trim();
-    const description = (form.description || "").trim();
+    // Backend requires a non-empty description; fall back to name when left blank.
+    const description = (form.description || "").trim() || name;
     const slug = (form.slug || "").trim() || slugify(name);
     const meta_title = (form.meta_title || "").trim();
     const parent_id = form.parent_id ? Number(form.parent_id) : null;
@@ -207,7 +229,10 @@ const CategoryManagement = () => {
     fd.append("slug", slug);
     fd.append("meta_title", meta_title);
     fd.append("business_type_id", business_type_id === null ? "" : String(business_type_id));
-    fd.append("parent_id", parent_id === null ? "" : String(parent_id));
+    // Omit parent_id when root so Laravel "nullable" is not tripped by junk values.
+    if (parent_id !== null) {
+      fd.append("parent_id", String(parent_id));
+    }
     fd.append("status", status);
     if (form.image) {
       fd.append("images[]", form.image);
@@ -238,7 +263,7 @@ const CategoryManagement = () => {
       }
       resetForm();
       fetchCategories(page, searchQuery);
-      fetchParentOptions();
+      fetchParentOptions(form.business_type_id);
     } catch (err) {
       const msg = getApiErrorMessage(err, "Failed to save category.");
       Swal.fire({ icon: "error", title: "Error", text: msg, confirmButtonColor: BRAND });
@@ -263,7 +288,7 @@ const CategoryManagement = () => {
       Swal.fire({ toast: true, position: "top-end", icon: "success", title: "Category deleted.", showConfirmButton: false, timer: 1800 });
       resetForm();
       fetchCategories(page, searchQuery);
-      fetchParentOptions();
+      fetchParentOptions(form.business_type_id);
     } catch (err) {
       const msg = getApiErrorMessage(err, "Failed to delete category.");
       Swal.fire({ icon: "error", title: "Error", text: msg, confirmButtonColor: BRAND });
@@ -292,7 +317,7 @@ const CategoryManagement = () => {
       setSelectedIds([]);
       Swal.fire({ toast: true, position: "top-end", icon: "success", title: "Categories deleted.", showConfirmButton: false, timer: 1800 });
       fetchCategories(page, searchQuery);
-      fetchParentOptions();
+      fetchParentOptions(form.business_type_id);
     } catch (err) {
       const msg = getApiErrorMessage(err, "Failed to delete.");
       Swal.fire({ icon: "error", title: "Error", text: msg, confirmButtonColor: BRAND });

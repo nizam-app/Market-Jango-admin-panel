@@ -65,7 +65,26 @@ const visibilityApi = {
     });
   },
 
-  // ——— Delivery charge options (dropdown helpers for visibility form) ———
+  // ——— Visibility zone options (for delivery charge pickers) ———
+  optionZones: () => {
+    return axiosClient.get("/visibility-zones/options/zones", {
+      headers: adminHeaders(),
+    });
+  },
+  optionStates: (zone) => {
+    return axiosClient.get("/visibility-zones/options/states", {
+      params: { zone },
+      headers: adminHeaders(),
+    });
+  },
+  optionTowns: (zone, state) => {
+    return axiosClient.get("/visibility-zones/options/towns", {
+      params: { zone, state: state || undefined },
+      headers: adminHeaders(),
+    });
+  },
+
+  // ——— Delivery charge options (legacy dropdown helpers) ———
   deliveryChargeZones: () => {
     return axiosClient.get("/delivery-charge/options/zones", {
       headers: adminHeaders(),

@@ -5,9 +5,7 @@ import Swal from "sweetalert2";
 import { Plus, Search, Edit3, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
 import visibilityApi from "../api/visibilityApi";
 import { getActiveVendors } from "../api/vendorAPI";
-import AddDrivingRoute from "../components/drivers/AddDrivingRoute";
-import DrivingRouteList from "../components/drivers/DrivingRouteList";
-import { updateRoute, deleteRoute } from "../api/routeApi";
+import { LocationSearchInput } from "../components/vendor/LocationSearchInput";
 
 const BRAND = "#FF8C00";
 
@@ -19,114 +17,7 @@ const getApiErrorMessage = (err, fallback = "Something went wrong.") => {
 };
 
 const VisibilityManagement = () => {
-  const [routesVersion, setRoutesVersion] = useState(0);
-
-  const handleRoutesReload = () => {
-    setRoutesVersion((prev) => prev + 1);
-  };
-
-  const handleEditRoute = async (route) => {
-    const result = await Swal.fire({
-      title: "Edit Route",
-      html: `<input id="route-name-input" class="swal2-input" value="${route.name}" placeholder="Route Name">`,
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonText: "Update",
-      cancelButtonText: "Cancel",
-      confirmButtonColor: "#FF8C00",
-      preConfirm: () => {
-        const newName = document.getElementById("route-name-input").value;
-        if (!newName || !newName.trim()) {
-          Swal.showValidationMessage("Please enter a route name");
-          return false;
-        }
-        return newName.trim();
-      },
-    });
-
-    if (!result.isConfirmed) return;
-
-    try {
-      Swal.fire({
-        title: "Updating route...",
-        allowOutsideClick: false,
-        showConfirmButton: false,
-        didOpen: () => Swal.showLoading(),
-      });
-
-      const response = await updateRoute(route.id, result.value);
-
-      Swal.close();
-
-      Swal.fire({
-        toast: true,
-        position: "top-end",
-        icon: "success",
-        title: response.data?.message || "Route updated successfully",
-        showConfirmButton: false,
-        timer: 1800,
-      });
-
-      handleRoutesReload();
-    } catch (err) {
-      Swal.close();
-      console.error("Update route failed", err);
-      Swal.fire({
-        icon: "error",
-        title: "Update failed",
-        text: err?.response?.data?.message || err.message || "Could not update route",
-        confirmButtonColor: "#FF8C00",
-      });
-    }
-  };
-
-  const handleDeleteRoute = async (route) => {
-    const result = await Swal.fire({
-      title: "Delete route?",
-      text: `This will remove "${route.name}" and all its locations. This action cannot be undone.`,
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: "Yes, delete",
-      cancelButtonText: "Cancel",
-      confirmButtonColor: "#dc2626",
-      cancelButtonColor: "#6b7280",
-    });
-
-    if (!result.isConfirmed) return;
-
-    try {
-      Swal.fire({
-        title: "Deleting route...",
-        allowOutsideClick: false,
-        showConfirmButton: false,
-        didOpen: () => Swal.showLoading(),
-      });
-
-      const response = await deleteRoute(route.id);
-
-      Swal.close();
-
-      Swal.fire({
-        toast: true,
-        position: "top-end",
-        icon: "success",
-        title: response.data?.message || "Route deleted successfully",
-        showConfirmButton: false,
-        timer: 1800,
-      });
-
-      handleRoutesReload();
-    } catch (err) {
-      Swal.close();
-      console.error("Delete route failed", err);
-      Swal.fire({
-        icon: "error",
-        title: "Delete failed",
-        text: err?.response?.data?.message || err.message || "Could not delete route",
-        confirmButtonColor: "#FF8C00",
-      });
-    }
-  };
+  const [mapCoords, setMapCoords] = useState({ lat: null, lng: null });
 
   const [zoneForm, setZoneForm] = useState({
     zone: "",
@@ -134,9 +25,6 @@ const VisibilityManagement = () => {
     town_city: "",
     status: "Active",
   });
-  const [deliveryChargeZones, setDeliveryChargeZones] = useState([]);
-  const [deliveryChargeCities, setDeliveryChargeCities] = useState([]);
-  const [deliveryChargeLoading, setDeliveryChargeLoading] = useState(false);
   const [editingZoneId, setEditingZoneId] = useState(null);
   const [visibilityZones, setVisibilityZones] = useState([]);
   const [zonesPagination, setZonesPagination] = useState({
@@ -230,47 +118,6 @@ const VisibilityManagement = () => {
   useEffect(() => {
     fetchVendorVisibility(vendorVisibilityPage, vendorVisibilitySearchApplied);
   }, [vendorVisibilityPage, vendorVisibilitySearchApplied, fetchVendorVisibility]);
-
-  // Delivery charge dropdown helpers (Zone + City)
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setDeliveryChargeLoading(true);
-      try {
-        const res = await visibilityApi.deliveryChargeZones();
-        const items = res?.data?.data?.items ?? [];
-        if (!cancelled) setDeliveryChargeZones(Array.isArray(items) ? items : []);
-      } catch (e) {
-        if (!cancelled) setDeliveryChargeZones([]);
-      } finally {
-        if (!cancelled) setDeliveryChargeLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    const z = (zoneForm.zone || "").trim();
-    if (!z) {
-      setDeliveryChargeCities([]);
-      return () => {};
-    }
-    (async () => {
-      try {
-        const res = await visibilityApi.deliveryChargeCities(z);
-        const items = res?.data?.data?.items ?? [];
-        if (!cancelled) setDeliveryChargeCities(Array.isArray(items) ? items : []);
-      } catch (e) {
-        if (!cancelled) setDeliveryChargeCities([]);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [zoneForm.zone]);
 
   const handleZoneSearchSubmit = (e) => {
     e.preventDefault();
@@ -461,25 +308,25 @@ const VisibilityManagement = () => {
         <p className="text-sm text-gray-600">Manage visibility zones and vendor visibility by zone.</p>
       </div>
 
-      {/* ——— Driving routes (moved from Route Management) ——— */}
-      <section className="space-y-6">
-        <div>
-          <h2 className="text-xl font-semibold text-gray-800 mb-1">
-            Route Management
-          </h2>
-          <p className="text-sm text-gray-600">
-            Manage driving routes and locations for your delivery system
+      {/* ——— Map (display only) ——— */}
+      <section className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+          <h2 className="text-base font-semibold text-gray-800">Map</h2>
+          <p className="text-sm text-gray-600 mt-0.5">
+            Search or pick a location on the map. Visibility zones are maintained by zone, state, and town below.
           </p>
         </div>
-        <AddDrivingRoute onRoutesReload={handleRoutesReload} />
-        <DrivingRouteList
-          reloadKey={routesVersion}
-          onEdit={handleEditRoute}
-          onDelete={handleDeleteRoute}
-        />
+        <div className="p-6 space-y-3">
+          <LocationSearchInput
+            onLocationSelect={({ lat, lng }) => setMapCoords({ lat, lng })}
+          />
+          {(mapCoords.lat != null || mapCoords.lng != null) && (
+            <p className="text-xs text-gray-500">
+              lat: {Number(mapCoords.lat).toFixed(6)} &nbsp; lng: {Number(mapCoords.lng).toFixed(6)}
+            </p>
+          )}
+        </div>
       </section>
-
-      <div className="border-t border-gray-200 pt-2" />
 
       {/* ——— 1. Add zone ——— */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -491,24 +338,13 @@ const VisibilityManagement = () => {
         <form onSubmit={handleZoneSubmit} className="p-6 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Zone</label>
-            <select
+            <input
+              type="text"
               value={zoneForm.zone}
-              onChange={(e) =>
-                setZoneForm((f) => ({ ...f, zone: e.target.value, town_city: "" }))
-              }
-              disabled={deliveryChargeLoading}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/50 bg-white"
-            >
-              <option value="">{deliveryChargeLoading ? "Loading…" : "Select zone"}</option>
-              {deliveryChargeZones.map((z) => (
-                <option key={z} value={z}>
-                  {z}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-500 mt-1">
-              Zones come from Delivery Charge routes (zone_name).
-            </p>
+              onChange={(e) => setZoneForm((f) => ({ ...f, zone: e.target.value }))}
+              placeholder="e.g. UAE"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/50"
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">State / district</label>
@@ -516,34 +352,19 @@ const VisibilityManagement = () => {
               type="text"
               value={zoneForm.state_district}
               onChange={(e) => setZoneForm((f) => ({ ...f, state_district: e.target.value }))}
-              placeholder="e.g. Kampala"
+              placeholder="e.g. Dubai"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/50"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Town / city</label>
-            <select
+            <input
+              type="text"
               value={zoneForm.town_city}
               onChange={(e) => setZoneForm((f) => ({ ...f, town_city: e.target.value }))}
-              disabled={!zoneForm.zone || deliveryChargeCities.length === 0}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/50 bg-white"
-            >
-              <option value="">
-                {!zoneForm.zone
-                  ? "Select zone first"
-                  : deliveryChargeCities.length === 0
-                  ? "No cities found for this zone"
-                  : "Select city"}
-              </option>
-              {deliveryChargeCities.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-500 mt-1">
-              Cities come from Delivery Charge routes (start_point / end_point).
-            </p>
+              placeholder="e.g. Dubai"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/50"
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Active / delete</label>

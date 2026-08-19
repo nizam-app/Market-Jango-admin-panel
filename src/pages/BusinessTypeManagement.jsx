@@ -13,6 +13,15 @@ const slugify = (text) =>
     .replace(/\s+/g, "-")
     .replace(/[^\w-]+/g, "");
 
+const getApiErrorMessage = (err, fallback) => {
+  const data = err?.response?.data?.data;
+  if (data && typeof data === "object" && !Array.isArray(data)) {
+    const fieldErrors = Object.values(data).flat().filter(Boolean);
+    if (fieldErrors.length) return fieldErrors.join(" ");
+  }
+  return err?.response?.data?.message || err?.message || fallback;
+};
+
 const BusinessTypeManagement = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -101,7 +110,7 @@ const BusinessTypeManagement = () => {
       Swal.fire({
         icon: "error",
         title: "Save failed",
-        text: err?.response?.data?.message || "Could not save business type",
+        text: getApiErrorMessage(err, "Could not save business type"),
         confirmButtonColor: BRAND,
       });
     } finally {

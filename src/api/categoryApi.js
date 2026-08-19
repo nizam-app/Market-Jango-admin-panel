@@ -28,11 +28,15 @@ const categoryApi = {
   },
 
   /**
-   * PUT /api/category/update/{id}
-   * Body: form-data, same fields as create (only fields being updated)
+   * Update category via POST + _method=PUT.
+   * PHP does not populate multipart/form-data on real PUT requests, so FormData
+   * must be sent as POST (Laravel method spoofing).
    */
   updateCategory: (id, formData) => {
-    return axiosClient.put(`/category/update/${id}`, formData);
+    if (formData instanceof FormData && !formData.has("_method")) {
+      formData.append("_method", "PUT");
+    }
+    return axiosClient.post(`/category/update/${id}`, formData);
   },
 
   /**
