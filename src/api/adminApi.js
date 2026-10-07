@@ -81,9 +81,16 @@ export const getDeliveryDashboard = () => {
   return axiosClient.get("/delivery-charge/dashboard");
 };
 
-// Zones (for zone route dropdowns and Zones tab). Paginated; use per_page to get all.
-export const getZones = (perPage = 100) => {
-  return axiosClient.get("/zones", { params: { per_page: perPage } });
+// Zones (for zone route dropdowns and Zones tab). Paginated.
+// getZones(100) or getZones(10, 2) or getZones({ perPage: 10, page: 1, search: 'kampala' })
+export const getZones = (perPageOrOpts = 100, page = 1) => {
+  if (perPageOrOpts && typeof perPageOrOpts === "object") {
+    const { perPage = 10, page: p = 1, search } = perPageOrOpts;
+    const params = { per_page: perPage, page: p };
+    if (search) params.search = search;
+    return axiosClient.get("/zones", { params });
+  }
+  return axiosClient.get("/zones", { params: { per_page: perPageOrOpts, page } });
 };
 
 // Get single zone (for edit form).
@@ -188,10 +195,11 @@ export const deleteDeliveryChargeRoute = (id) => {
 // ==================== AFFILIATES ====================
 // List affiliates. Params: search (name, email, affiliate_code, phone), status (pending|active|suspended|banned), per_page (default 15, max 100), page
 export const getAffiliates = (params = {}) => {
-  const { search, status, per_page = 15, page = 1 } = params;
+  const { search, status, zone, per_page = 15, page = 1 } = params;
   const query = {};
   if (search != null && String(search).trim() !== "") query.search = String(search).trim();
   if (status != null && String(status).trim() !== "") query.status = String(status).trim();
+  if (zone != null && String(zone).trim() !== "") query.zone = String(zone).trim();
   if (per_page != null) query.per_page = Math.min(Number(per_page) || 15, 100);
   if (page != null) query.page = Number(page) || 1;
   return axiosClient.get("/affiliates", { params: query });

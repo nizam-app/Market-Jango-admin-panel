@@ -31,6 +31,7 @@ const initialAffiliateForm = {
   payment_info: "",
   terms_accepted: false,
   place_of_residence: "",
+  zone: "",
   status: "pending",
 };
 
@@ -119,6 +120,7 @@ const AffiliateLinks = () => {
       const res = await getAffiliates({
         search: affiliateSearch.trim() || undefined,
         status: affiliateStatusFilter || undefined,
+        zone: affiliateSearch.trim() || undefined,
         per_page: 15,
         page,
       });
@@ -696,6 +698,7 @@ const AffiliateLinks = () => {
         payment_info: affiliateForm.payment_info?.trim() || "",
         terms_accepted: true,
         place_of_residence: affiliateForm.place_of_residence?.trim() || "",
+        zone: affiliateForm.zone?.trim() || "",
         status: affiliateForm.status || "pending",
       };
       const res = await createAffiliate(payload);
@@ -853,6 +856,16 @@ const AffiliateLinks = () => {
                     value={affiliateForm.place_of_residence}
                     onChange={(e) => setAffiliateForm((f) => ({ ...f, place_of_residence: e.target.value }))}
                     placeholder="e.g. New York"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Zone (required to activate)</label>
+                  <input
+                    type="text"
+                    value={affiliateForm.zone}
+                    onChange={(e) => setAffiliateForm((f) => ({ ...f, zone: e.target.value }))}
+                    placeholder="Leave empty to stay pending"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/50"
                   />
                 </div>

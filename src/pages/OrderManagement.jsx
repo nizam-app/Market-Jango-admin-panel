@@ -11,6 +11,7 @@ import {
   Store,
 } from "lucide-react";
 import { getAllOrders, getOrderItemStatuses, parseAllOrdersResponse } from "../api/orderApi";
+import axiosClient from "../api/axiosClient";
 import { getActiveVendors } from "../api/vendorAPI";
 import { getZones } from "../api/adminApi";
 import OrderEditModal from "../components/orders/OrderEditModal";
@@ -134,6 +135,7 @@ const OrderManagement = () => {
   const [vendorId, setVendorId] = useState("");
   const [zoneId, setZoneId] = useState("");
   const [sellingMode, setSellingMode] = useState("");
+  const [debtStatus, setDebtStatus] = useState("");
   const [orderNumber, setOrderNumber] = useState("");
 
   const [statuses, setStatuses] = useState([]);
@@ -220,6 +222,7 @@ const OrderManagement = () => {
       vendorId,
       zoneId,
       sellingMode,
+      debtStatus,
       orderNumber,
     };
     try {
@@ -232,6 +235,7 @@ const OrderManagement = () => {
       if (String(f.vendorId || "").trim()) params.vendor_id = String(f.vendorId).trim();
       if (String(f.zoneId || "").trim()) params.zone_id = String(f.zoneId).trim();
       if (String(f.sellingMode || "").trim()) params.selling_mode = String(f.sellingMode).trim();
+      if (String(f.debtStatus || "").trim()) params.debt_status = String(f.debtStatus).trim();
       if (String(f.orderNumber || "").trim()) params.order_number = String(f.orderNumber).trim();
 
       const res = await getAllOrders(params);
@@ -252,7 +256,7 @@ const OrderManagement = () => {
   };
 
   const hasActiveFilters = Boolean(
-    fromDate || toDate || status || vendorId || zoneId || sellingMode || orderNumber
+    fromDate || toDate || status || vendorId || zoneId || sellingMode || debtStatus || orderNumber
   );
 
   const clearFilters = () => {
@@ -262,6 +266,7 @@ const OrderManagement = () => {
     setVendorId("");
     setZoneId("");
     setSellingMode("");
+    setDebtStatus("");
     setOrderNumber("");
     fetchOrders(1, {
       fromDate: "",
@@ -270,6 +275,7 @@ const OrderManagement = () => {
       vendorId: "",
       zoneId: "",
       sellingMode: "",
+      debtStatus: "",
       orderNumber: "",
     });
   };
@@ -452,6 +458,20 @@ const OrderManagement = () => {
                 <option value="walk_in">Walk-in</option>
               </select>
             </div>
+            <div className="md:col-span-1 xl:col-span-3">
+              <label className="block text-xs font-medium text-gray-600 mb-2">Debt status</label>
+              <select
+                value={debtStatus}
+                onChange={(e) => setDebtStatus(e.target.value)}
+                className={selectClass}
+                aria-label="Filter by debt status"
+              >
+                <option value="">All debt statuses</option>
+                <option value="unpaid">Unpaid</option>
+                <option value="partial">Partial</option>
+                <option value="paid">Paid</option>
+              </select>
+            </div>
           </div>
 
           <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 pt-2 border-t border-gray-100">
@@ -463,6 +483,44 @@ const OrderManagement = () => {
             >
               Clear all filters
             </button>
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={async () => {
+                  const params = { format: "xlsx" };
+                  if (fromDate) params.from_date = fromDate;
+                  if (toDate) params.to_date = toDate;
+                  if (sellingMode) params.sale_category = sellingMode;
+                  if (debtStatus) params.sale_category = "debt";
+                  const res = await axiosClient.get("/all/order/export", { params, responseType: "blob" });
+                  const url = window.URL.createObjectURL(res.data);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = "orders.csv";
+                  a.click();
+                }}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl border border-gray-200 bg-white"
+              >
+                Excel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const params = { format: "pdf" };
+                  if (fromDate) params.from_date = fromDate;
+                  if (toDate) params.to_date = toDate;
+                  if (sellingMode) params.sale_category = sellingMode;
+                  const res = await axiosClient.get("/all/order/export", { params, responseType: "blob" });
+                  const url = window.URL.createObjectURL(res.data);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = "orders.pdf";
+                  a.click();
+                }}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl border border-gray-200 bg-white"
+              >
+                PDF
+              </button>
             <button
               type="button"
               onClick={() => fetchOrders(1)}
@@ -482,6 +540,7 @@ const OrderManagement = () => {
                 </>
               )}
             </button>
+            </div>
           </div>
         </div>
       </section>
@@ -529,6 +588,9 @@ const OrderManagement = () => {
                   Status
                 </th>
                 <th className="px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-[#5a6489]">
+                  Debt
+                </th>
+                <th className="px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-[#5a6489]">
                   Driver
                 </th>
                 <th className="px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-[#5a6489] whitespace-nowrap">
@@ -545,7 +607,7 @@ const OrderManagement = () => {
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td colSpan={11} className="px-4 py-16 text-center">
+                  <td colSpan={12} className="px-4 py-16 text-center">
                     <span className="inline-flex items-center gap-2 text-gray-500">
                       <Loader2 className="w-5 h-5 animate-spin text-[#FF8C00]" aria-hidden />
                       Loading orders…
@@ -554,7 +616,7 @@ const OrderManagement = () => {
                 </tr>
               ) : orders.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="px-4 py-16 text-center text-gray-500">
+                  <td colSpan={12} className="px-4 py-16 text-center text-gray-500">
                     No orders match your filters.
                   </td>
                 </tr>
@@ -641,6 +703,39 @@ const OrderManagement = () => {
                             <span className="text-gray-400">—</span>
                           )}
                         </div>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        {(() => {
+                          const ds = lines[0]?.invoice?.debt_status || lines[0]?.debt_status;
+                          if (!ds) return <span className="text-gray-400">—</span>;
+                          return (
+                            <div className="flex flex-col gap-1">
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium ring-1 ring-inset bg-amber-50 text-amber-800 ring-amber-200">
+                                {ds}
+                              </span>
+                              {(ds === "unpaid" || ds === "partial") && (
+                                <button
+                                  type="button"
+                                  className="text-xs font-semibold text-[#FF8C00]"
+                                  onClick={async () => {
+                                    const raw = window.prompt("Debt payment amount");
+                                    const amount = Number(raw);
+                                    if (!amount || amount <= 0) return;
+                                    const invoiceId = lines[0]?.invoice_id || lines[0]?.invoice?.id;
+                                    try {
+                                      await axiosClient.post(`/all/order/${invoiceId}/pay-debt`, { amount });
+                                      fetchOrders(meta.current_page || 1);
+                                    } catch (err) {
+                                      window.alert(err?.response?.data?.message || "Payment failed");
+                                    }
+                                  }}
+                                >
+                                  Pay
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="px-4 py-3.5 text-gray-600">{firstDriverLabel(lines)}</td>
                       <td className="px-4 py-3.5">

@@ -13,6 +13,11 @@ import {
   downloadOrderDeliveryLabelPdf,
 } from "../../api/orderApi";
 import { getAdminDriversList } from "../../api/driverAdminApi";
+import {
+  assignAdminOrderOutlet,
+  getAdminEligibleOutlets,
+  unassignAdminOrderOutlet,
+} from "../../api/outletApi";
 import { messageFromDownloadError, saveBlobResponseAsDownload } from "../../utils/blobDownload";
 
 function sellingModeLabel(mode) {
@@ -68,6 +73,8 @@ export default function OrderEditModal({ invoiceItemId, onClose, brand, onRefres
   const [header, setHeader] = useState(null);
   const [lines, setLines] = useState([]);
   const [drivers, setDrivers] = useState([]);
+  const [outlets, setOutlets] = useState([]);
+  const [outletPick, setOutletPick] = useState({});
   const [toast, setToast] = useState(null);
 
   const [draftQty, setDraftQty] = useState({});
@@ -125,9 +132,10 @@ export default function OrderEditModal({ invoiceItemId, onClose, brand, onRefres
       setLoading(true);
       setLoadError("");
       try {
-        const [ctxRes, drvRes] = await Promise.all([
+        const [ctxRes, drvRes, outletRes] = await Promise.all([
           getOrderEditContext(invoiceItemId),
           getAdminDriversList().catch(() => ({ data: {} })),
+          getAdminEligibleOutlets().catch(() => ({ data: {} })),
         ]);
         if (cancelled) return;
         const { header: h, lines: list } = parseOrderEditContext(ctxRes);
@@ -136,6 +144,8 @@ export default function OrderEditModal({ invoiceItemId, onClose, brand, onRefres
         const raw = drvRes?.data?.data;
         const drvList = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : [];
         setDrivers(drvList);
+        const outletRaw = outletRes?.data?.data;
+        setOutlets(Array.isArray(outletRaw) ? outletRaw : []);
         const sp = {};
         const sn = {};
         list.forEach((line) => {
@@ -218,6 +228,39 @@ export default function OrderEditModal({ invoiceItemId, onClose, brand, onRefres
       onRefreshTable?.();
     } catch (e) {
       showToast(e?.response?.data?.message || e.message || "Cancel failed", true);
+    } finally {
+      setBusy(line.id, false);
+    }
+  };
+
+  const handleAssignOutlet = async (line) => {
+    const outletId = outletPick[line.id];
+    if (!outletId) {
+      showToast("Select an outlet.", true);
+      return;
+    }
+    try {
+      setBusy(line.id, true);
+      await assignAdminOrderOutlet(line.id, Number(outletId));
+      showToast("Outlet assigned.");
+      await reloadContext();
+      onRefreshTable?.();
+    } catch (e) {
+      showToast(e?.response?.data?.message || e.message || "Outlet assign failed", true);
+    } finally {
+      setBusy(line.id, false);
+    }
+  };
+
+  const handleUnassignOutlet = async (line) => {
+    try {
+      setBusy(line.id, true);
+      await unassignAdminOrderOutlet(line.id);
+      showToast("Outlet unassigned.");
+      await reloadContext();
+      onRefreshTable?.();
+    } catch (e) {
+      showToast(e?.response?.data?.message || e.message || "Unassign failed", true);
     } finally {
       setBusy(line.id, false);
     }
@@ -552,6 +595,50 @@ export default function OrderEditModal({ invoiceItemId, onClose, brand, onRefres
                           >
                             {busy ? <Loader2 className="w-4 h-4 animate-spin inline" /> : null} Apply quantity
                           </button>
+                        </div>
+
+                        {/* Outlet assignment */}
+                        <div className="rounded-lg border border-dashed border-gray-200 p-3 space-y-2">
+                          <p className="text-xs font-medium text-gray-600">Outlet assignment</p>
+                          <p className="text-xs text-gray-500">
+                            Current:{" "}
+                            {line.outlet?.name || line.outlet_name || (line.outlet_id ? `Outlet #${line.outlet_id}` : "—")}
+                            {line.outlet_status ? ` (${line.outlet_status})` : ""}
+                          </p>
+                          <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                            <select
+                              className={selectClass + " sm:max-w-xs"}
+                              disabled={busy || locked}
+                              value={outletPick[line.id] ?? ""}
+                              onChange={(e) => setOutletPick((p) => ({ ...p, [line.id]: e.target.value }))}
+                            >
+                              <option value="">Select outlet…</option>
+                              {outlets.map((o) => (
+                                <option key={o.id} value={String(o.id)}>
+                                  {o.name}
+                                  {o.zone ? ` · ${o.zone}` : ""}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              disabled={busy || locked}
+                              onClick={() => handleAssignOutlet(line)}
+                              className="text-sm font-medium px-4 py-2 rounded-xl border border-[#FF8C00] text-[#FF8C00] bg-white hover:bg-orange-50 disabled:opacity-50"
+                            >
+                              Assign outlet
+                            </button>
+                            {line.outlet_id && (
+                              <button
+                                type="button"
+                                disabled={busy || locked}
+                                onClick={() => handleUnassignOutlet(line)}
+                                className={btnGhost}
+                              >
+                                Unassign
+                              </button>
+                            )}
+                          </div>
                         </div>
 
                         {/* Assign driver */}

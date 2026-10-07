@@ -4,11 +4,13 @@ import { Activity, Bell, List } from "lucide-react";
 import ActivityFeed from "../components/activity/ActivityFeed";
 import ActivityLogList from "../components/activity/ActivityLogList";
 import AlertsPanel from "../components/activity/AlertsPanel";
+import OfflineConflicts from "../components/activity/OfflineConflicts";
 
 const TABS = [
   { id: "feed", label: "Recent Activity", icon: Activity },
   { id: "logs", label: "Audit Log", icon: List },
   { id: "alerts", label: "Alerts", icon: Bell },
+  { id: "conflicts", label: "Offline conflicts", icon: Activity },
 ];
 
 const ActivityManagement = () => {
@@ -54,6 +56,7 @@ const ActivityManagement = () => {
       {activeTab === "feed" && <ActivityFeed />}
       {activeTab === "logs" && <ActivityLogList />}
       {activeTab === "alerts" && <AlertsPanel onPendingCount={setPendingAlerts} />}
+      {activeTab === "conflicts" && <OfflineConflicts />}
     </div>
   );
 };

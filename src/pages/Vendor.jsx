@@ -286,6 +286,7 @@ const Vendor = () => {
             v.product_count ??
             (Array.isArray(v.vendor?.products) ? v.vendor.products.length : '-') ??
             '-',
+          total_profit: v.total_profit ?? v.vendor?.total_profit ?? 0,
           note: v.note ?? v.raw?.note ?? null,
           raw: v,
         }));
@@ -874,6 +875,7 @@ const Vendor = () => {
                 <th style={styles.th}>Date</th>
                 <th style={styles.th}>Name / Email</th>
                 <th style={styles.th}># Products</th>
+                <th style={styles.th}>Profit</th>
                 <th style={styles.th}>Status & Actions</th>
                 <th style={styles.th}>View</th>
                 <th style={{ ...styles.th, textAlign: 'right' }}>Menu</th>
@@ -881,11 +883,11 @@ const Vendor = () => {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td style={styles.td} colSpan={6}>Loading...</td></tr>
+                <tr><td style={styles.td} colSpan={7}>Loading...</td></tr>
               ) : error ? (
-                <tr><td style={styles.td} colSpan={6}><span style={{ color: 'red' }}>{error}</span></td></tr>
+                <tr><td style={styles.td} colSpan={7}><span style={{ color: 'red' }}>{error}</span></td></tr>
               ) : vendors.length === 0 ? (
-                <tr><td style={styles.td} colSpan={6}>No vendors found.</td></tr>
+                <tr><td style={styles.td} colSpan={7}>No vendors found.</td></tr>
               ) : (
                 vendors.map((v) => (
                   <tr key={v.id}>
@@ -900,6 +902,7 @@ const Vendor = () => {
                       )}
                     </td>
                     <td style={{ ...styles.td, textAlign: 'center' }}>{v.products_count}</td>
+                    <td style={styles.td}>{Number(v.total_profit || 0).toLocaleString()}</td>
                     <td style={styles.td}>
                       <div className="flex items-center gap-3">
                         <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${getStatusClasses(v.status)}`}>

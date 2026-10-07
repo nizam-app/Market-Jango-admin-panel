@@ -28,8 +28,14 @@ export async function getDashboardStats() {
 // =======================
 //          BANNER
 // =======================
-export function getBanners() {
-  return axiosClient.get("/banner");
+/** Public guest list (global or ?zone_id=). Prefer getManageBanners for admin UI. */
+export function getBanners(params = {}) {
+  return axiosClient.get("/banner", { params });
+}
+
+/** Admin: all banners (global + zone-wise). Optional zone_id filter. */
+export function getManageBanners(params = {}) {
+  return axiosClient.get("/banner/manage", { params: { per_page: 50, ...params } });
 }
 
 export function uploadBanner(formData) {
@@ -37,6 +43,13 @@ export function uploadBanner(formData) {
     headers: { "Content-Type": "multipart/form-data" },
   });
 }
+
+export function updateBanner(bannerId, formData) {
+  return axiosClient.post(`/banner/update/${bannerId}`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+}
+
 export function deleteBanner(bannerId) {
   return axiosClient.delete(`/banner/destroy/${bannerId}`);
 }

@@ -133,6 +133,13 @@ const Asidebar = () => {
                 path : '/route-management'
             },
             {
+                name : 'Zones',
+                navTitle : 'Zone Management',
+                icon : "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z",
+                viewBox: "0 0 24 24",
+                path : '/zone-management'
+            },
+            {
                 name : 'Orders',
                 navTitle : 'Order Management',
                 icon : "M7 4V2C7 1.45 7.45 1 8 1H16C16.55 1 17 1.45 17 2V4H20C20.55 4 21 4.45 21 5V20C21 21.1 20.1 22 19 22H5C3.9 22 3 21.1 3 20V5C3 4.45 3.45 4 4 4H7ZM9 3V4H15V3H9ZM5 6V20H19V6H5Z",
@@ -225,6 +232,14 @@ const Asidebar = () => {
                 icon : "M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z",
                 viewBox: "0 0 24 24",
                 path : '/ai-assistant'
+            },
+            {
+                name : 'Health',
+                navTitle : 'Health dashboard',
+                roles: ['admin'],
+                icon : "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15l-5-5 1.41-1.41L11 14.17l7.59-7.59L20 8l-9 9z",
+                viewBox: "0 0 24 24",
+                path : '/health'
             },
             {
                 name : 'Activity',

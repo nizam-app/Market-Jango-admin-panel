@@ -25,6 +25,7 @@ import Rankings from "../pages/Rankings";
 import CategoryManagement from "../pages/CategoryManagement";
 import BusinessTypeManagement from "../pages/BusinessTypeManagement";
 import VisibilityManagement from "../pages/VisibilityManagement";
+import ZoneManagement from "../pages/ZoneManagement";
 import AffiliateLinks from "../pages/AffiliateLinks";
 import PaymentManagement from "../pages/PaymentManagement";
 import OrderManagement from "../pages/OrderManagement";
@@ -38,6 +39,7 @@ import OutletAssignments from "../pages/OutletAssignments";
 import CurrencyManagement from "../pages/CurrencyManagement";
 import AiManagement from "../pages/AiManagement";
 import AiAssistant from "../pages/AiAssistant";
+import Health from "../pages/Health";
 
 const Router = createBrowserRouter([
   // 🔓 Public route
@@ -148,6 +150,10 @@ const Router = createBrowserRouter([
             Component: VisibilityManagement,
           },
           {
+            path: "zone-management",
+            Component: ZoneManagement,
+          },
+          {
             path: "affiliate-links",
             Component: AffiliateLinks,
           },
@@ -166,6 +172,10 @@ const Router = createBrowserRouter([
           {
             path: "ai-assistant",
             Component: AiAssistant,
+          },
+          {
+            path: "health",
+            Component: Health,
           },
           {
             path: "activity-management",

@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import Swal from 'sweetalert2';
 import { Plus, Edit3, Trash2, X, CheckCircle2, XCircle } from 'lucide-react';
-import { getAllPlans, createPlan, updatePlan, deletePlan } from '../api/adminApi';
+import { getAllPlans, createPlan, updatePlan, deletePlan, getZones } from '../api/adminApi';
 
 const BRAND = '#FF8C00';
 
@@ -13,6 +13,7 @@ const SubscriptionPlans = () => {
   const [editingPlan, setEditingPlan] = useState(null);
   const [filter, setFilter] = useState('All'); // All, Active, Inactive
   const [userTypeFilter, setUserTypeFilter] = useState('All'); // All, vendor, driver, both
+  const [zoneOptions, setZoneOptions] = useState([]); // zones.name from Zone Management
 
   // Form state
   const [formData, setFormData] = useState({
@@ -27,17 +28,43 @@ const SubscriptionPlans = () => {
     visibility_limit: '',
     moderator_limit: '',
     vendor_driver_order_limit: '',
+    max_routes: 4,
+    trial_days: '',
+    is_free: false,
     has_affiliate: false,
     has_priority_ranking: false,
     priority_boost: '',
     for_user_type: 'vendor',
     status: 'active',
     sort_order: '',
+    region: '',
+    has_marketplace: true,
+    has_walk_in: true,
+    delivery_zone: '',
   });
 
   useEffect(() => {
     fetchPlans();
   }, [filter, userTypeFilter]);
+
+  useEffect(() => {
+    const loadZones = async () => {
+      try {
+        const res = await getZones({ perPage: 100, page: 1 });
+        const pag = res?.data?.data;
+        const list = Array.isArray(pag?.data) ? pag.data : Array.isArray(pag) ? pag : [];
+        const names = list
+          .filter((z) => (z.status || 'Active') === 'Active' && z.name)
+          .map((z) => z.name)
+          .sort((a, b) => a.localeCompare(b));
+        setZoneOptions(names);
+      } catch (err) {
+        console.error('Failed to load zones for plan dropdowns', err);
+        setZoneOptions([]);
+      }
+    };
+    loadZones();
+  }, []);
 
   const fetchPlans = async () => {
     setLoading(true);
@@ -73,7 +100,7 @@ const SubscriptionPlans = () => {
       setFormData({
         name: plan.name || '',
         description: plan.description || '',
-        price: plan.price || '',
+        price: plan.price ?? '',
         currency: plan.currency || 'USD',
         billing_period: plan.billing_period || 'monthly',
         category_limit: plan.category_limit ?? '',
@@ -82,12 +109,19 @@ const SubscriptionPlans = () => {
         visibility_limit: plan.visibility_limit ?? '',
         moderator_limit: plan.moderator_limit ?? '',
         vendor_driver_order_limit: plan.vendor_driver_order_limit ?? '',
+        max_routes: plan.max_routes ?? 4,
+        trial_days: plan.trial_days ?? '',
+        is_free: !!plan.is_free,
         has_affiliate: plan.has_affiliate || false,
         has_priority_ranking: plan.has_priority_ranking || false,
         priority_boost: plan.priority_boost ?? '',
         for_user_type: plan.for_user_type || 'vendor',
         status: plan.status || 'active',
         sort_order: plan.sort_order ?? '',
+        region: plan.region || '',
+        has_marketplace: plan.has_marketplace !== false,
+        has_walk_in: plan.has_walk_in !== false,
+        delivery_zone: plan.delivery_zone || '',
       });
     } else {
       setEditingPlan(null);
@@ -103,12 +137,19 @@ const SubscriptionPlans = () => {
         visibility_limit: '',
         moderator_limit: '',
         vendor_driver_order_limit: '',
+        max_routes: 4,
+        trial_days: '',
+        is_free: false,
         has_affiliate: false,
         has_priority_ranking: false,
         priority_boost: '',
         for_user_type: 'vendor',
         status: 'active',
         sort_order: '',
+        region: '',
+        has_marketplace: true,
+        has_walk_in: true,
+        delivery_zone: '',
       });
     }
     setIsModalOpen(true);
@@ -123,7 +164,7 @@ const SubscriptionPlans = () => {
     e.preventDefault();
 
     // Validation
-    if (!formData.name.trim() || !formData.price) {
+    if (!formData.name.trim() || formData.price === '' || formData.price == null) {
       Swal.fire({
         icon: 'warning',
         title: 'Validation Error',
@@ -139,7 +180,7 @@ const SubscriptionPlans = () => {
       const payload = {
         name: formData.name.trim(),
         description: formData.description.trim() || null,
-        price: parseFloat(formData.price),
+        price: formData.is_free ? 0 : parseFloat(formData.price),
         currency: formData.currency,
         billing_period: formData.billing_period,
         category_limit: formData.category_limit ? parseInt(formData.category_limit) : 0,
@@ -151,12 +192,23 @@ const SubscriptionPlans = () => {
           formData.vendor_driver_order_limit !== ''
             ? parseInt(formData.vendor_driver_order_limit, 10)
             : 0,
+        max_routes: formData.max_routes !== '' && formData.max_routes != null
+          ? parseInt(formData.max_routes, 10)
+          : 4,
+        trial_days: formData.trial_days !== '' && formData.trial_days != null
+          ? parseInt(formData.trial_days, 10)
+          : null,
+        is_free: !!formData.is_free,
         has_affiliate: formData.has_affiliate,
         has_priority_ranking: formData.has_priority_ranking,
         priority_boost: formData.priority_boost ? parseInt(formData.priority_boost) : 0,
         for_user_type: formData.for_user_type,
         status: formData.status,
         sort_order: formData.sort_order ? parseInt(formData.sort_order) : 0,
+        region: formData.region.trim() || null,
+        has_marketplace: formData.has_marketplace,
+        has_walk_in: formData.has_walk_in,
+        delivery_zone: formData.delivery_zone.trim() || null,
       };
 
       if (editingPlan) {
@@ -361,6 +413,9 @@ const SubscriptionPlans = () => {
                           ? 'Unlimited'
                           : plan.vendor_driver_order_limit}
                       </div>
+                      <div>Routes: {plan.max_routes ?? 4}</div>
+                      <div>Trial days: {plan.trial_days != null && plan.trial_days !== '' ? plan.trial_days : '—'}</div>
+                      <div>Free: {plan.is_free ? 'Yes' : 'No'}</div>
                     </td>
                     <td style={{ padding: '12px 14px', borderBottom: '1px solid #fbfbfc', fontSize: 13 }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -457,11 +512,15 @@ const SubscriptionPlans = () => {
                     <input
                       type="number"
                       step="0.01"
+                      min="0"
                       value={formData.price}
                       onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       required
                     />
+                    {formData.is_free && (
+                      <p className="mt-1 text-xs text-gray-500">Free plan — price will be saved as 0.</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Currency</label>
@@ -475,6 +534,52 @@ const SubscriptionPlans = () => {
                       <option value="EUR">EUR</option>
                       <option value="GBP">GBP</option>
                     </select>
+                  </div>
+                </div>
+
+                {/* Route number, trial days, free plan */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Route number (max_routes)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={formData.max_routes}
+                      onChange={(e) => setFormData({ ...formData, max_routes: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Trial days</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={formData.trial_days}
+                      onChange={(e) => setFormData({ ...formData, trial_days: e.target.value })}
+                      placeholder="Optional"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="flex items-end pb-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="is_free"
+                        checked={formData.is_free}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setFormData({
+                            ...formData,
+                            is_free: checked,
+                            price: checked ? '0' : formData.price,
+                          });
+                        }}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <label htmlFor="is_free" className="text-sm font-medium text-gray-700">
+                        Free plan
+                      </label>
+                    </div>
                   </div>
                 </div>
 
@@ -603,6 +708,69 @@ const SubscriptionPlans = () => {
                     <label htmlFor="has_priority_ranking" className="text-sm font-medium text-gray-700">
                       Has Priority Ranking
                     </label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="has_marketplace"
+                      checked={formData.has_marketplace}
+                      onChange={(e) => setFormData({ ...formData, has_marketplace: e.target.checked })}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <label htmlFor="has_marketplace" className="text-sm font-medium text-gray-700">
+                      Marketplace (walk-in-only still accepts marketplace orders)
+                    </label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="has_walk_in"
+                      checked={formData.has_walk_in}
+                      onChange={(e) => setFormData({ ...formData, has_walk_in: e.target.checked })}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <label htmlFor="has_walk_in" className="text-sm font-medium text-gray-700">
+                      Walk-in POS
+                    </label>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Region</label>
+                    <select
+                      value={formData.region}
+                      onChange={(e) => setFormData({ ...formData, region: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    >
+                      <option value="">All regions (global)</option>
+                      {formData.region && !zoneOptions.includes(formData.region) && (
+                        <option value={formData.region}>{formData.region} (legacy)</option>
+                      )}
+                      {zoneOptions.map((name) => (
+                        <option key={`region-${name}`} value={name}>
+                          {name}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Must match a Zone Management name. Flutter sends this as ?region=
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Driver delivery zone</label>
+                    <select
+                      value={formData.delivery_zone}
+                      onChange={(e) => setFormData({ ...formData, delivery_zone: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    >
+                      <option value="">No zone restriction</option>
+                      {formData.delivery_zone && !zoneOptions.includes(formData.delivery_zone) && (
+                        <option value={formData.delivery_zone}>{formData.delivery_zone} (legacy)</option>
+                      )}
+                      {zoneOptions.map((name) => (
+                        <option key={`delivery-${name}`} value={name}>
+                          {name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   {formData.has_priority_ranking && (
                     <div>

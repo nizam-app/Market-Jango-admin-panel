@@ -25,6 +25,7 @@ const ADMIN_ONLY_PREFIXES = [
   "/notifications",
   "/rankings",
   "/visibility-management",
+  "/zone-management",
   "/affiliate-links",
   "/payment-management",
   "/currency-management",

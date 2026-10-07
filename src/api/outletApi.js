@@ -70,3 +70,16 @@ export const getOutletAssignments = (params = {}) =>
 
 export const getActiveOutletsForForward = () =>
   axiosClient.get("/outlet/outlets/active");
+
+// ── Admin: order line outlet assignment ─────────────────────────────────────
+export const getAdminEligibleOutlets = () =>
+  axiosClient.get("/admin/order-outlets");
+
+export const getAdminOrderOutletAssignment = (itemId) =>
+  axiosClient.get(`/admin/orders/${itemId}/outlet-assignment`);
+
+export const assignAdminOrderOutlet = (itemId, outletId) =>
+  axiosClient.post(`/admin/orders/${itemId}/assign-outlet`, { outlet_id: outletId });
+
+export const unassignAdminOrderOutlet = (itemId) =>
+  axiosClient.post(`/admin/orders/${itemId}/unassign-outlet`);

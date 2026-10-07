@@ -1,11 +1,14 @@
 // src/pages/VisibilityManagement.jsx
 // Integrated with Admin Visibility API: zones + vendor visibility.
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
+import { Link } from "react-router";
 import Swal from "sweetalert2";
 import { Plus, Search, Edit3, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
 import visibilityApi from "../api/visibilityApi";
+import { getZones } from "../api/adminApi";
 import { getActiveVendors } from "../api/vendorAPI";
 import { LocationSearchInput } from "../components/vendor/LocationSearchInput";
+import PromotionsQueue from "../components/visibility/PromotionsQueue";
 
 const BRAND = "#FF8C00";
 
@@ -60,6 +63,36 @@ const VisibilityManagement = () => {
   const [zoneOptions, setZoneOptions] = useState([]);
   const [vendorOptions, setVendorOptions] = useState([]);
   const [optionsLoading, setOptionsLoading] = useState(false);
+  const [deliveryZoneNames, setDeliveryZoneNames] = useState([]);
+  const [deliveryZonesLoading, setDeliveryZonesLoading] = useState(true);
+
+  const fetchDeliveryZoneNames = useCallback(async () => {
+    setDeliveryZonesLoading(true);
+    try {
+      const res = await getZones({ perPage: 500, page: 1 });
+      const pag = res?.data?.data;
+      const list = Array.isArray(pag?.data) ? pag.data : Array.isArray(pag) ? pag : [];
+      const names = list
+        .filter((z) => z?.status === "Active" && z?.name)
+        .map((z) => String(z.name).trim())
+        .filter(Boolean);
+      // unique, keep first casing from zones table
+      const seen = new Set();
+      const unique = [];
+      for (const name of names) {
+        const key = name.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        unique.push(name);
+      }
+      unique.sort((a, b) => a.localeCompare(b));
+      setDeliveryZoneNames(unique);
+    } catch {
+      setDeliveryZoneNames([]);
+    } finally {
+      setDeliveryZonesLoading(false);
+    }
+  }, []);
 
   const fetchZones = useCallback(
     async (pageNum = 1, search = "") => {
@@ -112,12 +145,35 @@ const VisibilityManagement = () => {
   );
 
   useEffect(() => {
+    fetchDeliveryZoneNames();
+  }, [fetchDeliveryZoneNames]);
+
+  useEffect(() => {
     fetchZones(zonesPage, zonesSearchApplied);
   }, [zonesPage, zonesSearchApplied, fetchZones]);
 
   useEffect(() => {
     fetchVendorVisibility(vendorVisibilityPage, vendorVisibilitySearchApplied);
   }, [vendorVisibilityPage, vendorVisibilitySearchApplied, fetchVendorVisibility]);
+
+  const zoneSelectOptions = useMemo(() => {
+    const names = [...deliveryZoneNames];
+    const current = (zoneForm.zone || "").trim();
+    if (
+      current &&
+      !names.some((n) => n.toLowerCase() === current.toLowerCase())
+    ) {
+      names.unshift(current);
+    }
+    return names;
+  }, [deliveryZoneNames, zoneForm.zone]);
+
+  const selectedZoneValue = useMemo(() => {
+    const current = (zoneForm.zone || "").trim();
+    if (!current) return "";
+    const match = deliveryZoneNames.find((n) => n.toLowerCase() === current.toLowerCase());
+    return match || current;
+  }, [deliveryZoneNames, zoneForm.zone]);
 
   const handleZoneSearchSubmit = (e) => {
     e.preventDefault();
@@ -148,10 +204,19 @@ const VisibilityManagement = () => {
       Swal.fire({ icon: "warning", title: "Required", text: "Zone, State/district and Town/city are required." });
       return;
     }
+    const matched = deliveryZoneNames.find((n) => n.toLowerCase() === zone.trim().toLowerCase());
+    if (!matched && !editingZoneId) {
+      Swal.fire({
+        icon: "warning",
+        title: "Select a delivery zone",
+        text: "Pick a zone from Zone Management (dropdown). Create the zone there first if it is missing.",
+      });
+      return;
+    }
     setZoneSaving(true);
     try {
       const body = {
-        zone: zone.trim(),
+        zone: matched || zone.trim(),
         state: state_district.trim(),
         town: town_city.trim(),
         status: status || "Active",
@@ -338,13 +403,34 @@ const VisibilityManagement = () => {
         <form onSubmit={handleZoneSubmit} className="p-6 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Zone</label>
-            <input
-              type="text"
-              value={zoneForm.zone}
+            <select
+              value={selectedZoneValue}
               onChange={(e) => setZoneForm((f) => ({ ...f, zone: e.target.value }))}
-              placeholder="e.g. UAE"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/50"
-            />
+              required
+              disabled={deliveryZonesLoading}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/50 bg-white disabled:bg-gray-50"
+            >
+              <option value="">
+                {deliveryZonesLoading ? "Loading zones…" : "Select a delivery zone"}
+              </option>
+              {zoneSelectOptions.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-1.5">
+              Must match a name from{" "}
+              <Link to="/zone-management" className="text-[#FF8C00] font-medium hover:underline">
+                Zone Management
+              </Link>{" "}
+              so buyer banners and payouts resolve correctly.
+              {deliveryZoneNames.length === 0 && !deliveryZonesLoading && (
+                <span className="block text-amber-700 mt-1">
+                  No active delivery zones found. Create one first on Zone Management.
+                </span>
+              )}
+            </p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">State / district</label>
@@ -693,6 +779,7 @@ const VisibilityManagement = () => {
           </div>
         </div>
       )}
+      <PromotionsQueue />
     </div>
   );
 };

@@ -68,6 +68,11 @@ const PaymentManagement = () => {
 
   const [platformCommission, setPlatformCommission] = useState("");
   const [taxRules, setTaxRules] = useState("");
+  const [vendorProcessingPercent, setVendorProcessingPercent] = useState("10");
+  const [buyerFlatFee, setBuyerFlatFee] = useState("0");
+  const [transportFlatFee, setTransportFlatFee] = useState("0");
+  const [driverShareFlat, setDriverShareFlat] = useState("0");
+  const [driverPlatformFeePercent, setDriverPlatformFeePercent] = useState("0");
 
   const [zonesList, setZonesList] = useState([]);
   const [settingsLoading, setSettingsLoading] = useState(false);
@@ -152,6 +157,15 @@ const PaymentManagement = () => {
             : ""
         );
         setTaxRules(p.tax_rules ?? "");
+        setVendorProcessingPercent(
+          p.vendor_processing_percent != null ? String(p.vendor_processing_percent) : "10"
+        );
+        setBuyerFlatFee(p.buyer_flat_fee != null ? String(p.buyer_flat_fee) : "0");
+        setTransportFlatFee(p.transport_flat_fee != null ? String(p.transport_flat_fee) : "0");
+        setDriverShareFlat(p.driver_share_flat != null ? String(p.driver_share_flat) : "0");
+        setDriverPlatformFeePercent(
+          p.driver_platform_fee_percent != null ? String(p.driver_platform_fee_percent) : "0"
+        );
         setBuyerApiKey("");
       } catch (e) {
         console.error(e);
@@ -193,6 +207,13 @@ const PaymentManagement = () => {
         affiliate_methods: affiliateMethods,
         platform_commission:
           platformCommission === "" ? null : Number(platformCommission),
+        vendor_processing_percent:
+          vendorProcessingPercent === "" ? 10 : Number(vendorProcessingPercent),
+        buyer_flat_fee: buyerFlatFee === "" ? 0 : Number(buyerFlatFee),
+        transport_flat_fee: transportFlatFee === "" ? 0 : Number(transportFlatFee),
+        driver_share_flat: driverShareFlat === "" ? 0 : Number(driverShareFlat),
+        driver_platform_fee_percent:
+          driverPlatformFeePercent === "" ? 0 : Number(driverPlatformFeePercent),
         tax_rules: taxRules || null,
       };
       const body = {
@@ -256,6 +277,13 @@ const PaymentManagement = () => {
         affiliate_methods: affiliateMethods,
         platform_commission:
           platformCommission === "" ? null : Number(platformCommission),
+        vendor_processing_percent:
+          vendorProcessingPercent === "" ? 10 : Number(vendorProcessingPercent),
+        buyer_flat_fee: buyerFlatFee === "" ? 0 : Number(buyerFlatFee),
+        transport_flat_fee: transportFlatFee === "" ? 0 : Number(transportFlatFee),
+        driver_share_flat: driverShareFlat === "" ? 0 : Number(driverShareFlat),
+        driver_platform_fee_percent:
+          driverPlatformFeePercent === "" ? 0 : Number(driverPlatformFeePercent),
         tax_rules: taxRules || null,
       };
       await savePaymentSettings({
@@ -716,6 +744,68 @@ const PaymentManagement = () => {
                     placeholder="e.g. VAT 18% + local taxes"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/40"
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Vendor processing % (of order total)
+                  </label>
+                  <input
+                    type="number"
+                    value={vendorProcessingPercent}
+                    onChange={(e) => setVendorProcessingPercent(e.target.value)}
+                    placeholder="10"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/40"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Buyer flat fee
+                  </label>
+                  <input
+                    type="number"
+                    value={buyerFlatFee}
+                    onChange={(e) => setBuyerFlatFee(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/40"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Transport flat fee
+                  </label>
+                  <input
+                    type="number"
+                    value={transportFlatFee}
+                    onChange={(e) => setTransportFlatFee(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/40"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Driver payout share (flat override)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={driverShareFlat}
+                    onChange={(e) => setDriverShareFlat(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/40"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">When set, overrides delivery charge as driver payment amount.</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Driver platform fee (%)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step="0.01"
+                    value={driverPlatformFeePercent}
+                    onChange={(e) => setDriverPlatformFeePercent(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/40"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">Percentage of driver payout (for reporting/settlement). 0–100.</p>
                 </div>
               </div>
               <button

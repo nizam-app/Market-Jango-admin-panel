@@ -25,6 +25,13 @@ const AdminUserList = () => {
     email: "",
     role: "Admin",
     status: "Active",
+    phone: "",
+    assigned_zone: "",
+    assigned_state: "",
+    assigned_town: "",
+    notify_sms: false,
+    notify_whatsapp: false,
+    notify_in_app: true,
   });
 
   const toggleDropdown = (id) => {
@@ -78,6 +85,13 @@ const AdminUserList = () => {
       email: user.email || "",
       role: getRoleLabel(user),
       status: getStatusLabel(user),
+      phone: user.phone || "",
+      assigned_zone: user.assigned_zone || "",
+      assigned_state: user.assigned_state || "",
+      assigned_town: user.assigned_town || "",
+      notify_sms: !!user.notify_sms,
+      notify_whatsapp: !!user.notify_whatsapp,
+      notify_in_app: user.notify_in_app !== false,
     });
     setActiveDropdown(null);
   };
@@ -99,6 +113,13 @@ const AdminUserList = () => {
         email: editForm.email,
         role: editForm.role,
         status: editForm.status,
+        phone: editForm.phone,
+        assigned_zone: editForm.assigned_zone,
+        assigned_state: editForm.assigned_state,
+        assigned_town: editForm.assigned_town,
+        notify_sms: editForm.notify_sms,
+        notify_whatsapp: editForm.notify_whatsapp,
+        notify_in_app: editForm.notify_in_app,
       });
 
       setUsers((prev) =>
@@ -459,6 +480,56 @@ const AdminUserList = () => {
                   className="mt-1 w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#FF8C00]"
                 />
               </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700">
+                  Phone
+                </label>
+                <input
+                  type="text"
+                  value={editForm.phone}
+                  onChange={(e) =>
+                    handleEditChange("phone", e.target.value)
+                  }
+                  className="mt-1 w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#FF8C00]"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <input
+                  type="text"
+                  placeholder="Zone"
+                  value={editForm.assigned_zone}
+                  onChange={(e) => handleEditChange("assigned_zone", e.target.value)}
+                  className="mt-1 w-full border rounded-md px-3 py-2 text-sm"
+                />
+                <input
+                  type="text"
+                  placeholder="State"
+                  value={editForm.assigned_state}
+                  onChange={(e) => handleEditChange("assigned_state", e.target.value)}
+                  className="mt-1 w-full border rounded-md px-3 py-2 text-sm"
+                />
+                <input
+                  type="text"
+                  placeholder="Town"
+                  value={editForm.assigned_town}
+                  onChange={(e) => handleEditChange("assigned_town", e.target.value)}
+                  className="mt-1 w-full border rounded-md px-3 py-2 text-sm"
+                />
+              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={editForm.notify_sms} onChange={(e) => handleEditChange("notify_sms", e.target.checked)} />
+                SMS opt-in
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={editForm.notify_whatsapp} onChange={(e) => handleEditChange("notify_whatsapp", e.target.checked)} />
+                WhatsApp opt-in
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={editForm.notify_in_app} onChange={(e) => handleEditChange("notify_in_app", e.target.checked)} />
+                In-app opt-in
+              </label>
 
               <div className="flex gap-3">
                 <div className="flex-1">

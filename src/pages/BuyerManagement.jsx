@@ -42,7 +42,7 @@ const BuyerManagement = () => {
   const fetchBuyers = async (page = 1, search = "") => {
     try {
       setLoading(true);
-      const res = await buyerApi.getBuyers(page, search);
+      const res = await buyerApi.getBuyers(page, search, search);
 
       const payload = res.data?.data; // Laravel response এর "data" object
       if (payload) {

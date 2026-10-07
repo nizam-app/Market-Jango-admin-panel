@@ -1,6 +1,6 @@
 // src/components/vendor/LocationSearchInput.jsx
-import React, { useCallback, useState } from "react";
-import { GoogleMap, MarkerF, useJsApiLoader } from "@react-google-maps/api";
+import React, { useCallback, useEffect, useState } from "react";
+import { Circle, GoogleMap, MarkerF, useJsApiLoader } from "@react-google-maps/api";
 import { Search, MapPin, Crosshair } from "lucide-react";
 import Swal from "sweetalert2";
 import { GOOGLE_MAPS_LOADER_OPTIONS } from "../../config/googleMapsConfig";
@@ -16,14 +16,45 @@ const containerStyle = {
 
 const defaultCenter = { lat: 23.8103, lng: 90.4125 }; // Dhaka
 
-export function LocationSearchInput({ onLocationSelect }) {
+/**
+ * @param {{ onLocationSelect?: Function, initialLat?: number|null, initialLng?: number|null, radiusKm?: number|string|null }} props
+ */
+export function LocationSearchInput({
+  onLocationSelect,
+  initialLat = null,
+  initialLng = null,
+  radiusKm = null,
+}) {
+  const hasInitial =
+    initialLat != null &&
+    initialLng != null &&
+    Number.isFinite(Number(initialLat)) &&
+    Number.isFinite(Number(initialLng));
+
+  const start = hasInitial
+    ? { lat: Number(initialLat), lng: Number(initialLng) }
+    : defaultCenter;
+
   const [searchText, setSearchText] = useState("");
-  const [center, setCenter] = useState(defaultCenter);
-  const [markerPosition, setMarkerPosition] = useState(defaultCenter);
+  const [center, setCenter] = useState(start);
+  const [markerPosition, setMarkerPosition] = useState(start);
   const [isSearching, setIsSearching] = useState(false);
 
-  // 🔹 সর্বত্র একই loader options ব্যবহার করছি
   const { isLoaded, loadError } = useJsApiLoader(GOOGLE_MAPS_LOADER_OPTIONS);
+
+  useEffect(() => {
+    if (!hasInitial) return;
+    const next = { lat: Number(initialLat), lng: Number(initialLng) };
+    setCenter(next);
+    setMarkerPosition(next);
+  }, [hasInitial, initialLat, initialLng]);
+
+  // Seed parent form with default pin when creating (no initial coords)
+  useEffect(() => {
+    if (hasInitial || !onLocationSelect) return;
+    onLocationSelect({ address: "", lat: start.lat, lng: start.lng });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only once on mount for new picks
+  }, []);
 
   const applyLocation = useCallback(
     (address, lat, lng) => {
@@ -165,6 +196,8 @@ export function LocationSearchInput({ onLocationSelect }) {
     }
   };
 
+  const radiusMeters = Number(radiusKm) > 0 ? Number(radiusKm) * 1000 : null;
+
   if (loadError) {
     return (
       <div className="text-sm text-red-600">
@@ -179,7 +212,6 @@ export function LocationSearchInput({ onLocationSelect }) {
 
   return (
     <div className="space-y-3">
-      {/* Search row */}
       <div className="flex gap-2">
         <div className="relative flex-1">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
@@ -212,12 +244,11 @@ export function LocationSearchInput({ onLocationSelect }) {
         </button>
       </div>
 
-      {/* Map */}
       <div className="border border-gray-200 rounded-xl overflow-hidden">
         <GoogleMap
           mapContainerStyle={containerStyle}
           center={center}
-          zoom={16}
+          zoom={radiusMeters ? 12 : 16}
           onClick={handleMapClick}
           options={{
             streetViewControl: false,
@@ -232,10 +263,22 @@ export function LocationSearchInput({ onLocationSelect }) {
               onDragEnd={handleMarkerDragEnd}
             />
           )}
+          {markerPosition && radiusMeters && (
+            <Circle
+              center={markerPosition}
+              radius={radiusMeters}
+              options={{
+                fillColor: "#FF8C00",
+                fillOpacity: 0.15,
+                strokeColor: "#FF8C00",
+                strokeOpacity: 0.8,
+                strokeWeight: 2,
+              }}
+            />
+          )}
         </GoogleMap>
       </div>
 
-      {/* Lat / Lng */}
       {markerPosition && (
         <div className="flex gap-6 text-xs text-gray-600">
           <div>

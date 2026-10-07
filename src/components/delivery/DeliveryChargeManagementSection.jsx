@@ -38,6 +38,8 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
   const [visibilityZoneOptions, setVisibilityZoneOptions] = useState([]);
   const [visibilityStateOptions, setVisibilityStateOptions] = useState([]);
   const [visibilityTownOptions, setVisibilityTownOptions] = useState([]);
+  const [visibilityEndStateOptions, setVisibilityEndStateOptions] = useState([]);
+  const [visibilityEndTownOptions, setVisibilityEndTownOptions] = useState([]);
   const [statesLoading, setStatesLoading] = useState(false);
   const [townsLoading, setTownsLoading] = useState(false);
 
@@ -45,11 +47,15 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
     zone_name: '',
     state: '',
     from_point: '',
+    end_zone_name: '',
+    end_state: '',
     to_point: '',
     vendor_id: '',
     delivery_timeline: '',
     flat_base_charge: '',
     flat_enabled: true,
+    urgent_flat_fee: '',
+    distance_km: '',
     status: 'Active',
     currency: 'USD',
     weight_ranges: [defaultWeightRange()],
@@ -146,6 +152,52 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
       cancelled = true;
     };
   }, [isDeliveryChargeModalOpen, deliveryChargeForm.zone_name, deliveryChargeForm.state]);
+
+  useEffect(() => {
+    const zone = String(deliveryChargeForm.end_zone_name || '').trim();
+    if (!isDeliveryChargeModalOpen || !zone) {
+      setVisibilityEndStateOptions([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await visibilityApi.optionStates(zone);
+        const items = res?.data?.data?.items ?? [];
+        if (!cancelled) setVisibilityEndStateOptions(Array.isArray(items) ? items : []);
+      } catch (e) {
+        if (!cancelled) setVisibilityEndStateOptions([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isDeliveryChargeModalOpen, deliveryChargeForm.end_zone_name]);
+
+  useEffect(() => {
+    const zone = String(deliveryChargeForm.end_zone_name || '').trim();
+    const state = String(deliveryChargeForm.end_state || '').trim();
+    if (!isDeliveryChargeModalOpen || !zone || !state) {
+      setVisibilityEndTownOptions([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setTownsLoading(true);
+      try {
+        const res = await visibilityApi.optionTowns(zone, state);
+        const items = res?.data?.data?.items ?? [];
+        if (!cancelled) setVisibilityEndTownOptions(Array.isArray(items) ? items : []);
+      } catch (e) {
+        if (!cancelled) setVisibilityEndTownOptions([]);
+      } finally {
+        if (!cancelled) setTownsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isDeliveryChargeModalOpen, deliveryChargeForm.end_zone_name, deliveryChargeForm.end_state]);
 
   const fetchDashboard = async () => {
     setLoading(true);
@@ -254,19 +306,23 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
       zone_name: route.zone_name || '',
       state: route.state || '',
       from_point: route.from_point ?? route.start_point ?? '',
+      end_zone_name: route.end_zone_name || route.zone_name || '',
+      end_state: route.end_state || route.state || '',
       to_point: route.to_point ?? route.end_point ?? '',
       vendor_id: route.vendor_id ?? '',
       delivery_timeline: route.delivery_timeline ?? '',
       flat_base_charge: route.flat_base_charge ?? route.flat_base_price ?? '',
       flat_enabled: route.flat_enabled !== false,
+      urgent_flat_fee: route.urgent_flat_fee ?? '',
+      distance_km: route.distance_km ?? '',
       status: route.status || 'Active',
       currency: route.currency || 'USD',
       weight_ranges: wr,
-      weight_enabled: wr.length > 0,
+      weight_enabled: route.weight_enabled != null ? !!route.weight_enabled : false,
       distance_ranges: dr,
-      distance_enabled: dr.length > 0,
+      distance_enabled: route.distance_enabled != null ? !!route.distance_enabled : dr.some((r) => Number(r.max_distance_km) > 0),
       cube_ranges: cr,
-      cube_enabled: cr.length > 0,
+      cube_enabled: route.cube_enabled != null ? !!route.cube_enabled : false,
     };
   };
 
@@ -295,11 +351,15 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
         zone_name: '',
         state: '',
         from_point: '',
+        end_zone_name: '',
+        end_state: '',
         to_point: '',
         vendor_id: '',
         delivery_timeline: '',
         flat_base_charge: '',
         flat_enabled: true,
+        urgent_flat_fee: '',
+        distance_km: '',
         status: 'Active',
         currency: 'USD',
         weight_ranges: [defaultWeightRange()],
@@ -322,15 +382,27 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
 
   const buildDeliveryChargePayload = () => {
     const flatBase = parseFloat(deliveryChargeForm.flat_base_charge);
+    const urgentFee = parseFloat(deliveryChargeForm.urgent_flat_fee);
+    const distanceKmRaw = deliveryChargeForm.distance_km;
+    const distanceKm =
+      distanceKmRaw === '' || distanceKmRaw == null
+        ? null
+        : (Number.isNaN(parseFloat(distanceKmRaw)) ? null : parseFloat(distanceKmRaw));
     const timeline = String(deliveryChargeForm.delivery_timeline || '').trim();
     const payload = {
       zone_name: String(deliveryChargeForm.zone_name).trim(),
       state: String(deliveryChargeForm.state || '').trim() || null,
       from_point: String(deliveryChargeForm.from_point).trim(),
+      end_zone_name: String(deliveryChargeForm.end_zone_name || deliveryChargeForm.zone_name).trim(),
+      end_state: String(deliveryChargeForm.end_state || deliveryChargeForm.state || '').trim() || null,
       to_point: String(deliveryChargeForm.to_point).trim(),
       delivery_timeline: timeline || null,
       flat_base_charge: Number.isNaN(flatBase) ? 0 : flatBase,
       flat_enabled: !!deliveryChargeForm.flat_enabled,
+      weight_enabled: !!deliveryChargeForm.weight_enabled,
+      cube_enabled: !!deliveryChargeForm.cube_enabled,
+      urgent_flat_fee: Number.isNaN(urgentFee) ? 0 : urgentFee,
+      distance_km: distanceKm,
       status: deliveryChargeForm.status || 'Active',
       currency: deliveryChargeForm.currency || null,
       weight_ranges: deliveryChargeForm.weight_enabled
@@ -378,6 +450,8 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
     e.preventDefault();
     const zone = String(deliveryChargeForm.zone_name).trim();
     const state = String(deliveryChargeForm.state || '').trim();
+    const endZone = String(deliveryChargeForm.end_zone_name || '').trim();
+    const endState = String(deliveryChargeForm.end_state || '').trim();
     const from = String(deliveryChargeForm.from_point).trim();
     const to = String(deliveryChargeForm.to_point).trim();
     const flat = parseFloat(deliveryChargeForm.flat_base_charge);
@@ -386,7 +460,15 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
       return;
     }
     if (!state) {
-      Swal.fire({ icon: 'warning', title: 'Validation', text: 'State is required', confirmButtonColor: BRAND });
+      Swal.fire({ icon: 'warning', title: 'Validation', text: 'Start state is required', confirmButtonColor: BRAND });
+      return;
+    }
+    if (!endZone) {
+      Swal.fire({ icon: 'warning', title: 'Validation', text: 'End country (zone) is required', confirmButtonColor: BRAND });
+      return;
+    }
+    if (!endState) {
+      Swal.fire({ icon: 'warning', title: 'Validation', text: 'End state is required', confirmButtonColor: BRAND });
       return;
     }
     if (!from) {
@@ -579,6 +661,8 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
                     <th style={{ textAlign: 'left', padding: '12px 14px', borderBottom: '1px solid #f0f0f3', color: '#666', fontSize: 13 }}>End point</th>
                     <th style={{ textAlign: 'left', padding: '12px 14px', borderBottom: '1px solid #f0f0f3', color: '#666', fontSize: 13 }}>Delivery timeline</th>
                     <th style={{ textAlign: 'left', padding: '12px 14px', borderBottom: '1px solid #f0f0f3', color: '#666', fontSize: 13 }}>Flat base price</th>
+                    <th style={{ textAlign: 'left', padding: '12px 14px', borderBottom: '1px solid #f0f0f3', color: '#666', fontSize: 13 }}>Urgent fee</th>
+                    <th style={{ textAlign: 'left', padding: '12px 14px', borderBottom: '1px solid #f0f0f3', color: '#666', fontSize: 13 }}>Distance (km)</th>
                     <th style={{ textAlign: 'left', padding: '12px 14px', borderBottom: '1px solid #f0f0f3', color: '#666', fontSize: 13 }}>Weight base range</th>
                     <th style={{ textAlign: 'left', padding: '12px 14px', borderBottom: '1px solid #f0f0f3', color: '#666', fontSize: 13 }}>Distance base range</th>
                     <th style={{ textAlign: 'left', padding: '12px 14px', borderBottom: '1px solid #f0f0f3', color: '#666', fontSize: 13 }}>Cubic base range</th>
@@ -594,6 +678,8 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
                       <td style={{ padding: '12px 14px', borderBottom: '1px solid #fbfbfc' }}>{row.end_point ?? row.to_point ?? '—'}</td>
                       <td style={{ padding: '12px 14px', borderBottom: '1px solid #fbfbfc', fontSize: 13 }}>{row.delivery_timeline || '—'}</td>
                       <td style={{ padding: '12px 14px', borderBottom: '1px solid #fbfbfc' }}>{row.flat_base_price != null ? `${row.flat_base_price} ${row.currency || 'USD'}` : '—'}</td>
+                      <td style={{ padding: '12px 14px', borderBottom: '1px solid #fbfbfc' }}>{row.urgent_flat_fee != null && row.urgent_flat_fee !== '' ? `${row.urgent_flat_fee} ${row.currency || 'USD'}` : '—'}</td>
+                      <td style={{ padding: '12px 14px', borderBottom: '1px solid #fbfbfc' }}>{row.distance_km != null && row.distance_km !== '' ? row.distance_km : '—'}</td>
                       <td style={{ padding: '12px 14px', borderBottom: '1px solid #fbfbfc', fontSize: 13 }}>{row.weight_base_range || '—'}</td>
                       <td style={{ padding: '12px 14px', borderBottom: '1px solid #fbfbfc', fontSize: 13 }}>{row.distance_base_range || '—'}</td>
                       <td style={{ padding: '12px 14px', borderBottom: '1px solid #fbfbfc', fontSize: 13 }}>{row.cubic_base_range || '—'}</td>
@@ -632,63 +718,53 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
                 <p className="text-xs text-gray-500">
                   Zone, state, and towns come from <strong>Visibility zones</strong>. Add them under Visibility Management first.
                 </p>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Zone <span className="text-red-500">*</span></label>
-                  <select
-                    value={deliveryChargeForm.zone_name}
-                    onChange={(e) => {
-                      setDeliveryChargeForm({
-                        ...deliveryChargeForm,
-                        zone_name: e.target.value,
-                        state: '',
-                        from_point: '',
-                        to_point: '',
-                      });
-                    }}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                    required
-                    disabled={routesLoading}
-                  >
-                    <option value="">{routesLoading ? 'Loading zones…' : 'Select zone'}</option>
-                    {visibilityZoneOptions.map((z) => (
-                      <option key={z} value={z}>{z}</option>
-                    ))}
-                  </select>
-                  {!routesLoading && visibilityZoneOptions.length === 0 && (
-                    <p className="mt-1 text-xs text-amber-600">No visibility zones found. Create zones on Visibility Management.</p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">State <span className="text-red-500">*</span></label>
-                  <select
-                    value={deliveryChargeForm.state}
-                    onChange={(e) => {
-                      setDeliveryChargeForm({
-                        ...deliveryChargeForm,
-                        state: e.target.value,
-                        from_point: '',
-                        to_point: '',
-                      });
-                    }}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                    required
-                    disabled={!deliveryChargeForm.zone_name || statesLoading}
-                  >
-                    <option value="">
-                      {!deliveryChargeForm.zone_name
-                        ? 'Select zone first'
-                        : statesLoading
-                          ? 'Loading states…'
-                          : 'Select state'}
-                    </option>
-                    {visibilityStateOptions.map((s) => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="rounded-lg border border-gray-200 p-4 space-y-3">
+                  <p className="text-sm font-semibold text-gray-800">Start point</p>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Start point <span className="text-red-500">*</span></label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Country (zone) <span className="text-red-500">*</span></label>
+                    <select
+                      value={deliveryChargeForm.zone_name}
+                      onChange={(e) => {
+                        setDeliveryChargeForm({
+                          ...deliveryChargeForm,
+                          zone_name: e.target.value,
+                          state: '',
+                          from_point: '',
+                        });
+                      }}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                      required
+                      disabled={routesLoading}
+                    >
+                      <option value="">{routesLoading ? 'Loading zones…' : 'Select zone'}</option>
+                      {visibilityZoneOptions.map((z) => (
+                        <option key={`start-z-${z}`} value={z}>{z}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">State <span className="text-red-500">*</span></label>
+                    <select
+                      value={deliveryChargeForm.state}
+                      onChange={(e) => {
+                        setDeliveryChargeForm({
+                          ...deliveryChargeForm,
+                          state: e.target.value,
+                          from_point: '',
+                        });
+                      }}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                      required
+                      disabled={!deliveryChargeForm.zone_name || statesLoading}
+                    >
+                      <option value="">{!deliveryChargeForm.zone_name ? 'Select country first' : statesLoading ? 'Loading states…' : 'Select state'}</option>
+                      {visibilityStateOptions.map((s) => (
+                        <option key={`start-s-${s}`} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Town <span className="text-red-500">*</span></label>
                     <select
                       value={deliveryChargeForm.from_point}
                       onChange={(e) => setDeliveryChargeForm({ ...deliveryChargeForm, from_point: e.target.value })}
@@ -696,35 +772,70 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
                       required
                       disabled={!deliveryChargeForm.state || townsLoading}
                     >
-                      <option value="">
-                        {!deliveryChargeForm.state
-                          ? 'Select state first'
-                          : townsLoading
-                            ? 'Loading towns…'
-                            : 'Select start point'}
-                      </option>
+                      <option value="">{!deliveryChargeForm.state ? 'Select state first' : townsLoading ? 'Loading towns…' : 'Select start town'}</option>
                       {visibilityTownOptions.map((town) => (
                         <option key={`from-${town}`} value={town}>{town}</option>
                       ))}
                     </select>
                   </div>
+                </div>
+
+                <div className="rounded-lg border border-gray-200 p-4 space-y-3">
+                  <p className="text-sm font-semibold text-gray-800">End point</p>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">End point <span className="text-red-500">*</span></label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Country (zone) <span className="text-red-500">*</span></label>
+                    <select
+                      value={deliveryChargeForm.end_zone_name}
+                      onChange={(e) => {
+                        setDeliveryChargeForm({
+                          ...deliveryChargeForm,
+                          end_zone_name: e.target.value,
+                          end_state: '',
+                          to_point: '',
+                        });
+                      }}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                      required
+                      disabled={routesLoading}
+                    >
+                      <option value="">{routesLoading ? 'Loading zones…' : 'Select zone'}</option>
+                      {visibilityZoneOptions.map((z) => (
+                        <option key={`end-z-${z}`} value={z}>{z}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">State <span className="text-red-500">*</span></label>
+                    <select
+                      value={deliveryChargeForm.end_state}
+                      onChange={(e) => {
+                        setDeliveryChargeForm({
+                          ...deliveryChargeForm,
+                          end_state: e.target.value,
+                          to_point: '',
+                        });
+                      }}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                      required
+                      disabled={!deliveryChargeForm.end_zone_name}
+                    >
+                      <option value="">{!deliveryChargeForm.end_zone_name ? 'Select country first' : 'Select state'}</option>
+                      {visibilityEndStateOptions.map((s) => (
+                        <option key={`end-s-${s}`} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Town <span className="text-red-500">*</span></label>
                     <select
                       value={deliveryChargeForm.to_point}
                       onChange={(e) => setDeliveryChargeForm({ ...deliveryChargeForm, to_point: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                       required
-                      disabled={!deliveryChargeForm.state || townsLoading}
+                      disabled={!deliveryChargeForm.end_state || townsLoading}
                     >
-                      <option value="">
-                        {!deliveryChargeForm.state
-                          ? 'Select state first'
-                          : townsLoading
-                            ? 'Loading towns…'
-                            : 'Select end point'}
-                      </option>
-                      {visibilityTownOptions.map((town) => (
+                      <option value="">{!deliveryChargeForm.end_state ? 'Select state first' : townsLoading ? 'Loading towns…' : 'Select end town'}</option>
+                      {visibilityEndTownOptions.map((town) => (
                         <option key={`to-${town}`} value={town}>{town}</option>
                       ))}
                     </select>
@@ -782,6 +893,33 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                       required
                     />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 mt-3">
+                    <div>
+                      <label className="block text-sm text-gray-600 mb-1">Urgent / Express flat fee</label>
+                      <input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={deliveryChargeForm.urgent_flat_fee}
+                        onChange={(e) => setDeliveryChargeForm({ ...deliveryChargeForm, urgent_flat_fee: e.target.value })}
+                        placeholder="0"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-600 mb-1">Distance (km)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        step="any"
+                        value={deliveryChargeForm.distance_km}
+                        onChange={(e) => setDeliveryChargeForm({ ...deliveryChargeForm, distance_km: e.target.value })}
+                        placeholder="Handwritten km for drivers"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">Handwritten km for drivers (route distance).</p>
+                    </div>
                   </div>
                 </div>
                 <div className="border-t pt-4">
