@@ -22,6 +22,9 @@ const AddNewAdminSection = () => {
         setRolesError("");
         const res = await getRoles();
         const list = Array.isArray(res.data) ? res.data : [];
+        if (list.length === 0) {
+          setRolesError("No roles found. Create roles in the database or seed permissions first.");
+        }
         setRoles(list);
       } catch (err) {
         console.error("Failed to load roles", err);

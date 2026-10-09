@@ -16,9 +16,9 @@ import visibilityApi from '../../api/visibilityApi';
 
 const BRAND = '#FF8C00';
 
-const defaultWeightRange = () => ({ min_weight: 0, max_weight: 0, per_kg_charge: 0, min_charge: null, max_charge: null, enabled: true });
-const defaultDistanceRange = () => ({ min_distance_km: 0, max_distance_km: 0, per_km_charge: 0, min_charge: null, max_charge: null, enabled: true });
-const defaultCubeRange = () => ({ min_cube: 0, max_cube: 0, per_cube_charge: 0, min_charge: null, max_charge: null, enabled: true });
+const defaultWeightRange = () => ({ min_weight: 0, max_weight: 0, per_kg_charge: 0, enabled: true });
+const defaultDistanceRange = () => ({ min_distance_km: 0, max_distance_km: 0, per_km_charge: 0, enabled: true });
+const defaultCubeRange = () => ({ min_cube: 0, max_cube: 0, per_cube_charge: 0, enabled: true });
 
 const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone = true, showDashboard = true }) => {
   const [activeTab, setActiveTab] = useState(defaultTab);
@@ -410,8 +410,8 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
             min_weight: Number(r.min_weight) || 0,
             max_weight: Number(r.max_weight) || 0,
             per_kg_charge: Number(r.per_kg_charge) || 0,
-            min_charge: r.min_charge != null && r.min_charge !== '' ? Number(r.min_charge) : null,
-            max_charge: r.max_charge != null && r.max_charge !== '' ? Number(r.max_charge) : null,
+            min_charge: null,
+            max_charge: null,
             enabled: r.enabled !== false,
           }))
         : [],
@@ -420,8 +420,8 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
             min_distance_km: Number(r.min_distance_km) || 0,
             max_distance_km: Number(r.max_distance_km) || 0,
             per_km_charge: Number(r.per_km_charge) || 0,
-            min_charge: r.min_charge != null && r.min_charge !== '' ? Number(r.min_charge) : null,
-            max_charge: r.max_charge != null && r.max_charge !== '' ? Number(r.max_charge) : null,
+            min_charge: null,
+            max_charge: null,
             enabled: r.enabled !== false,
           }))
         : [],
@@ -430,8 +430,8 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
             min_cube: Number(r.min_cube) || 0,
             max_cube: Number(r.max_cube) || 0,
             per_cube_charge: Number(r.per_cube_charge) || 0,
-            min_charge: r.min_charge != null && r.min_charge !== '' ? Number(r.min_charge) : null,
-            max_charge: r.max_charge != null && r.max_charge !== '' ? Number(r.max_charge) : null,
+            min_charge: null,
+            max_charge: null,
             enabled: r.enabled !== false,
           }))
         : [],
@@ -938,7 +938,7 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
                   {deliveryChargeForm.weight_enabled && (
                     <>
                       {deliveryChargeForm.weight_ranges.map((r, idx) => (
-                        <div key={idx} className="grid grid-cols-2 gap-2 mb-3 p-3 bg-gray-50 rounded-lg">
+                        <div key={idx} className="grid grid-cols-3 gap-2 mb-3 p-3 bg-gray-50 rounded-lg items-center">
                           <input type="number" min={0} step="any" placeholder="Min weight" value={r.min_weight} onChange={(e) => {
                             const arr = [...deliveryChargeForm.weight_ranges];
                             arr[idx] = { ...arr[idx], min_weight: e.target.value };
@@ -949,23 +949,13 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
                             arr[idx] = { ...arr[idx], max_weight: e.target.value };
                             setDeliveryChargeForm({ ...deliveryChargeForm, weight_ranges: arr });
                           }} className="px-3 py-1.5 border rounded text-sm" />
-                          <input type="number" min={0} step="any" placeholder="Per kg" value={r.per_kg_charge} onChange={(e) => {
+                          <input type="number" min={0} step="any" placeholder="Charge (UGX)" value={r.per_kg_charge} onChange={(e) => {
                             const arr = [...deliveryChargeForm.weight_ranges];
                             arr[idx] = { ...arr[idx], per_kg_charge: e.target.value };
                             setDeliveryChargeForm({ ...deliveryChargeForm, weight_ranges: arr });
                           }} className="px-3 py-1.5 border rounded text-sm" />
-                          <input type="number" step="any" placeholder="Min charge" value={r.min_charge ?? ''} onChange={(e) => {
-                            const arr = [...deliveryChargeForm.weight_ranges];
-                            arr[idx] = { ...arr[idx], min_charge: e.target.value === '' ? null : e.target.value };
-                            setDeliveryChargeForm({ ...deliveryChargeForm, weight_ranges: arr });
-                          }} className="px-3 py-1.5 border rounded text-sm" />
-                          <input type="number" step="any" placeholder="Max charge" value={r.max_charge ?? ''} onChange={(e) => {
-                            const arr = [...deliveryChargeForm.weight_ranges];
-                            arr[idx] = { ...arr[idx], max_charge: e.target.value === '' ? null : e.target.value };
-                            setDeliveryChargeForm({ ...deliveryChargeForm, weight_ranges: arr });
-                          }} className="px-3 py-1.5 border rounded text-sm" />
                           {deliveryChargeForm.weight_ranges.length > 1 && (
-                            <button type="button" onClick={() => setDeliveryChargeForm({ ...deliveryChargeForm, weight_ranges: deliveryChargeForm.weight_ranges.filter((_, i) => i !== idx) })} className="text-red-600 text-sm">Remove</button>
+                            <button type="button" onClick={() => setDeliveryChargeForm({ ...deliveryChargeForm, weight_ranges: deliveryChargeForm.weight_ranges.filter((_, i) => i !== idx) })} className="col-span-3 text-red-600 text-sm text-left">Remove</button>
                           )}
                         </div>
                       ))}
@@ -989,7 +979,7 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
                   {deliveryChargeForm.distance_enabled && (
                     <>
                       {deliveryChargeForm.distance_ranges.map((r, idx) => (
-                        <div key={idx} className="grid grid-cols-2 gap-2 mb-3 p-3 bg-gray-50 rounded-lg">
+                        <div key={idx} className="grid grid-cols-3 gap-2 mb-3 p-3 bg-gray-50 rounded-lg items-center">
                           <input type="number" min={0} step="any" placeholder="Min km" value={r.min_distance_km} onChange={(e) => {
                             const arr = [...deliveryChargeForm.distance_ranges];
                             arr[idx] = { ...arr[idx], min_distance_km: e.target.value };
@@ -1000,23 +990,13 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
                             arr[idx] = { ...arr[idx], max_distance_km: e.target.value };
                             setDeliveryChargeForm({ ...deliveryChargeForm, distance_ranges: arr });
                           }} className="px-3 py-1.5 border rounded text-sm" />
-                          <input type="number" min={0} step="any" placeholder="Per km" value={r.per_km_charge} onChange={(e) => {
+                          <input type="number" min={0} step="any" placeholder="Charge (UGX)" value={r.per_km_charge} onChange={(e) => {
                             const arr = [...deliveryChargeForm.distance_ranges];
                             arr[idx] = { ...arr[idx], per_km_charge: e.target.value };
                             setDeliveryChargeForm({ ...deliveryChargeForm, distance_ranges: arr });
                           }} className="px-3 py-1.5 border rounded text-sm" />
-                          <input type="number" step="any" placeholder="Min charge" value={r.min_charge ?? ''} onChange={(e) => {
-                            const arr = [...deliveryChargeForm.distance_ranges];
-                            arr[idx] = { ...arr[idx], min_charge: e.target.value === '' ? null : e.target.value };
-                            setDeliveryChargeForm({ ...deliveryChargeForm, distance_ranges: arr });
-                          }} className="px-3 py-1.5 border rounded text-sm" />
-                          <input type="number" step="any" placeholder="Max charge" value={r.max_charge ?? ''} onChange={(e) => {
-                            const arr = [...deliveryChargeForm.distance_ranges];
-                            arr[idx] = { ...arr[idx], max_charge: e.target.value === '' ? null : e.target.value };
-                            setDeliveryChargeForm({ ...deliveryChargeForm, distance_ranges: arr });
-                          }} className="px-3 py-1.5 border rounded text-sm" />
                           {deliveryChargeForm.distance_ranges.length > 1 && (
-                            <button type="button" onClick={() => setDeliveryChargeForm({ ...deliveryChargeForm, distance_ranges: deliveryChargeForm.distance_ranges.filter((_, i) => i !== idx) })} className="text-red-600 text-sm">Remove</button>
+                            <button type="button" onClick={() => setDeliveryChargeForm({ ...deliveryChargeForm, distance_ranges: deliveryChargeForm.distance_ranges.filter((_, i) => i !== idx) })} className="col-span-3 text-red-600 text-sm text-left">Remove</button>
                           )}
                         </div>
                       ))}
@@ -1040,7 +1020,7 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
                   {deliveryChargeForm.cube_enabled && (
                     <>
                       {deliveryChargeForm.cube_ranges.map((r, idx) => (
-                        <div key={idx} className="grid grid-cols-2 gap-2 mb-3 p-3 bg-gray-50 rounded-lg">
+                        <div key={idx} className="grid grid-cols-3 gap-2 mb-3 p-3 bg-gray-50 rounded-lg items-center">
                           <input type="number" min={0} step="any" placeholder="Min cube" value={r.min_cube} onChange={(e) => {
                             const arr = [...deliveryChargeForm.cube_ranges];
                             arr[idx] = { ...arr[idx], min_cube: e.target.value };
@@ -1051,23 +1031,13 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
                             arr[idx] = { ...arr[idx], max_cube: e.target.value };
                             setDeliveryChargeForm({ ...deliveryChargeForm, cube_ranges: arr });
                           }} className="px-3 py-1.5 border rounded text-sm" />
-                          <input type="number" min={0} step="any" placeholder="Per cube" value={r.per_cube_charge} onChange={(e) => {
+                          <input type="number" min={0} step="any" placeholder="Charge (UGX)" value={r.per_cube_charge} onChange={(e) => {
                             const arr = [...deliveryChargeForm.cube_ranges];
                             arr[idx] = { ...arr[idx], per_cube_charge: e.target.value };
                             setDeliveryChargeForm({ ...deliveryChargeForm, cube_ranges: arr });
                           }} className="px-3 py-1.5 border rounded text-sm" />
-                          <input type="number" step="any" placeholder="Min charge" value={r.min_charge ?? ''} onChange={(e) => {
-                            const arr = [...deliveryChargeForm.cube_ranges];
-                            arr[idx] = { ...arr[idx], min_charge: e.target.value === '' ? null : e.target.value };
-                            setDeliveryChargeForm({ ...deliveryChargeForm, cube_ranges: arr });
-                          }} className="px-3 py-1.5 border rounded text-sm" />
-                          <input type="number" step="any" placeholder="Max charge" value={r.max_charge ?? ''} onChange={(e) => {
-                            const arr = [...deliveryChargeForm.cube_ranges];
-                            arr[idx] = { ...arr[idx], max_charge: e.target.value === '' ? null : e.target.value };
-                            setDeliveryChargeForm({ ...deliveryChargeForm, cube_ranges: arr });
-                          }} className="px-3 py-1.5 border rounded text-sm" />
                           {deliveryChargeForm.cube_ranges.length > 1 && (
-                            <button type="button" onClick={() => setDeliveryChargeForm({ ...deliveryChargeForm, cube_ranges: deliveryChargeForm.cube_ranges.filter((_, i) => i !== idx) })} className="text-red-600 text-sm">Remove</button>
+                            <button type="button" onClick={() => setDeliveryChargeForm({ ...deliveryChargeForm, cube_ranges: deliveryChargeForm.cube_ranges.filter((_, i) => i !== idx) })} className="col-span-3 text-red-600 text-sm text-left">Remove</button>
                           )}
                         </div>
                       ))}

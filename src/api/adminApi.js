@@ -17,10 +17,28 @@ export const deleteAdminUser = (userId) => {
   return axiosClient.delete(`/user/destroy/${userId}`); 
 };
 
-// 👉 Get all roles with permissions
-export const getRoles = () => {
-  return axiosClient.get("/roles");
+// 👉 Get all roles with permissions (admin auth required)
+export const getRoles = async () => {
+  const res = await axiosClient.get("/roles");
+  const body = res.data;
+  if (Array.isArray(body)) {
+    return { ...res, data: body };
+  }
+  if (Array.isArray(body?.data)) {
+    return { ...res, data: body.data };
+  }
+  return res;
 };
+
+export const getRole = (id) => axiosClient.get(`/roles/${id}`);
+
+export const getPermissions = () => axiosClient.get("/permissions");
+
+export const assignRolePermissions = (roleId, permissionIds) =>
+  axiosClient.post(`/roles/${roleId}/permissions`, { permissions: permissionIds });
+
+export const assignUserRole = (userId, roleId) =>
+  axiosClient.post(`/users/${userId}/assign-role`, { role_id: roleId });
 
 // 👉 Create new admin user
 export const createAdminUser = (payload) => {
