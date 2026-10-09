@@ -937,23 +937,33 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
                   </div>
                   {deliveryChargeForm.weight_enabled && (
                     <>
+                      <p className="text-xs text-gray-500 mb-2">3 fields per row: range (e.g. 2–5 kg) + one flat price (e.g. 2000 UGX). Not per-kg and not min/max charge caps.</p>
                       {deliveryChargeForm.weight_ranges.map((r, idx) => (
-                        <div key={idx} className="grid grid-cols-3 gap-2 mb-3 p-3 bg-gray-50 rounded-lg items-center">
-                          <input type="number" min={0} step="any" placeholder="Min weight" value={r.min_weight} onChange={(e) => {
+                        <div key={idx} className="grid grid-cols-3 gap-2 mb-3 p-3 bg-gray-50 rounded-lg items-end">
+                          <div>
+                            <label className="text-xs text-gray-500 block mb-0.5">From (kg)</label>
+                          <input type="number" min={0} step="any" placeholder="2" value={r.min_weight} onChange={(e) => {
                             const arr = [...deliveryChargeForm.weight_ranges];
                             arr[idx] = { ...arr[idx], min_weight: e.target.value };
                             setDeliveryChargeForm({ ...deliveryChargeForm, weight_ranges: arr });
-                          }} className="px-3 py-1.5 border rounded text-sm" />
-                          <input type="number" min={0} step="any" placeholder="Max weight" value={r.max_weight} onChange={(e) => {
+                          }} className="w-full px-3 py-1.5 border rounded text-sm" />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-500 block mb-0.5">To (kg)</label>
+                          <input type="number" min={0} step="any" placeholder="5" value={r.max_weight} onChange={(e) => {
                             const arr = [...deliveryChargeForm.weight_ranges];
                             arr[idx] = { ...arr[idx], max_weight: e.target.value };
                             setDeliveryChargeForm({ ...deliveryChargeForm, weight_ranges: arr });
-                          }} className="px-3 py-1.5 border rounded text-sm" />
-                          <input type="number" min={0} step="any" placeholder="Charge (UGX)" value={r.per_kg_charge} onChange={(e) => {
+                          }} className="w-full px-3 py-1.5 border rounded text-sm" />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-500 block mb-0.5">Price (UGX)</label>
+                          <input type="number" min={0} step="any" placeholder="2000" value={r.per_kg_charge} onChange={(e) => {
                             const arr = [...deliveryChargeForm.weight_ranges];
                             arr[idx] = { ...arr[idx], per_kg_charge: e.target.value };
                             setDeliveryChargeForm({ ...deliveryChargeForm, weight_ranges: arr });
-                          }} className="px-3 py-1.5 border rounded text-sm" />
+                          }} className="w-full px-3 py-1.5 border rounded text-sm" />
+                          </div>
                           {deliveryChargeForm.weight_ranges.length > 1 && (
                             <button type="button" onClick={() => setDeliveryChargeForm({ ...deliveryChargeForm, weight_ranges: deliveryChargeForm.weight_ranges.filter((_, i) => i !== idx) })} className="col-span-3 text-red-600 text-sm text-left">Remove</button>
                           )}
@@ -978,23 +988,33 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
                   </div>
                   {deliveryChargeForm.distance_enabled && (
                     <>
+                      <p className="text-xs text-gray-500 mb-2">From km → To km → flat price (UGX) for that distance band.</p>
                       {deliveryChargeForm.distance_ranges.map((r, idx) => (
-                        <div key={idx} className="grid grid-cols-3 gap-2 mb-3 p-3 bg-gray-50 rounded-lg items-center">
-                          <input type="number" min={0} step="any" placeholder="Min km" value={r.min_distance_km} onChange={(e) => {
+                        <div key={idx} className="grid grid-cols-3 gap-2 mb-3 p-3 bg-gray-50 rounded-lg items-end">
+                          <div>
+                            <label className="text-xs text-gray-500 block mb-0.5">From (km)</label>
+                          <input type="number" min={0} step="any" placeholder="0" value={r.min_distance_km} onChange={(e) => {
                             const arr = [...deliveryChargeForm.distance_ranges];
                             arr[idx] = { ...arr[idx], min_distance_km: e.target.value };
                             setDeliveryChargeForm({ ...deliveryChargeForm, distance_ranges: arr });
-                          }} className="px-3 py-1.5 border rounded text-sm" />
-                          <input type="number" min={0} step="any" placeholder="Max km" value={r.max_distance_km} onChange={(e) => {
+                          }} className="w-full px-3 py-1.5 border rounded text-sm" />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-500 block mb-0.5">To (km)</label>
+                          <input type="number" min={0} step="any" placeholder="50" value={r.max_distance_km} onChange={(e) => {
                             const arr = [...deliveryChargeForm.distance_ranges];
                             arr[idx] = { ...arr[idx], max_distance_km: e.target.value };
                             setDeliveryChargeForm({ ...deliveryChargeForm, distance_ranges: arr });
-                          }} className="px-3 py-1.5 border rounded text-sm" />
-                          <input type="number" min={0} step="any" placeholder="Charge (UGX)" value={r.per_km_charge} onChange={(e) => {
+                          }} className="w-full px-3 py-1.5 border rounded text-sm" />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-500 block mb-0.5">Price (UGX)</label>
+                          <input type="number" min={0} step="any" placeholder="2000" value={r.per_km_charge} onChange={(e) => {
                             const arr = [...deliveryChargeForm.distance_ranges];
                             arr[idx] = { ...arr[idx], per_km_charge: e.target.value };
                             setDeliveryChargeForm({ ...deliveryChargeForm, distance_ranges: arr });
-                          }} className="px-3 py-1.5 border rounded text-sm" />
+                          }} className="w-full px-3 py-1.5 border rounded text-sm" />
+                          </div>
                           {deliveryChargeForm.distance_ranges.length > 1 && (
                             <button type="button" onClick={() => setDeliveryChargeForm({ ...deliveryChargeForm, distance_ranges: deliveryChargeForm.distance_ranges.filter((_, i) => i !== idx) })} className="col-span-3 text-red-600 text-sm text-left">Remove</button>
                           )}
@@ -1019,23 +1039,33 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
                   </div>
                   {deliveryChargeForm.cube_enabled && (
                     <>
+                      <p className="text-xs text-gray-500 mb-2">From → To (m³) → flat price (UGX) for that volume band.</p>
                       {deliveryChargeForm.cube_ranges.map((r, idx) => (
-                        <div key={idx} className="grid grid-cols-3 gap-2 mb-3 p-3 bg-gray-50 rounded-lg items-center">
-                          <input type="number" min={0} step="any" placeholder="Min cube" value={r.min_cube} onChange={(e) => {
+                        <div key={idx} className="grid grid-cols-3 gap-2 mb-3 p-3 bg-gray-50 rounded-lg items-end">
+                          <div>
+                            <label className="text-xs text-gray-500 block mb-0.5">From (m³)</label>
+                          <input type="number" min={0} step="any" placeholder="0" value={r.min_cube} onChange={(e) => {
                             const arr = [...deliveryChargeForm.cube_ranges];
                             arr[idx] = { ...arr[idx], min_cube: e.target.value };
                             setDeliveryChargeForm({ ...deliveryChargeForm, cube_ranges: arr });
-                          }} className="px-3 py-1.5 border rounded text-sm" />
-                          <input type="number" min={0} step="any" placeholder="Max cube" value={r.max_cube} onChange={(e) => {
+                          }} className="w-full px-3 py-1.5 border rounded text-sm" />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-500 block mb-0.5">To (m³)</label>
+                          <input type="number" min={0} step="any" placeholder="2" value={r.max_cube} onChange={(e) => {
                             const arr = [...deliveryChargeForm.cube_ranges];
                             arr[idx] = { ...arr[idx], max_cube: e.target.value };
                             setDeliveryChargeForm({ ...deliveryChargeForm, cube_ranges: arr });
-                          }} className="px-3 py-1.5 border rounded text-sm" />
-                          <input type="number" min={0} step="any" placeholder="Charge (UGX)" value={r.per_cube_charge} onChange={(e) => {
+                          }} className="w-full px-3 py-1.5 border rounded text-sm" />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-500 block mb-0.5">Price (UGX)</label>
+                          <input type="number" min={0} step="any" placeholder="2000" value={r.per_cube_charge} onChange={(e) => {
                             const arr = [...deliveryChargeForm.cube_ranges];
                             arr[idx] = { ...arr[idx], per_cube_charge: e.target.value };
                             setDeliveryChargeForm({ ...deliveryChargeForm, cube_ranges: arr });
-                          }} className="px-3 py-1.5 border rounded text-sm" />
+                          }} className="w-full px-3 py-1.5 border rounded text-sm" />
+                          </div>
                           {deliveryChargeForm.cube_ranges.length > 1 && (
                             <button type="button" onClick={() => setDeliveryChargeForm({ ...deliveryChargeForm, cube_ranges: deliveryChargeForm.cube_ranges.filter((_, i) => i !== idx) })} className="col-span-3 text-red-600 text-sm text-left">Remove</button>
                           )}
