@@ -1,22 +1,25 @@
 // src/components/adminUser/AdminUserList.jsx
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router";
 import Swal from "sweetalert2";
 import {
   getAdminUsers,
   updateAdminUser,
   deleteAdminUser,
+  getRoles,
 } from "../../api/adminApi";
 
 const AdminUserList = () => {
   const [activeDropdown, setActiveDropdown] = useState(null);
+  const [menuPosition, setMenuPosition] = useState(null);
   const [users, setUsers] = useState([]);
-  console.log(users)
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const [page, setPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
+  const [roleOptions, setRoleOptions] = useState([]);
 
   // edit modal state
   const [editUser, setEditUser] = useState(null);
@@ -34,9 +37,43 @@ const AdminUserList = () => {
     notify_in_app: true,
   });
 
-  const toggleDropdown = (id) => {
-    setActiveDropdown((prev) => (prev === id ? null : id));
+  const closeDropdown = () => {
+    setActiveDropdown(null);
+    setMenuPosition(null);
   };
+
+  const toggleDropdown = (userId, event) => {
+    event.stopPropagation();
+    if (activeDropdown === userId) {
+      closeDropdown();
+      return;
+    }
+    const rect = event.currentTarget.getBoundingClientRect();
+    const menuWidth = 192;
+    let left = Math.max(8, rect.right - menuWidth);
+    let top = rect.bottom + 6;
+    const estimatedMenuHeight = 220;
+    if (top + estimatedMenuHeight > window.innerHeight - 8) {
+      top = Math.max(8, rect.top - estimatedMenuHeight - 6);
+    }
+    setMenuPosition({ top, left });
+    setActiveDropdown(userId);
+  };
+
+  useEffect(() => {
+    if (!activeDropdown) return undefined;
+    const onPointerDown = (e) => {
+      if (e.target.closest("[data-admin-row-menu]")) return;
+      closeDropdown();
+    };
+    const onScroll = () => closeDropdown();
+    document.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("scroll", onScroll, true);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("scroll", onScroll, true);
+    };
+  }, [activeDropdown]);
 
   // UI te dekhano status
   const getStatusLabel = (user) => {
@@ -48,6 +85,9 @@ const AdminUserList = () => {
   };
 
   const getRoleLabel = (user) => {
+    if (user.roles?.length) {
+      return user.roles[0].name;
+    }
     return user.admin?.role || "Admin";
   };
 
@@ -75,6 +115,16 @@ const AdminUserList = () => {
 
   useEffect(() => {
     loadAdmins(1);
+    const loadRoleOptions = async () => {
+      try {
+        const res = await getRoles();
+        const list = Array.isArray(res.data) ? res.data : [];
+        setRoleOptions(list);
+      } catch (err) {
+        console.error("Failed to load roles", err);
+      }
+    };
+    loadRoleOptions();
   }, []);
 
   // Edit modal open
@@ -93,7 +143,7 @@ const AdminUserList = () => {
       notify_whatsapp: !!user.notify_whatsapp,
       notify_in_app: user.notify_in_app !== false,
     });
-    setActiveDropdown(null);
+    closeDropdown();
   };
 
   const closeEditModal = () => {
@@ -214,7 +264,7 @@ const AdminUserList = () => {
   };
 
   const handleAction = (action, user) => {
-    setActiveDropdown(null);
+    closeDropdown();
     if (action === "edit") openEditModal(user);
     if (action === "toggle_status") handleToggleStatus(user);
     if (action === "delete") handleDeleteUser(user);
@@ -333,10 +383,14 @@ const AdminUserList = () => {
                       <td className="px-5 py-4 whitespace-nowrap font-medium text-[#5D768A]">
                         {statusLabel}
                       </td>
-                      <td className="text-right px-6 py-4 whitespace-nowrap text-sm text-gray-500 relative">
+                      <td className="text-right px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <button
-                          onClick={() => toggleDropdown(user.id)}
+                          type="button"
+                          data-admin-row-menu
+                          onClick={(e) => toggleDropdown(user.id, e)}
                           className="text-[#003F72] px-1 cursor-pointer font-medium"
+                          aria-expanded={activeDropdown === user.id}
+                          aria-haspopup="menu"
                         >
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -350,49 +404,6 @@ const AdminUserList = () => {
                             <path d="M13,6c0,1.654,1.346,3,3,3s3-1.346,3-3s-1.346-3-3-3S13,4.346,13,6z" />
                           </svg>
                         </button>
-
-                        {activeDropdown === user.id && (
-                          <div className="absolute right-10 mt-2 w-48 bg-[#FFFFFF] rounded-md shadow-sm shadow-[#00000029] z-10 border border-[#E6EEF6]">
-                            <div>
-                              <div className="p-3">
-                                <button
-                                  onClick={() =>
-                                    handleAction("edit", user)
-                                  }
-                                  className="block w-full text-left px-4 py-2 text-[#003F72] cursor-pointer hover:bg-gray-100"
-                                >
-                                  Edit User
-                                </button>
-                              </div>
-
-                              <hr className="w-full border-t border-[#8AB3D3]" />
-
-                              <div className="p-3">
-                                <button
-                                  onClick={() =>
-                                    handleAction(
-                                      "toggle_status",
-                                      user
-                                    )
-                                  }
-                                  className="block w-full text-left px-4 py-2 text-[#003F72] cursor-pointer hover:bg-gray-100"
-                                >
-                                  {statusLabel === "Active"
-                                    ? "Deactivate"
-                                    : "Activate"}
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    handleAction("delete", user)
-                                  }
-                                  className="block w-full text-left px-4 py-2 text-[#003F72] cursor-pointer hover:bg-gray-100"
-                                >
-                                  Delete User
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        )}
                       </td>
                     </tr>
                   );
@@ -437,6 +448,52 @@ const AdminUserList = () => {
           </div>
         )}
       </div>
+
+      {activeDropdown != null &&
+        menuPosition &&
+        (() => {
+          const menuUser = users.find((u) => u.id === activeDropdown);
+          if (!menuUser) return null;
+          const menuStatus = getStatusLabel(menuUser);
+          return createPortal(
+            <div
+              data-admin-row-menu
+              role="menu"
+              className="fixed w-48 bg-white rounded-md shadow-lg border border-[#E6EEF6] z-[9999]"
+              style={{ top: menuPosition.top, left: menuPosition.left }}
+            >
+              <div className="p-3">
+                <button
+                  type="button"
+                  onClick={() => handleAction("edit", menuUser)}
+                  className="block w-full text-left px-4 py-2 text-[#003F72] cursor-pointer hover:bg-gray-100 rounded-md"
+                >
+                  Edit User
+                </button>
+              </div>
+              <hr className="w-full border-t border-[#8AB3D3]" />
+              <div className="p-3 space-y-0">
+                <button
+                  type="button"
+                  onClick={() => handleAction("toggle_status", menuUser)}
+                  className="block w-full text-left px-4 py-2 text-[#003F72] cursor-pointer hover:bg-gray-100 rounded-md"
+                >
+                  {menuStatus === "Active" || menuStatus === "Approved"
+                    ? "Deactivate"
+                    : "Activate"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAction("delete", menuUser)}
+                  className="block w-full text-left px-4 py-2 text-[#003F72] cursor-pointer hover:bg-gray-100 rounded-md"
+                >
+                  Delete User
+                </button>
+              </div>
+            </div>,
+            document.body
+          );
+        })()}
 
       {/* Edit modal */}
       {editUser && (
@@ -543,9 +600,15 @@ const AdminUserList = () => {
                     }
                     className="mt-1 w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#FF8C00]"
                   >
-                    <option value="Owner">Owner</option>
-                    <option value="Admin">Admin</option>
-                    <option value="Super Admin">Super Admin</option>
+                    {roleOptions.length === 0 ? (
+                      <option value={editForm.role}>{editForm.role}</option>
+                    ) : (
+                      roleOptions.map((r) => (
+                        <option key={r.id} value={r.name}>
+                          {r.name}
+                        </option>
+                      ))
+                    )}
                   </select>
                 </div>
 

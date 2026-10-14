@@ -1,19 +1,41 @@
 // src/api/userApi.js
 import axiosClient from "./axiosClient";
+import { getAuthUser } from "../utils/authUser";
 
 /**
- * Update user info (works for vendor, driver, buyer, transport)
- * @param {number} userId - The user ID
- * @param {FormData} formData - The form data to update
- * @returns {Promise} - API response
+ * Admin updates another user's info (vendor, driver, buyer, transport).
  */
 export const updateUserInfo = (userId, formData) => {
-  return axiosClient.put(`/admin-update-user-info/${userId}`, formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-  });
+  // Let axios set multipart boundary — do not set Content-Type manually.
+  return axiosClient.put(`/admin-update-user-info/${userId}`, formData);
 };
 
-// Alias for backward compatibility
-export const updateUserProfile = updateUserInfo;
+/**
+ * Logged-in user updates their own profile (admin, vendor, etc.).
+ * Uses POST /user/update with `id` + `token` headers from axiosClient.
+ */
+export const updateUserProfile = ({ name, image }) => {
+  const authUser = getAuthUser();
+  const userId = authUser?.id ?? authUser?.user_id;
+  if (!userId) {
+    return Promise.reject(
+      Object.assign(new Error("Not logged in"), {
+        response: { data: { message: "Not logged in" } },
+      })
+    );
+  }
+
+  const trimmedName =
+    name != null && String(name).trim() !== "" ? String(name).trim() : null;
+
+  if (image) {
+    const formData = new FormData();
+    if (trimmedName) formData.append("name", trimmedName);
+    formData.append("image", image);
+    return axiosClient.post("/user/update", formData);
+  }
+
+  return axiosClient.post("/user/update", {
+    name: trimmedName,
+  });
+};

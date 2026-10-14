@@ -21,6 +21,7 @@ const ADMIN_ONLY_PREFIXES = [
   "/setting",
   "/drivers-list",
   "/create-role",
+  "/role-management",
   "/subscription-plans",
   "/notifications",
   "/rankings",

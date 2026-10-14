@@ -107,10 +107,12 @@ const AddNewAdminSection = () => {
 
       let errorMessage = "Failed to create admin user.";
 
-      // axios error theke backend response dhorbo
       const apiData = error.response?.data;
-
-      if (apiData) {
+      if (error.response?.status === 403) {
+        errorMessage =
+          apiData?.message ||
+          "You are not authorized to create admin users.";
+      } else if (apiData) {
         // 1) jodi validation error thake (tumi jeita dekhecho)
         if (apiData.data) {
           const fieldErrors = apiData.data;
@@ -145,7 +147,7 @@ const AddNewAdminSection = () => {
 
   return (
     <div className="bg-white min-h-screen p-12 rounded-[15px]">
-      <h1 className="text-[26px] font-medium mb-6">Create New Role</h1>
+      <h1 className="text-[26px] font-medium mb-6">Create admin user</h1>
 
       <form onSubmit={handleSubmit}>
         {/* new admin input fields */}

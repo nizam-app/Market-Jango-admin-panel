@@ -1,20 +1,18 @@
 // src/pages/ZoneManagement.jsx — Admin CRUD for delivery zones (zones table)
 import React, { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router";
 import Swal from "sweetalert2";
 import { Edit3, Plus, Search, Trash2 } from "lucide-react";
 import { createZone, deleteZone, getZones, updateZone } from "../api/adminApi";
 import { LocationSearchInput } from "../components/vendor/LocationSearchInput";
 
 const BRAND = "#FF8C00";
-const CURRENCIES = ["UGX", "KES", "TZS", "RWF", "AED", "USD"];
 
 const emptyForm = () => ({
   name: "",
   center_latitude: "",
   center_longitude: "",
   radius_km: "1",
-  price: "0",
-  payout_currency: "UGX",
   status: "Active",
 });
 
@@ -100,8 +98,6 @@ const ZoneManagement = () => {
       center_latitude: zone.center_latitude ?? "",
       center_longitude: zone.center_longitude ?? "",
       radius_km: String(zone.radius_km ?? "1"),
-      price: String(zone.price ?? "0"),
-      payout_currency: (zone.payout_currency || "UGX").toUpperCase(),
       status: zone.status || "Active",
     });
     setMapKey(`edit-${zone.id}-${Date.now()}`);
@@ -128,8 +124,6 @@ const ZoneManagement = () => {
       center_latitude: Number(form.center_latitude),
       center_longitude: Number(form.center_longitude),
       radius_km: Number(form.radius_km) || 0,
-      price: Number(form.price) || 0,
-      payout_currency: form.payout_currency || "UGX",
       status: form.status || "Active",
     };
 
@@ -201,8 +195,15 @@ const ZoneManagement = () => {
       <div>
         <h1 className="text-2xl font-semibold text-gray-800">Zone Management</h1>
         <p className="text-sm text-gray-600 mt-1">
-          Delivery zones (`zones` table) used for banners, payment settings, and radius. Use the map to set the center;
-          buyer address trees stay on Visibility.
+          Define each zone&apos;s name, map center, and radius. Buyer delivery fees are set in{" "}
+          <Link to="/route-management" className="text-[#0059A0] font-medium underline">
+            Route Management
+          </Link>
+          ; payout currency per zone is set in{" "}
+          <Link to="/payment-management" className="text-[#0059A0] font-medium underline">
+            Payment Management
+          </Link>
+          . Town lists for buyers/vendors stay under Visibility.
         </p>
       </div>
 
@@ -252,18 +253,6 @@ const ZoneManagement = () => {
               />
             </label>
             <label className="flex flex-col gap-1 text-xs font-medium text-gray-600">
-              Price *
-              <input
-                type="number"
-                min={0}
-                step="0.01"
-                className="border rounded-lg px-3 py-2 text-sm"
-                value={form.price}
-                onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
-                required
-              />
-            </label>
-            <label className="flex flex-col gap-1 text-xs font-medium text-gray-600">
               Latitude
               <input
                 type="number"
@@ -284,20 +273,6 @@ const ZoneManagement = () => {
                 onChange={(e) => setForm((f) => ({ ...f, center_longitude: e.target.value }))}
                 placeholder="From map"
               />
-            </label>
-            <label className="flex flex-col gap-1 text-xs font-medium text-gray-600">
-              Payout currency
-              <select
-                className="border rounded-lg px-3 py-2 text-sm bg-white"
-                value={form.payout_currency}
-                onChange={(e) => setForm((f) => ({ ...f, payout_currency: e.target.value }))}
-              >
-                {CURRENCIES.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
             </label>
             <label className="flex flex-col gap-1 text-xs font-medium text-gray-600">
               Status
@@ -368,8 +343,6 @@ const ZoneManagement = () => {
                 <th className="px-4 py-3 text-left">Name</th>
                 <th className="px-4 py-3 text-left">Center</th>
                 <th className="px-4 py-3 text-left">Radius</th>
-                <th className="px-4 py-3 text-left">Price</th>
-                <th className="px-4 py-3 text-left">Currency</th>
                 <th className="px-4 py-3 text-left">Status</th>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
@@ -377,13 +350,13 @@ const ZoneManagement = () => {
             <tbody className="divide-y">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-gray-500">
+                  <td colSpan={6} className="px-4 py-10 text-center text-gray-500">
                     Loading…
                   </td>
                 </tr>
               ) : zones.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-gray-500">
+                  <td colSpan={6} className="px-4 py-10 text-center text-gray-500">
                     No zones found.
                   </td>
                 </tr>
@@ -396,8 +369,6 @@ const ZoneManagement = () => {
                       {z.center_latitude}, {z.center_longitude}
                     </td>
                     <td className="px-4 py-3">{z.radius_km} km</td>
-                    <td className="px-4 py-3">{z.price}</td>
-                    <td className="px-4 py-3">{z.payout_currency || "—"}</td>
                     <td className="px-4 py-3">
                       <span
                         className={`px-2 py-0.5 rounded text-xs ${

@@ -62,8 +62,9 @@ const ProfileEditForm = ({ user, onUserUpdate }) => {
       const updatedUser = res.data?.data || null;
 
       if (updatedUser) {
-        setAuthUser(updatedUser); // localStorage update
-        if (onUserUpdate) onUserUpdate(updatedUser); // parent state update
+        const merged = { ...user, ...updatedUser };
+        setAuthUser(merged);
+        if (onUserUpdate) onUserUpdate(merged);
         // যদি backend নতুন image URL দেয়, preview সেটা থেকেই আবার আসবে
         setPreviewUrl(updatedUser.image || previewUrl);
       }
@@ -72,8 +73,15 @@ const ProfileEditForm = ({ user, onUserUpdate }) => {
       setImageFile(null);
     } catch (err) {
       console.error("Failed to update profile", err);
-      const msg =
-        err.response?.data?.message || "Failed to update profile.";
+      const api = err.response?.data;
+      let msg = api?.message || "Failed to update profile.";
+      const fieldErrors = api?.data;
+      if (fieldErrors && typeof fieldErrors === "object") {
+        const lines = Object.values(fieldErrors)
+          .flat()
+          .filter(Boolean);
+        if (lines.length) msg = lines.join("\n");
+      }
       Swal.fire("Error", msg, "error");
     } finally {
       setLoading(false);

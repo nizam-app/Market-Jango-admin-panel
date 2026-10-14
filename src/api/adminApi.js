@@ -32,7 +32,25 @@ export const getRoles = async () => {
 
 export const getRole = (id) => axiosClient.get(`/roles/${id}`);
 
-export const getPermissions = () => axiosClient.get("/permissions");
+export const createRole = (name) =>
+  axiosClient.post("/roles", { name: String(name).trim() });
+
+export const updateRole = (id, name) =>
+  axiosClient.put(`/roles/${id}`, { name: String(name).trim() });
+
+export const deleteRole = (id) => axiosClient.delete(`/roles/${id}`);
+
+export const getPermissions = async () => {
+  const res = await axiosClient.get("/permissions");
+  const body = res.data;
+  if (Array.isArray(body)) {
+    return { ...res, data: body };
+  }
+  if (Array.isArray(body?.data)) {
+    return { ...res, data: body.data };
+  }
+  return res;
+};
 
 export const assignRolePermissions = (roleId, permissionIds) =>
   axiosClient.post(`/roles/${roleId}/permissions`, { permissions: permissionIds });

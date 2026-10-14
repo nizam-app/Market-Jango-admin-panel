@@ -58,7 +58,7 @@ const AvatarImage = ({ imageUrl, editable = false, onImageChange }) => {
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/gif,image/webp"
             className="hidden"
             onChange={handleFileChange}
           />

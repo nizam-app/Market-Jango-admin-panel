@@ -10,6 +10,7 @@ import AdminUserSection from "../components/adminUser/AdminUserSection";
 import Setting from "../pages/Setting";
 import DriverList from "../pages/DriverList";
 import AddNewAdmin from "../pages/AddNewAdmin";
+import RoleManagement from "../pages/RoleManagement";
 import Login from "../pages/Login";
 
 import ProtectedRoute from "./ProtectedRoute";
@@ -128,6 +129,10 @@ const Router = createBrowserRouter([
           {
             path: "create-role",
             Component: AddNewAdmin,
+          },
+          {
+            path: "role-management",
+            Component: RoleManagement,
           },
           {
             path: 'drivers/:driverId/assign-order',
