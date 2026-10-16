@@ -8,6 +8,8 @@ const AddNewAdminSection = () => {
     name: "",
     email: "",
     role: "",
+    password: "",
+    password_confirmation: "",
   });
 
   const [roles, setRoles] = useState([]);
@@ -84,23 +86,29 @@ const AddNewAdminSection = () => {
       const payload = {
         name: form.name.trim(),
         email: form.email.trim(),
-        role: form.role, // "Owner" | "Admin" | "Super Admin"
+        role: form.role,
       };
-
+      if (form.password.trim()) {
+        payload.password = form.password;
+        payload.password_confirmation = form.password_confirmation;
+      }
 
       await createAdminUser(payload);
 
       await Swal.fire(
         "Success",
-        "Admin user created and invite email sent.",
+        form.password.trim()
+          ? "Admin user created with the password you set."
+          : "Admin user created and invite email sent.",
         "success"
       );
 
-      // reset form
       setForm({
         name: "",
         email: "",
         role: "",
+        password: "",
+        password_confirmation: "",
       });
     } catch (error) {
       console.error("Failed to create admin user", error);
@@ -219,6 +227,35 @@ const AddNewAdminSection = () => {
             {rolesError && (
               <p className="text-xs text-red-500 mt-1">{rolesError}</p>
             )}
+          </div>
+
+          <div className="space-y-1">
+            <label className="block text-lg font-medium text-[#003158]">
+              Password <span className="text-sm font-normal text-gray-500">(optional)</span>
+            </label>
+            <input
+              type="password"
+              name="password"
+              className="block text-[#0059A0] w-full rounded-[12px] border-[#8AB3D3] focus:outline-none px-3 py-2 border"
+              placeholder="Min 8 characters"
+              value={form.password}
+              onChange={handleInputChange}
+              minLength={8}
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="block text-lg font-medium text-[#003158]">
+              Confirm password
+            </label>
+            <input
+              type="password"
+              name="password_confirmation"
+              className="block text-[#0059A0] w-full rounded-[12px] border-[#8AB3D3] focus:outline-none px-3 py-2 border"
+              value={form.password_confirmation}
+              onChange={handleInputChange}
+              minLength={8}
+            />
           </div>
         </div>
 

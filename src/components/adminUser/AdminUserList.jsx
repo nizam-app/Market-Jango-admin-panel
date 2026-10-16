@@ -35,6 +35,8 @@ const AdminUserList = () => {
     notify_sms: false,
     notify_whatsapp: false,
     notify_in_app: true,
+    password: "",
+    password_confirmation: "",
   });
 
   const closeDropdown = () => {
@@ -142,6 +144,8 @@ const AdminUserList = () => {
       notify_sms: !!user.notify_sms,
       notify_whatsapp: !!user.notify_whatsapp,
       notify_in_app: user.notify_in_app !== false,
+      password: "",
+      password_confirmation: "",
     });
     closeDropdown();
   };
@@ -158,7 +162,7 @@ const AdminUserList = () => {
     if (!editUser) return;
 
     try {
-      await updateAdminUser(editUser.id, {
+      const payload = {
         name: editForm.name,
         email: editForm.email,
         role: editForm.role,
@@ -170,7 +174,12 @@ const AdminUserList = () => {
         notify_sms: editForm.notify_sms,
         notify_whatsapp: editForm.notify_whatsapp,
         notify_in_app: editForm.notify_in_app,
-      });
+      };
+      if (editForm.password?.trim()) {
+        payload.password = editForm.password;
+        payload.password_confirmation = editForm.password_confirmation;
+      }
+      await updateAdminUser(editUser.id, payload);
 
       setUsers((prev) =>
         prev.map((u) =>
@@ -587,6 +596,25 @@ const AdminUserList = () => {
                 <input type="checkbox" checked={editForm.notify_in_app} onChange={(e) => handleEditChange("notify_in_app", e.target.checked)} />
                 In-app opt-in
               </label>
+
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="password"
+                  placeholder="New password (optional)"
+                  value={editForm.password}
+                  onChange={(e) => handleEditChange("password", e.target.value)}
+                  className="w-full border rounded-md px-3 py-2 text-sm"
+                  minLength={8}
+                />
+                <input
+                  type="password"
+                  placeholder="Confirm password"
+                  value={editForm.password_confirmation}
+                  onChange={(e) => handleEditChange("password_confirmation", e.target.value)}
+                  className="w-full border rounded-md px-3 py-2 text-sm"
+                  minLength={8}
+                />
+              </div>
 
               <div className="flex gap-3">
                 <div className="flex-1">

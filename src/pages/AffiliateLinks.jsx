@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { createAffiliate, getAffiliates, getAffiliate, updateAffiliate, deleteAffiliate, affiliatePasswordReset, getReferralLinks, getReferralLinksExport, updateReferralLink, deleteReferralLink, getConversions, getManualPayouts, getAffiliateSettings, updateAffiliateSettings } from "../api/adminApi";
+import AdminLocationFilterBar from "../components/filters/AdminLocationFilterBar";
 
 const BRAND = "#FF8C00";
 
@@ -32,6 +33,8 @@ const initialAffiliateForm = {
   terms_accepted: false,
   place_of_residence: "",
   zone: "",
+  state: "",
+  town: "",
   status: "pending",
 };
 
@@ -43,8 +46,17 @@ const TABS = [
   { id: "settings", label: "Settings", icon: Settings },
 ];
 
+const locationQuery = (locationFilter) => {
+  const q = {};
+  if (locationFilter?.zone) q.zone = locationFilter.zone;
+  if (locationFilter?.state) q.state = locationFilter.state;
+  if (locationFilter?.town) q.town = locationFilter.town;
+  return q;
+};
+
 const AffiliateLinks = () => {
   const [activeTab, setActiveTab] = useState("affiliates");
+  const [locationFilter, setLocationFilter] = useState({ zone: "", state: "", town: "" });
 
   // ——— Affiliates ———
   const [affiliateForm, setAffiliateForm] = useState(initialAffiliateForm);
@@ -58,7 +70,14 @@ const AffiliateLinks = () => {
   const [affiliateProfile, setAffiliateProfile] = useState(null);
   const [loadingAffiliateProfile, setLoadingAffiliateProfile] = useState(false);
   const [isEditAffiliateModalOpen, setIsEditAffiliateModalOpen] = useState(false);
-  const [editAffiliateForm, setEditAffiliateForm] = useState({ name: "", status: "pending", place_of_residence: "" });
+  const [editAffiliateForm, setEditAffiliateForm] = useState({
+    name: "",
+    status: "pending",
+    place_of_residence: "",
+    zone: "",
+    state: "",
+    town: "",
+  });
   const [editAffiliateSubmitting, setEditAffiliateSubmitting] = useState(false);
   const [isPasswordResetModalOpen, setIsPasswordResetModalOpen] = useState(false);
   const [passwordResetForm, setPasswordResetForm] = useState({ new_password: "", new_password_confirmation: "" });
@@ -120,7 +139,7 @@ const AffiliateLinks = () => {
       const res = await getAffiliates({
         search: affiliateSearch.trim() || undefined,
         status: affiliateStatusFilter || undefined,
-        zone: affiliateSearch.trim() || undefined,
+        ...locationQuery(locationFilter),
         per_page: 15,
         page,
       });
@@ -147,7 +166,7 @@ const AffiliateLinks = () => {
   useEffect(() => {
     if (activeTab !== "affiliates") return;
     fetchAffiliates(1);
-  }, [activeTab, affiliateStatusFilter]);
+  }, [activeTab, affiliateStatusFilter, locationFilter]);
 
   useEffect(() => {
     if (activeTab !== "affiliates") return;
@@ -186,6 +205,7 @@ const AffiliateLinks = () => {
       const res = await getReferralLinks({
         search: referralSearch.trim() || undefined,
         status: referralLinksStatusFilter || undefined,
+        ...locationQuery(locationFilter),
         per_page: 20,
         page,
       });
@@ -212,7 +232,7 @@ const AffiliateLinks = () => {
   useEffect(() => {
     if (activeTab !== "referral-links") return;
     fetchReferralLinks(1);
-  }, [activeTab, referralLinksStatusFilter]);
+  }, [activeTab, referralLinksStatusFilter, locationFilter]);
 
   useEffect(() => {
     if (activeTab !== "referral-links") return;
@@ -232,6 +252,7 @@ const AffiliateLinks = () => {
       const res = await getConversions({
         search: conversionSearch.trim() || undefined,
         status: conversionStatusFilter || undefined,
+        ...locationQuery(locationFilter),
         per_page: 20,
         page,
       });
@@ -258,7 +279,7 @@ const AffiliateLinks = () => {
   useEffect(() => {
     if (activeTab !== "conversions") return;
     fetchConversions(1);
-  }, [activeTab, conversionStatusFilter]);
+  }, [activeTab, conversionStatusFilter, locationFilter]);
 
   useEffect(() => {
     if (activeTab !== "conversions") return;
@@ -278,6 +299,7 @@ const AffiliateLinks = () => {
       const res = await getManualPayouts({
         search: payoutSearch.trim() || undefined,
         status: payoutStatusFilter || undefined,
+        ...locationQuery(locationFilter),
         per_page: 15,
         page,
       });
@@ -304,7 +326,7 @@ const AffiliateLinks = () => {
   useEffect(() => {
     if (activeTab !== "payouts") return;
     fetchManualPayouts(1);
-  }, [activeTab, payoutStatusFilter]);
+  }, [activeTab, payoutStatusFilter, locationFilter]);
 
   useEffect(() => {
     if (activeTab !== "payouts") return;
@@ -521,6 +543,9 @@ const AffiliateLinks = () => {
       name: source.name || "",
       status: source.status || "pending",
       place_of_residence: source.place_of_residence || "",
+      zone: source.zone || "",
+      state: source.state || "",
+      town: source.town || "",
     });
     setIsEditAffiliateModalOpen(true);
   };
@@ -544,6 +569,9 @@ const AffiliateLinks = () => {
         name,
         status: editAffiliateForm.status || "pending",
         place_of_residence: String(editAffiliateForm.place_of_residence || "").trim() || undefined,
+        zone: String(editAffiliateForm.zone || "").trim(),
+        state: String(editAffiliateForm.state || "").trim(),
+        town: String(editAffiliateForm.town || "").trim(),
       };
       const res = await updateAffiliate(selectedAffiliate.id, payload);
       Swal.fire({
@@ -699,6 +727,8 @@ const AffiliateLinks = () => {
         terms_accepted: true,
         place_of_residence: affiliateForm.place_of_residence?.trim() || "",
         zone: affiliateForm.zone?.trim() || "",
+        state: affiliateForm.state?.trim() || "",
+        town: affiliateForm.town?.trim() || "",
         status: affiliateForm.status || "pending",
       };
       const res = await createAffiliate(payload);
@@ -739,6 +769,12 @@ const AffiliateLinks = () => {
           Admin Panel Management System
         </p>
       </div>
+
+      <AdminLocationFilterBar
+        entity="affiliate"
+        value={locationFilter}
+        onChange={setLocationFilter}
+      />
 
       {/* Tabs */}
       <div className="flex flex-wrap gap-2 border-b border-gray-200">
@@ -859,14 +895,26 @@ const AffiliateLinks = () => {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/50"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Zone (required to activate)</label>
-                  <input
-                    type="text"
-                    value={affiliateForm.zone}
-                    onChange={(e) => setAffiliateForm((f) => ({ ...f, zone: e.target.value }))}
-                    placeholder="Leave empty to stay pending"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/50"
+                <div className="md:col-span-2">
+                  <p className="text-sm font-medium text-gray-700 mb-1">Location (for filters)</p>
+                  <p className="text-xs text-gray-500 mb-2">
+                    Choose zone, state, and town like other admin lists. Zone is required to leave pending status.
+                  </p>
+                  <AdminLocationFilterBar
+                    entity="affiliate"
+                    value={{
+                      zone: affiliateForm.zone || "",
+                      state: affiliateForm.state || "",
+                      town: affiliateForm.town || "",
+                    }}
+                    onChange={(next) =>
+                      setAffiliateForm((f) => ({
+                        ...f,
+                        zone: next.zone ?? "",
+                        state: next.state ?? "",
+                        town: next.town ?? "",
+                      }))
+                    }
                   />
                 </div>
                 <div className="md:col-span-2">
@@ -1046,6 +1094,9 @@ const AffiliateLinks = () => {
                     <div><dt className="text-gray-500 font-medium">Affiliate ID</dt><dd className="text-gray-900 font-mono mt-0.5">{affiliateProfile.affiliate_code || "—"}</dd></div>
                     <div><dt className="text-gray-500 font-medium">Status</dt><dd className="mt-0.5 capitalize">{affiliateProfile.status || "—"}</dd></div>
                     <div><dt className="text-gray-500 font-medium">Place of residence</dt><dd className="text-gray-900 mt-0.5">{affiliateProfile.place_of_residence || "—"}</dd></div>
+                    <div><dt className="text-gray-500 font-medium">Zone</dt><dd className="text-gray-900 mt-0.5">{affiliateProfile.zone || "—"}</dd></div>
+                    <div><dt className="text-gray-500 font-medium">State</dt><dd className="text-gray-900 mt-0.5">{affiliateProfile.state || "—"}</dd></div>
+                    <div><dt className="text-gray-500 font-medium">Town</dt><dd className="text-gray-900 mt-0.5">{affiliateProfile.town || "—"}</dd></div>
                     <div className="sm:col-span-2"><dt className="text-gray-500 font-medium">Social media</dt><dd className="text-gray-900 mt-0.5 break-all">{affiliateProfile.social_media || "—"}</dd></div>
                     <div className="sm:col-span-2"><dt className="text-gray-500 font-medium">Traffic details</dt><dd className="text-gray-900 mt-0.5">{affiliateProfile.traffic_details || "—"}</dd></div>
                     <div><dt className="text-gray-500 font-medium">Marketing channel</dt><dd className="text-gray-900 mt-0.5">{affiliateProfile.marketing_channel || "—"}</dd></div>
@@ -1078,7 +1129,7 @@ const AffiliateLinks = () => {
           {/* Edit Affiliate modal (PUT /api/affiliates/:id) */}
           {isEditAffiliateModalOpen && selectedAffiliate?.id && (
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={closeEditAffiliateModal}>
-              <div className="bg-white rounded-xl shadow-xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-white rounded-xl shadow-xl max-w-lg w-full" onClick={(e) => e.stopPropagation()}>
                 <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
                   <h2 className="text-lg font-semibold text-gray-900">Update affiliate</h2>
                   <button type="button" onClick={closeEditAffiliateModal} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg">
@@ -1117,6 +1168,25 @@ const AffiliateLinks = () => {
                       onChange={(e) => setEditAffiliateForm((f) => ({ ...f, place_of_residence: e.target.value }))}
                       placeholder="e.g. Los Angeles"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/50"
+                    />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-1">Location</p>
+                    <AdminLocationFilterBar
+                      entity="affiliate"
+                      value={{
+                        zone: editAffiliateForm.zone || "",
+                        state: editAffiliateForm.state || "",
+                        town: editAffiliateForm.town || "",
+                      }}
+                      onChange={(next) =>
+                        setEditAffiliateForm((f) => ({
+                          ...f,
+                          zone: next.zone ?? "",
+                          state: next.state ?? "",
+                          town: next.town ?? "",
+                        }))
+                      }
                     />
                   </div>
                   <div className="flex justify-end gap-2 pt-2">

@@ -1,4 +1,6 @@
 // src/utils/authUser.js
+import { clearStoredPermissions } from "./adminPermissions";
+
 export const getAuthUser = () => {
   const raw = localStorage.getItem("auth_user");
   if (!raw) return null;
@@ -19,6 +21,12 @@ export const setAuthUser = (user) => {
 
 export const clearAuthUser = () => {
   localStorage.removeItem("auth_user");
+};
+
+export const clearAuthSession = () => {
+  clearAuthUser();
+  localStorage.removeItem("token");
+  clearStoredPermissions();
 };
 
 export const getUserType = () => getAuthUser()?.user_type || "admin";

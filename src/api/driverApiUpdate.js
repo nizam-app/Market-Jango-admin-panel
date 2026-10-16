@@ -2,15 +2,16 @@
 import apiClient from "./axiosClient";
 
 // GET /admin-driver?status=Pending&page=1 ইত্যাদি
-export const getDriversByStatus = (status = "All", page = 1) => {
+export const getDriversByStatus = (status = "All", page = 1, location = {}) => {
   const params = { page };
 
-  // backend এ "All" নামে কোনো status নাই, তাই শুধু অন্য status হলে পাঠাবো
   if (status && status !== "All") {
     params.status = status;
   }
+  if (location?.zone) params.zone = location.zone;
+  if (location?.state) params.state = location.state;
+  if (location?.town) params.town = location.town;
 
-  // ❗ baseURL already .../api, তাই এখানে আর /api লিখবে না
   return apiClient.get("/admin-driver", { params });
 };
 

@@ -4,6 +4,7 @@ import { useNavigate } from "react-router";
 import { loginAdmin } from "../api/authApi";
 import appLogo from "../assets/app-logo.png";
 import { setAuthUser } from "../utils/authUser";
+import { setStoredPermissions } from "../utils/adminPermissions";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -29,6 +30,7 @@ export default function Login() {
 
       const token = res?.data?.data?.token || res?.data?.token;
       const user = res?.data?.data?.user || res?.data?.user;
+      const permissions = res?.data?.data?.permissions || res?.data?.permissions || [];
       if (!token) {
         throw new Error("Invalid response: token not found");
       }
@@ -42,6 +44,9 @@ export default function Login() {
 
       if (user) {
         setAuthUser(user);
+      }
+      if (userType === "admin" && Array.isArray(permissions)) {
+        setStoredPermissions(permissions);
       }
 
       navigate(userType === "outlet" ? "/outlet/orders" : "/", { replace: true });

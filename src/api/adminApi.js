@@ -228,14 +228,22 @@ export const deleteDeliveryChargeRoute = (id) => {
   return axiosClient.delete(`/delivery-charges/${id}`);
 };
 
+function appendLocationFilters(query, location = {}) {
+  if (location?.zone) query.zone = String(location.zone).trim();
+  if (location?.state) query.state = String(location.state).trim();
+  if (location?.town) query.town = String(location.town).trim();
+}
+
 // ==================== AFFILIATES ====================
 // List affiliates. Params: search (name, email, affiliate_code, phone), status (pending|active|suspended|banned), per_page (default 15, max 100), page
 export const getAffiliates = (params = {}) => {
-  const { search, status, zone, per_page = 15, page = 1 } = params;
+  const { search, status, zone, state, town, per_page = 15, page = 1 } = params;
   const query = {};
   if (search != null && String(search).trim() !== "") query.search = String(search).trim();
   if (status != null && String(status).trim() !== "") query.status = String(status).trim();
   if (zone != null && String(zone).trim() !== "") query.zone = String(zone).trim();
+  if (state != null && String(state).trim() !== "") query.state = String(state).trim();
+  if (town != null && String(town).trim() !== "") query.town = String(town).trim();
   if (per_page != null) query.per_page = Math.min(Number(per_page) || 15, 100);
   if (page != null) query.page = Number(page) || 1;
   return axiosClient.get("/affiliates", { params: query });
@@ -269,10 +277,11 @@ export const createAffiliate = (payload) => {
 // ==================== REFERRAL LINKS ====================
 // List referral links. Params: search, status, per_page (default 20), page
 export const getReferralLinks = (params = {}) => {
-  const { search, status, per_page = 20, page = 1 } = params;
+  const { search, status, zone, state, town, per_page = 20, page = 1 } = params;
   const query = {};
   if (search != null && String(search).trim() !== "") query.search = String(search).trim();
   if (status != null && String(status).trim() !== "") query.status = String(status).trim();
+  appendLocationFilters(query, { zone, state, town });
   if (per_page != null) query.per_page = Number(per_page) || 20;
   if (page != null) query.page = Number(page) || 1;
   return axiosClient.get("/referral-links", { params: query });
@@ -300,10 +309,11 @@ export const deleteReferralLink = (id) => {
 // ==================== MANUAL PAYOUTS ====================
 // List manual payouts. Params: search (affiliate/vendor name), status (pending|paid), per_page (default 15, max 100), page
 export const getManualPayouts = (params = {}) => {
-  const { search, status, per_page = 15, page = 1 } = params;
+  const { search, status, zone, state, town, per_page = 15, page = 1 } = params;
   const query = {};
   if (search != null && String(search).trim() !== "") query.search = String(search).trim();
   if (status != null && String(status).trim() !== "") query.status = String(status).trim();
+  appendLocationFilters(query, { zone, state, town });
   if (per_page != null) query.per_page = Math.min(Number(per_page) || 15, 100);
   if (page != null) query.page = Number(page) || 1;
   return axiosClient.get("/manual-payouts", { params: query });
@@ -323,10 +333,11 @@ export const updateAffiliateSettings = (payload) => {
 // ==================== CONVERSIONS ====================
 // List conversions. Params: search, status, per_page (default 20), page
 export const getConversions = (params = {}) => {
-  const { search, status, per_page = 20, page = 1 } = params;
+  const { search, status, zone, state, town, per_page = 20, page = 1 } = params;
   const query = {};
   if (search != null && String(search).trim() !== "") query.search = String(search).trim();
   if (status != null && String(status).trim() !== "") query.status = String(status).trim();
+  appendLocationFilters(query, { zone, state, town });
   if (per_page != null) query.per_page = Number(per_page) || 20;
   if (page != null) query.page = Number(page) || 1;
   return axiosClient.get("/conversions", { params: query });

@@ -8,13 +8,9 @@ import {
   getRoles,
   updateRole,
 } from "../../api/adminApi";
+import { formatPermissionLabel, PERMISSION_GROUPS } from "../../utils/adminPermissions";
 
-const formatPermissionName = (name) => {
-  if (!name) return "";
-  return name
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
-};
+const formatPermissionName = formatPermissionLabel;
 
 const RoleManagementSection = () => {
   const [roles, setRoles] = useState([]);
@@ -242,21 +238,42 @@ const RoleManagementSection = () => {
             <p className="text-sm text-gray-500">Select a role.</p>
           ) : (
             <>
-              <div className="max-h-[480px] overflow-y-auto border border-[#8AB3D3] rounded-xl p-4 grid grid-cols-1 md:grid-cols-2 gap-2">
-                {allPermissions.map((perm) => (
-                  <label
-                    key={perm.id}
-                    className="flex items-start gap-2 text-sm text-[#5D768A] cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedPermIds.includes(perm.id)}
-                      onChange={() => togglePermission(perm.id)}
-                      disabled={selectedRole.name === "Owner"}
-                    />
-                    <span>{formatPermissionName(perm.name)}</span>
-                  </label>
-                ))}
+              <div className="max-h-[480px] overflow-y-auto border border-[#8AB3D3] rounded-xl p-4 space-y-6">
+                {PERMISSION_GROUPS.map((group) => {
+                  const grouped =
+                    group.keys === null
+                      ? allPermissions.filter(
+                          (p) =>
+                            !PERMISSION_GROUPS.some(
+                              (g) => g.keys && g.keys.includes(p.name)
+                            )
+                        )
+                      : allPermissions.filter((p) => group.keys.includes(p.name));
+                  if (!grouped.length) return null;
+                  return (
+                    <div key={group.label}>
+                      <h3 className="text-sm font-medium text-[#003158] mb-2">
+                        {group.label}
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {grouped.map((perm) => (
+                          <label
+                            key={perm.id}
+                            className="flex items-start gap-2 text-sm text-[#5D768A] cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedPermIds.includes(perm.id)}
+                              onChange={() => togglePermission(perm.id)}
+                              disabled={selectedRole.name === "Owner"}
+                            />
+                            <span>{formatPermissionName(perm.name)}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
               <div className="mt-6 flex justify-end">
                 <button

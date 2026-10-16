@@ -7,6 +7,7 @@ import {
   markNotificationRead,
   isNotificationUnread,
 } from "../api/notificationApi";
+import AdminLocationFilterBar from "../components/filters/AdminLocationFilterBar";
 
 const BRAND = "#FF8C00";
 
@@ -15,6 +16,7 @@ const Notifications = () => {
   const [loading, setLoading] = useState(false);
   const [zones, setZones] = useState([]);
   const [zoneFilter, setZoneFilter] = useState("all"); // all | none | id (zones table)
+  const [locationFilter, setLocationFilter] = useState({ zone: "", state: "", town: "" });
   const [readFilter, setReadFilter] = useState("all"); // all | unread | read
   const [page, setPage] = useState(1);
   const [perPage] = useState(15);
@@ -45,6 +47,9 @@ const Notifications = () => {
       };
       if (zoneQueryParam !== undefined) params.zone_id = zoneQueryParam;
       if (readParam !== undefined) params.read = readParam;
+      if (locationFilter.zone) params.zone = locationFilter.zone;
+      if (locationFilter.state) params.state = locationFilter.state;
+      if (locationFilter.town) params.town = locationFilter.town;
 
       const paginated = await fetchNotificationsPaginated(params);
       if (!paginated) {
@@ -64,7 +69,7 @@ const Notifications = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, perPage, zoneQueryParam, readParam]);
+  }, [page, perPage, zoneQueryParam, readParam, locationFilter]);
 
   useEffect(() => {
     let cancelled = false;
@@ -111,9 +116,11 @@ const Notifications = () => {
             Notifications
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            All in-app alerts for your admin account. Filter by{" "}
-            <strong className="font-medium text-gray-600">zone</strong> (delivery
-            zones). Older rows may have no zone until they are tagged.
+            In-app alerts for your admin account.{" "}
+            <strong className="font-medium text-gray-600">Delivery zone</strong> uses the
+            operational zones table;{" "}
+            <strong className="font-medium text-gray-600">geographic</strong> filters match
+            your receiver profile (buyer shipping or assigned staff location).
           </p>
         </div>
         <button
@@ -130,7 +137,7 @@ const Notifications = () => {
       <div className="bg-white border border-[#E6EEF6] rounded-xl p-4 shadow-sm flex flex-wrap gap-4 items-end">
         <div className="min-w-[200px]">
           <label className="block text-xs font-medium text-gray-500 mb-1">
-            Zone
+            Delivery zone
           </label>
           <select
             value={zoneFilter}
@@ -166,6 +173,18 @@ const Notifications = () => {
             <option value="read">Read</option>
           </select>
         </div>
+      </div>
+
+      <div className="bg-white border border-[#E6EEF6] rounded-xl p-4 shadow-sm">
+        <p className="text-xs text-gray-500 mb-2">Geographic filter (receiver profile)</p>
+        <AdminLocationFilterBar
+          entity="buyer"
+          value={locationFilter}
+          onChange={(next) => {
+            setPage(1);
+            setLocationFilter(next);
+          }}
+        />
       </div>
 
       <div className="bg-white border border-[#E6EEF6] rounded-xl shadow-sm overflow-hidden">

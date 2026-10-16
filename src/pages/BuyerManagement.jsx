@@ -8,6 +8,7 @@ import { BuyerModal } from "../components/buyers/BuyerModal";
 import { updateUserInfo } from "../api/userApi";
 import axiosClient from "../api/axiosClient";
 import AdminFollowPanel from "../components/admin/AdminFollowPanel";
+import AdminLocationFilterBar from "../components/filters/AdminLocationFilterBar";
 
 const BuyerManagement = () => {
   const [buyers, setBuyers] = useState([]);
@@ -24,6 +25,7 @@ const BuyerManagement = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const debounceTimerRef = useRef(null);
+  const [locationFilter, setLocationFilter] = useState({ zone: "", state: "", town: "" });
 
   // Detail modal state
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -42,7 +44,7 @@ const BuyerManagement = () => {
   const fetchBuyers = async (page = 1, search = "") => {
     try {
       setLoading(true);
-      const res = await buyerApi.getBuyers(page, search, search);
+      const res = await buyerApi.getBuyers(page, search, locationFilter);
 
       const payload = res.data?.data; // Laravel response এর "data" object
       if (payload) {
@@ -121,6 +123,10 @@ const BuyerManagement = () => {
       }
     };
   }, [searchQuery]);
+
+  useEffect(() => {
+    fetchBuyers(1, searchQuery);
+  }, [locationFilter]);
 
   const handlePageChange = (page) => {
     if (
@@ -295,6 +301,12 @@ const BuyerManagement = () => {
       <h1 className="text-2xl font-semibold text-gray-800 mb-4">
         Buyer Management
       </h1>
+      <AdminLocationFilterBar
+        entity="buyer"
+        className="mb-4"
+        value={locationFilter}
+        onChange={setLocationFilter}
+      />
 
       {/* Search Bar */}
       <div className="mb-6 bg-white rounded-lg shadow-sm p-4 border border-gray-200">

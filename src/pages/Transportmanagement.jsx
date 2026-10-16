@@ -8,6 +8,7 @@ import { TransportModal } from "../components/transports/TransportModal";
 import { updateUserInfo } from "../api/userApi";
 import axiosClient from "../api/axiosClient";
 import AdminFollowPanel from "../components/admin/AdminFollowPanel";
+import AdminLocationFilterBar from "../components/filters/AdminLocationFilterBar";
 
 const Transportmanagement = () => {
   const [transports, setTransports] = useState([]);
@@ -23,6 +24,7 @@ const Transportmanagement = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const debounceTimerRef = useRef(null);
+  const [locationFilter, setLocationFilter] = useState({ zone: "", state: "", town: "" });
 
   // Detail modal state
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -41,7 +43,7 @@ const Transportmanagement = () => {
   const fetchTransports = async (page = 1, search = "") => {
     try {
       setLoading(true);
-      const res = await transportApi.getTransports(page);
+      const res = await transportApi.getTransports(page, locationFilter);
 
       const payload = res.data?.data;
       if (payload) {
@@ -113,6 +115,10 @@ const Transportmanagement = () => {
       }
     };
   }, [searchQuery]);
+
+  useEffect(() => {
+    fetchTransports(1, searchQuery);
+  }, [locationFilter]);
 
   const handlePageChange = (page) => {
     if (
@@ -288,6 +294,13 @@ const Transportmanagement = () => {
       <h1 className="text-2xl font-semibold text-gray-800 mb-4">
         Transport Management
       </h1>
+
+      <AdminLocationFilterBar
+        entity="transport"
+        className="mb-4"
+        value={locationFilter}
+        onChange={setLocationFilter}
+      />
 
       {/* Search Bar */}
       <div className="mb-6 bg-white rounded-lg shadow-sm p-4 border border-gray-200">

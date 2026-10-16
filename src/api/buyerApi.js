@@ -3,14 +3,14 @@ import axiosClient from "./axiosClient";
 
 const buyerApi = {
   // Laravel pagination: /buyers?page=1
-  getBuyers: (page = 1, search = "", zone = "") => {
+  getBuyers: (page = 1, search = "", location = {}) => {
     const params = { page };
     if (search.trim()) {
-      params.keyword = search.trim(); // Use 'keyword' parameter for search
+      params.keyword = search.trim();
     }
-    if (zone && String(zone).trim()) {
-      params.zone = String(zone).trim();
-    }
+    if (location?.zone) params.zone = location.zone;
+    if (location?.state) params.state = location.state;
+    if (location?.town) params.town = location.town;
     return axiosClient.get("/buyers", { params });
   },
 

@@ -17,6 +17,7 @@ import { getAllPlans, manualAssignSubscription, updateVendorLimits, getAdminUser
 import { CheckCircle2, XCircle, Clock, MoreVertical, Edit3, Trash2, Search, X } from "lucide-react";
 import AdminChatHistoryPanel from "../components/admin/AdminChatHistoryPanel";
 import AdminFollowPanel from "../components/admin/AdminFollowPanel";
+import AdminLocationFilterBar from "../components/filters/AdminLocationFilterBar";
 
 const BRAND = '#FF8C00';
 
@@ -135,8 +136,7 @@ const Vendor = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const debounceTimerRef = useRef(null);
-
-
+  const [locationFilter, setLocationFilter] = useState({ zone: "", state: "", town: "" });
 
   // modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -183,7 +183,7 @@ const Vendor = () => {
   useEffect(() => {
     fetchVendors(searchQuery);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter, page]);
+  }, [filter, page, locationFilter]);
 
   // Auto-search with debounce when user types
   useEffect(() => {
@@ -266,6 +266,9 @@ const Vendor = () => {
       const statusParam = STATUS_MAP[filter];
       const params = { page };
       if (statusParam) params.status = statusParam;
+      if (locationFilter?.zone) params.zone = locationFilter.zone;
+      if (locationFilter?.state) params.state = locationFilter.state;
+      if (locationFilter?.town) params.town = locationFilter.town;
 
       const { data: resp } = await axiosClient.get('/admin-vendor', { params });
 
@@ -814,6 +817,10 @@ const Vendor = () => {
             </button>
           ))}
         </div>
+      </div>
+
+      <div style={{ marginBottom: 18 }}>
+        <AdminLocationFilterBar entity="vendor" value={locationFilter} onChange={setLocationFilter} />
       </div>
 
       {/* Search Bar */}

@@ -32,6 +32,7 @@ import axiosClient from "../api/axiosClient";
 import { getAllPlans, manualAssignSubscription, getAdminUserChatHistory, getAdminUserBlockList } from "../api/adminApi";
 import AdminChatHistoryPanel from "../components/admin/AdminChatHistoryPanel";
 import AdminFollowPanel from "../components/admin/AdminFollowPanel";
+import AdminLocationFilterBar from "../components/filters/AdminLocationFilterBar";
 
 const BRAND = "#FF8C00";
 const STATUS_TABS = ["All", "Approved", "Pending", "Rejected"];
@@ -165,6 +166,7 @@ const DriverManagement = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const debounceTimerRef = useRef(null);
+  const [locationFilter, setLocationFilter] = useState({ zone: "", state: "", town: "" });
 
   const [driverPlans, setDriverPlans] = useState([]);
   const [driverPlansLoaded, setDriverPlansLoaded] = useState(false);
@@ -215,7 +217,7 @@ const DriverManagement = () => {
   const loadDriversForStatus = async (status, page = 1, search = "") => {
     try {
       setLoadingDrivers(true);
-      const res = await getDriversByStatus(status, page);
+      const res = await getDriversByStatus(status, page, locationFilter);
       const { rows, meta } = mapPagedDriversResponse(res);
       
       // Apply client-side filtering if search query exists
@@ -294,6 +296,11 @@ const DriverManagement = () => {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery]);
+
+  useEffect(() => {
+    loadDriversForStatus(activeFilter, 1, searchQuery);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locationFilter]);
 
   // outside click -> close menu
   useEffect(() => {
@@ -843,7 +850,12 @@ const DriverManagement = () => {
   // ------------ RENDER -------------
   return (
     <>
-      <div className="space-y-6">
+      <div className="space-y-6 px-6 py-4">
+        <AdminLocationFilterBar
+          entity="driver"
+          value={locationFilter}
+          onChange={setLocationFilter}
+        />
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">

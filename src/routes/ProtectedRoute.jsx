@@ -2,6 +2,7 @@
 import React from "react";
 import { Navigate, Outlet, useLocation } from "react-router";
 import { getUserType } from "../utils/authUser";
+import { canAccessPath } from "../utils/adminPermissions";
 
 const ADMIN_ONLY_PREFIXES = [
   "/",
@@ -58,6 +59,10 @@ const ProtectedRoute = () => {
     if (isAdminOnlyPath(location.pathname)) {
       return <Navigate to="/outlet/orders" replace />;
     }
+  }
+
+  if (userType === "admin" && !canAccessPath(location.pathname)) {
+    return <Navigate to="/" replace state={{ forbidden: true }} />;
   }
 
   return <Outlet />;

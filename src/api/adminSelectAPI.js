@@ -16,10 +16,12 @@ export const updateCategoryTop = (categoryId, value) => {
 };
 
 // ---- PRODUCT API ----
-export const fetchAdminProducts = (page = 1) => {
-  return axiosClient.get(`/admin-product`, {
-    params: { page },
-  });
+export const fetchAdminProducts = (page = 1, location = {}) => {
+  const params = { page };
+  if (location?.zone) params.zone = location.zone;
+  if (location?.state) params.state = location.state;
+  if (location?.town) params.town = location.town;
+  return axiosClient.get(`/admin-product`, { params });
 };
 
 export const updateProductSelect = (productId, payload) => {

@@ -6,6 +6,7 @@ import {
   updateCategoryTop,
   updateProductSelect,
 } from "../../api/adminSelectAPI";
+import AdminLocationFilterBar from "../filters/AdminLocationFilterBar";
 
 /** Common chip/list section for categories & products */
 const SelectionBlock = ({
@@ -148,6 +149,7 @@ const AdminProductSelectPage = () => {
   const [products, setProducts] = useState([]);
   const [productMeta, setProductMeta] = useState(null);
   const [productLoading, setProductLoading] = useState(false);
+  const [locationFilter, setLocationFilter] = useState({ zone: "", state: "", town: "" });
 
   // --- load categories ---
   const loadCategories = async (page = 1) => {
@@ -172,7 +174,7 @@ const AdminProductSelectPage = () => {
   const loadProducts = async (page = 1) => {
     try {
       setProductLoading(true);
-      const res = await fetchAdminProducts(page);
+      const res = await fetchAdminProducts(page, locationFilter);
       const pagination = res.data?.data;
 
       setProducts(pagination?.data || []);
@@ -191,6 +193,11 @@ const AdminProductSelectPage = () => {
     loadCategories(1);
     loadProducts(1);
   }, []);
+
+  useEffect(() => {
+    loadProducts(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locationFilter]);
 
   // ---- toggle CATEGORY top ----
   const handleToggleCategoryTop = async (category) => {
@@ -228,6 +235,12 @@ const AdminProductSelectPage = () => {
 
   return (
     <div className="mt-7">
+      <AdminLocationFilterBar
+        entity="product"
+        className="mb-6"
+        value={locationFilter}
+        onChange={setLocationFilter}
+      />
       {/* ---------- TOP CATEGORIES ---------- */}
       <div className="mb-6">
         {categoryLoading ? (

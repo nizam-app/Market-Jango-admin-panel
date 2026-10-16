@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router";
 import { Settings, Bell, LogOut, UserCircle2, RefreshCw } from "lucide-react";
-import { getAuthUser, clearAuthUser } from "../utils/authUser";
+import { getAuthUser, clearAuthSession } from "../utils/authUser";
 import { useNotifications } from "../hooks/useNotifications";
 
 const Navbar = () => {
@@ -78,7 +78,7 @@ const Navbar = () => {
 
   const handleLogout = () => {
     localStorage.removeItem("token");
-    clearAuthUser();
+    clearAuthSession();
     navigate("/login", { replace: true });
   };
 
