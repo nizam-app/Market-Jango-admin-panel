@@ -2,10 +2,13 @@
 import React, { useEffect, useState } from "react";
 import ProductModal from "./ProductModal";
 import { getRequestedProducts } from "../../api/productApi";
+import AdminLocationFilterBar from "../filters/AdminLocationFilterBar";
 
 const ProductSection = () => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [locationFilter, setLocationFilter] = useState({ zone: "", state: "", town: "" });
+  const [vendorNameSearch, setVendorNameSearch] = useState("");
 
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({
@@ -21,7 +24,9 @@ const ProductSection = () => {
   const loadRequests = async (pageNumber = 1) => {
     try {
       setLoading(true);
-      const res = await getRequestedProducts(pageNumber);
+      const filters = { ...locationFilter };
+      if (vendorNameSearch.trim()) filters.vendor_name = vendorNameSearch.trim();
+      const res = await getRequestedProducts(pageNumber, filters);
 
       // response: { status, message, data: { current_page, data: [...] } }
       const paginationData = res.data?.data;
@@ -44,7 +49,7 @@ const ProductSection = () => {
 
   useEffect(() => {
     loadRequests(page);
-  }, [page]);
+  }, [page, locationFilter, vendorNameSearch]);
 
   const openModal = (product) => {
     setSelectedProduct(product); // full row pathacchi
@@ -73,6 +78,23 @@ const ProductSection = () => {
         <h2 className="text-2xl font-semibold mb-4">
           Product Requested vendor
         </h2>
+
+        <div className="mb-4 flex flex-col gap-3">
+          <AdminLocationFilterBar
+            entity="product"
+            value={locationFilter}
+            onChange={setLocationFilter}
+          />
+          <div className="relative max-w-md">
+            <input
+              type="text"
+              value={vendorNameSearch}
+              onChange={(e) => setVendorNameSearch(e.target.value)}
+              placeholder="Search by vendor name…"
+              className="pl-4 pr-4 py-2 rounded-[100px] w-full bg-white border border-gray-200 text-sm"
+            />
+          </div>
+        </div>
 
         <div className="overflow-x-auto rounded-[8px] ">
           <table className="min-w-full ">

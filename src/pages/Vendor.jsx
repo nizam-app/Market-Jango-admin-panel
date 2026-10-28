@@ -10,7 +10,9 @@ import {
   getPendingVendors,
   getActiveVendors,
   getSuspendedVendors,
+  updateVendorStatus,
 } from "../api/vendorAPI";
+import { promptAdminStatusChange } from "../utils/adminStatusChangeDialog";
 import { updateUserInfo } from "../api/userApi";
 import { getRoutes } from "../api/routeApi";
 import { getAllPlans, manualAssignSubscription, updateVendorLimits, getAdminUserChatHistory, getAdminUserBlockList } from "../api/adminApi";
@@ -240,24 +242,6 @@ const Vendor = () => {
     setIsSearching(false);
   };
 
-  // -------- Helper: update vendor status (PUT) ----------
-  const updateVendorStatus = async (vendorProfileId, status, note) => {
-    try {
-      const payload = note
-        ? { status, note }   // Rejected হলে note সহ যাবে
-        : { status };        // অন্যগুলো শুধু status
-
-      const res = await axiosClient.put(
-        `/vendor/status-update/${vendorProfileId}`,
-        payload
-      );
-      return res.data;
-    } catch (err) {
-      throw new err;
-    }
-  };
-
-
   // -------- Fetch vendors ----------
   async function fetchVendors(search = "") {
     setLoading(true);
@@ -269,6 +253,7 @@ const Vendor = () => {
       if (locationFilter?.zone) params.zone = locationFilter.zone;
       if (locationFilter?.state) params.state = locationFilter.state;
       if (locationFilter?.town) params.town = locationFilter.town;
+      if (search.trim()) params.keyword = search.trim();
 
       const { data: resp } = await axiosClient.get('/admin-vendor', { params });
 
@@ -300,11 +285,13 @@ const Vendor = () => {
           filteredVendors = mapped.filter((vendor) => {
             const name = (vendor.name || "").toLowerCase();
             const email = (vendor.email || "").toLowerCase();
+            const phone = (vendor.raw?.phone || vendor.raw?.user?.phone || "").toLowerCase();
             const businessName = (vendor.raw?.vendor?.business_name || "").toLowerCase();
             
             return (
               name.includes(searchLower) ||
               email.includes(searchLower) ||
+              phone.includes(searchLower) ||
               businessName.includes(searchLower)
             );
           });
@@ -335,54 +322,19 @@ const Vendor = () => {
 
   // -------- Actions with SweetAlert confirmations ----------
   // -------- Actions with SweetAlert confirmations ----------
-  const confirmAndUpdate = async (vendorProfileId, newStatus) => {
-    let note = undefined;
-
-    // 🔴 Reject case: note নেয়ার জন্য আলাদা popup
-    if (newStatus === 'Rejected') {
-      const result = await Swal.fire({
-        title: 'Reject Vendor',
-        html: 'Please write a short note explaining why you are rejecting this vendor.',
-        input: 'textarea',
-        inputLabel: 'Rejection note',
-        inputPlaceholder: 'e.g. Documents not clear. Please re-upload.',
-        inputAttributes: {
-          'aria-label': 'Rejection note',
-        },
-        showCancelButton: true,
-        confirmButtonText: 'Reject',
-        cancelButtonText: 'Cancel',
-        confirmButtonColor: '#b91c1c',
-        focusConfirm: false,
-        inputValidator: (value) => {
-          if (!value || !value.trim()) {
-            return 'Please add a short note before rejecting.';
-          }
-          return null;
-        },
-      });
-
-      if (result.isDismissed) return;         // cancel করলে কিছু করবে না
-      note = result.value.trim();             // note set করলাম
-    } else {
-      // ✅ Approved / Pending এর জন্য আগের confirm popup
-      const result = await Swal.fire({
-        title: 'Are you sure?',
-        html: `You are changing vendor status to <strong>${newStatus}</strong>.`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Yes, change it',
-        cancelButtonText: 'No, cancel',
-        customClass: { popup: 'swal2-popup' },
-        confirmButtonColor: BRAND,
-      });
-
-      if (!result.isConfirmed) return;
-    }
+  const confirmAndUpdate = async (vendorProfileId, newStatus, vendorName = "Vendor") => {
+    const dialog = await promptAdminStatusChange({
+      title: "Change vendor status",
+      subjectLabel: vendorName,
+      newStatus,
+      requireNote: true,
+    });
+    if (!dialog) return;
 
     try {
       Swal.showLoading();
-      const resp = await updateVendorStatus(vendorProfileId, newStatus, note);
+      const res = await updateVendorStatus(vendorProfileId, newStatus, dialog);
+      const resp = res?.data ?? res;
       Swal.close();
 
       Swal.fire({
@@ -831,7 +783,7 @@ const Vendor = () => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Type to search vendors by name, email, or business name..."
+              placeholder="Search by name, email, phone number, or business name…"
               style={{ width: '100%', padding: '10px 40px 10px 40px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14 }}
             />
             <Search style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', width: 20, height: 20, color: '#9ca3af' }} />

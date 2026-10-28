@@ -3,8 +3,8 @@ import axios from "axios";
 import { getAuthUser } from "../utils/authUser";
 
 const axiosClient = axios.create({
-  baseURL: "https://backend.jangomarketvc.ae/api",
-  // baseURL: "http://103.208.183.250:9000/api",
+  // baseURL: "https://backend.jangomarketvc.ae/api",
+  baseURL: "http://103.208.183.250:9000/api",
   // baseURL: "/api",
 });
 

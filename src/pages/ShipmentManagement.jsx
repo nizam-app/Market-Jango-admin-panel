@@ -13,6 +13,7 @@ import {
 } from "../api/transportShipmentApi";
 import { messageFromDownloadError, saveBlobResponseAsDownload } from "../utils/blobDownload";
 import { getAdminDriversList } from "../api/driverAdminApi";
+import AdminLocationFilterBar from "../components/filters/AdminLocationFilterBar";
 
 const BRAND = "#FF8C00";
 
@@ -463,13 +464,16 @@ const ShipmentManagement = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [locationFilter, setLocationFilter] = useState({ zone: "", state: "", town: "" });
   const [detailId, setDetailId] = useState(null);
 
   const fetchList = useCallback(async (page = 1) => {
     try {
       setLoading(true);
       setError("");
-      const res = await getTransportShipments({ page, per_page: 20 });
+      const params = { page, per_page: 20, ...locationFilter };
+      if (searchQuery.trim()) params.q = searchQuery.trim();
+      const res = await getTransportShipments(params);
       const { items: list, pagination: pag } = parseShipmentsListResponse(res);
       setItems(list);
       setPagination({
@@ -485,7 +489,7 @@ const ShipmentManagement = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [locationFilter, searchQuery]);
 
   useEffect(() => {
     fetchList(1);
@@ -526,7 +530,15 @@ const ShipmentManagement = () => {
         </button>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 sm:p-5">
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 sm:p-5 space-y-4">
+        <AdminLocationFilterBar
+          entity="transport"
+          value={locationFilter}
+          onChange={(next) => {
+            setLocationFilter(next);
+            fetchList(1);
+          }}
+        />
         <label className="relative block">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input

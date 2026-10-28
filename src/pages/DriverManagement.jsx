@@ -33,6 +33,7 @@ import { getAllPlans, manualAssignSubscription, getAdminUserChatHistory, getAdmi
 import AdminChatHistoryPanel from "../components/admin/AdminChatHistoryPanel";
 import AdminFollowPanel from "../components/admin/AdminFollowPanel";
 import AdminLocationFilterBar from "../components/filters/AdminLocationFilterBar";
+import { promptAdminStatusChange } from "../utils/adminStatusChangeDialog";
 
 const BRAND = "#FF8C00";
 const STATUS_TABS = ["All", "Approved", "Pending", "Rejected"];
@@ -217,7 +218,7 @@ const DriverManagement = () => {
   const loadDriversForStatus = async (status, page = 1, search = "") => {
     try {
       setLoadingDrivers(true);
-      const res = await getDriversByStatus(status, page, locationFilter);
+      const res = await getDriversByStatus(status, page, locationFilter, search);
       const { rows, meta } = mapPagedDriversResponse(res);
       
       // Apply client-side filtering if search query exists
@@ -227,6 +228,7 @@ const DriverManagement = () => {
         filteredDrivers = rows.filter((driver) => {
           const name = (driver.name || "").toLowerCase();
           const email = (driver.email || "").toLowerCase();
+          const phone = (driver.phone || "").toLowerCase();
           const vehicleType = (driver.vehicleType || "").toLowerCase();
           const vehicleNumber = (driver.vehicleNumber || "").toLowerCase();
           const transport = (driver.transportType || "").toLowerCase();
@@ -235,6 +237,7 @@ const DriverManagement = () => {
           return (
             name.includes(searchLower) ||
             email.includes(searchLower) ||
+            phone.includes(searchLower) ||
             vehicleType.includes(searchLower) ||
             vehicleNumber.includes(searchLower) ||
             transport.includes(searchLower) ||
@@ -504,33 +507,16 @@ const DriverManagement = () => {
       return;
     }
 
-    const isReject = newStatus === "Rejected";
-
-    Swal.fire({
-      title: `Are you sure you want to ${label.toLowerCase()} this driver?`,
-      text: `${row.name} will become "${label}".`,
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: label,
-      cancelButtonText: "Cancel",
-      confirmButtonColor: BRAND,
-      ...(isReject
-        ? {
-          input: "textarea",
-          inputLabel: "Rejection note",
-          inputPlaceholder: "Write reason (optional)",
-          inputAttributes: {
-            rows: 3,
-          },
-        }
-        : {}),
-    }).then(async (result) => {
-      if (!result.isConfirmed) return;
-
-      const note = isReject ? result.value || "" : "";
+    promptAdminStatusChange({
+      title: `Change driver status`,
+      subjectLabel: row.name,
+      newStatus: label,
+      requireNote: true,
+    }).then(async (dialog) => {
+      if (!dialog) return;
 
       try {
-        await updateDriverStatus(row.driverId, newStatus, note);
+        await updateDriverStatus(row.driverId, newStatus, dialog);
 
         // list + counts refresh
         await Promise.all([
@@ -887,7 +873,7 @@ const DriverManagement = () => {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Type to search drivers by name, email, vehicle, transport type..."
+                placeholder="Search by name, email, phone number, vehicle, or transport type…"
                 className="w-full px-4 py-2.5 pl-10 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               />
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />

@@ -2,7 +2,7 @@
 import apiClient from "./axiosClient";
 
 // GET /admin-driver?status=Pending&page=1 ইত্যাদি
-export const getDriversByStatus = (status = "All", page = 1, location = {}) => {
+export const getDriversByStatus = (status = "All", page = 1, location = {}, keyword = "") => {
   const params = { page };
 
   if (status && status !== "All") {
@@ -11,6 +11,7 @@ export const getDriversByStatus = (status = "All", page = 1, location = {}) => {
   if (location?.zone) params.zone = location.zone;
   if (location?.state) params.state = location.state;
   if (location?.town) params.town = location.town;
+  if (keyword && String(keyword).trim()) params.keyword = String(keyword).trim();
 
   return apiClient.get("/admin-driver", { params });
 };
@@ -25,10 +26,12 @@ export const createDriver = (formData) =>
 
 // PUT /driver/status-update/{driverId}
 // body: { status: 'Rejected' | 'Approved' | 'Pending', note?: string }
-export const updateDriverStatus = (driverId, status, note = "") =>
+export const updateDriverStatus = (driverId, status, extras = {}) =>
   apiClient.put(`/driver/status-update/${driverId}`, {
     status,
-    note,
+    note: extras.note ?? "",
+    notify_in_app: extras.notify_in_app,
+    notify_sms: extras.notify_sms,
   });
 
 // Driver rows with images[] (same shape as pending vendor list)

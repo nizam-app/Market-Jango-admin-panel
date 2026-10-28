@@ -95,7 +95,7 @@ const AllDriverList = () => {
           <div className="relative w-full md:w-auto mt-3 md:mt-0">
             <input
               type="text"
-              placeholder="Search for something"
+              placeholder="Search by name, email, or phone number…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-10 pr-4 py-2 rounded-[100px] w-full md:w-64 bg-white

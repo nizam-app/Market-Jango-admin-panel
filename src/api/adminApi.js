@@ -2,8 +2,12 @@
 import axiosClient from "./axiosClient";
 
 // Admin list (paginated)
-export const getAdminUsers = (page = 1) => {
-  return axiosClient.get(`/admin?page=${page}`);
+export const getAdminUsers = (page = 1, params = {}) => {
+  const clean = { page };
+  Object.entries(params || {}).forEach(([k, v]) => {
+    if (v !== "" && v != null && v !== undefined) clean[k] = v;
+  });
+  return axiosClient.get("/admin", { params: clean });
 };
 
 // Update admin user (name, email, role, status)

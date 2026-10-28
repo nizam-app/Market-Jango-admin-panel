@@ -10,7 +10,7 @@ import {
   exportDriverAssignments,
   downloadBlobResponse,
 } from "../api/driverAdminApi";
-import { getZones } from "../api/adminApi";
+import AdminLocationFilterBar from "../components/filters/AdminLocationFilterBar";
 
 const BRAND = "#FF8C00";
 
@@ -243,12 +243,10 @@ const DriverAssignments = () => {
   const [driverIdFilter, setDriverIdFilter] = useState("");
   const [vendorIdFilter, setVendorIdFilter] = useState("");
   const [invoiceItemIdFilter, setInvoiceItemIdFilter] = useState("");
-  const [zoneIdFilter, setZoneIdFilter] = useState("");
-  const [locationFilter, setLocationFilter] = useState("");
+  const [addressLocationFilter, setAddressLocationFilter] = useState("");
+  const [geoLocationFilter, setGeoLocationFilter] = useState({ zone: "", state: "", town: "" });
   const [searchFilter, setSearchFilter] = useState("");
   const [drivers, setDrivers] = useState([]);
-  const [zones, setZones] = useState([]);
-  const [zonesLoading, setZonesLoading] = useState(true);
 
   const buildParams = (page = 1) => {
     const params = { page };
@@ -259,8 +257,10 @@ const DriverAssignments = () => {
     if (driverId) params.driver_id = driverId;
     if (vendorId) params.vendor_id = vendorId;
     if (itemId) params.invoice_item_id = itemId;
-    if (zoneIdFilter) params.zone_id = zoneIdFilter;
-    if (locationFilter.trim()) params.location = locationFilter.trim();
+    if (geoLocationFilter.zone) params.zone = geoLocationFilter.zone;
+    if (geoLocationFilter.state) params.state = geoLocationFilter.state;
+    if (geoLocationFilter.town) params.town = geoLocationFilter.town;
+    if (addressLocationFilter.trim()) params.location = addressLocationFilter.trim();
     if (searchFilter.trim()) params.search = searchFilter.trim();
     return params;
   };
@@ -307,23 +307,6 @@ const DriverAssignments = () => {
   useEffect(() => {
     loadDrivers();
     fetchAssignments(1);
-    let cancelled = false;
-    (async () => {
-      try {
-        setZonesLoading(true);
-        const res = await getZones(500);
-        const payload = res?.data?.data;
-        const list = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload) ? payload : [];
-        if (!cancelled) setZones(list);
-      } catch {
-        if (!cancelled) setZones([]);
-      } finally {
-        if (!cancelled) setZonesLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -422,7 +405,7 @@ const DriverAssignments = () => {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-[#343C6A]">Driver assignments</h1>
           <p className="text-sm text-gray-500 mt-1 max-w-2xl">
-            Filter by status, driver, vendor, invoice item, or zone — then download the results.
+            Filter by status, driver, vendor, invoice item, or location — then download the results.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -501,29 +484,21 @@ const DriverAssignments = () => {
               className="w-32 px-3 py-2.5 border border-gray-200 rounded-xl text-sm min-w-0"
             />
           </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1.5">Zone</label>
-            <select
-              value={zoneIdFilter}
-              onChange={(e) => setZoneIdFilter(e.target.value)}
-              disabled={zonesLoading}
-              className={inputSelectClass}
-            >
-              <option value="">All zones</option>
-              {zones.map((z) => (
-                <option key={z.id} value={String(z.id)}>
-                  {z.name || `Zone #${z.id}`}
-                </option>
-              ))}
-            </select>
+          <div className="w-full">
+            <AdminLocationFilterBar
+              entity="buyer"
+              value={geoLocationFilter}
+              onChange={setGeoLocationFilter}
+              className="mb-2"
+            />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1.5">Location</label>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">Address contains</label>
             <input
               type="text"
-              value={locationFilter}
-              onChange={(e) => setLocationFilter(e.target.value)}
-              placeholder="Pickup / drop / zone name"
+              value={addressLocationFilter}
+              onChange={(e) => setAddressLocationFilter(e.target.value)}
+              placeholder="Pickup / drop text"
               className="min-w-[12rem] px-3 py-2.5 border border-gray-200 rounded-xl text-sm"
             />
           </div>

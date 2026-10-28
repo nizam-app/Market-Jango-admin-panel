@@ -6,15 +6,14 @@ import {
   ChevronRight,
   Filter,
   Loader2,
-  MapPin,
   Pencil,
   Store,
 } from "lucide-react";
 import { getAllOrders, getOrderItemStatuses, parseAllOrdersResponse } from "../api/orderApi";
 import axiosClient from "../api/axiosClient";
 import { getActiveVendors } from "../api/vendorAPI";
-import { getZones } from "../api/adminApi";
 import OrderEditModal from "../components/orders/OrderEditModal";
+import AdminLocationFilterBar from "../components/filters/AdminLocationFilterBar";
 
 const BRAND = "#FF8C00";
 const BRAND_SOFT = "rgba(255, 140, 0, 0.12)";
@@ -133,14 +132,13 @@ const OrderManagement = () => {
   const [toDate, setToDate] = useState("");
   const [status, setStatus] = useState("");
   const [vendorId, setVendorId] = useState("");
-  const [zoneId, setZoneId] = useState("");
   const [sellingMode, setSellingMode] = useState("");
   const [debtStatus, setDebtStatus] = useState("");
   const [orderNumber, setOrderNumber] = useState("");
+  const [shipLocation, setShipLocation] = useState({ zone: "", state: "", town: "" });
 
   const [statuses, setStatuses] = useState([]);
   const [vendors, setVendors] = useState([]);
-  const [zones, setZones] = useState([]);
   const [filterOptionsLoading, setFilterOptionsLoading] = useState(true);
   const [editOrder, setEditOrder] = useState(null);
 
@@ -187,23 +185,19 @@ const OrderManagement = () => {
     (async () => {
       try {
         setFilterOptionsLoading(true);
-        const [stRes, vRes, zRes] = await Promise.all([
+        const [stRes, vRes] = await Promise.all([
           getOrderItemStatuses(),
           getActiveVendors({ per_page: 500, page: 1 }),
-          getZones(100),
         ]);
         if (cancelled) return;
         setStatuses(stRes?.data?.data?.statuses || []);
         const vPag = vRes?.data?.data;
         setVendors(Array.isArray(vPag?.data) ? vPag.data : []);
-        const zPag = zRes?.data?.data;
-        setZones(Array.isArray(zPag?.data) ? zPag.data : []);
       } catch (e) {
         console.error(e);
         if (!cancelled) {
           setStatuses([]);
           setVendors([]);
-          setZones([]);
         }
       } finally {
         if (!cancelled) setFilterOptionsLoading(false);
@@ -220,10 +214,10 @@ const OrderManagement = () => {
       toDate,
       status,
       vendorId,
-      zoneId,
       sellingMode,
       debtStatus,
       orderNumber,
+      shipLocation,
     };
     try {
       setLoading(true);
@@ -233,7 +227,9 @@ const OrderManagement = () => {
       if (f.toDate) params.to_date = f.toDate;
       if (String(f.status || "").trim()) params.status = String(f.status).trim();
       if (String(f.vendorId || "").trim()) params.vendor_id = String(f.vendorId).trim();
-      if (String(f.zoneId || "").trim()) params.zone_id = String(f.zoneId).trim();
+      if (f.shipLocation?.zone) params.zone = f.shipLocation.zone;
+      if (f.shipLocation?.state) params.state = f.shipLocation.state;
+      if (f.shipLocation?.town) params.town = f.shipLocation.town;
       if (String(f.sellingMode || "").trim()) params.selling_mode = String(f.sellingMode).trim();
       if (String(f.debtStatus || "").trim()) params.debt_status = String(f.debtStatus).trim();
       if (String(f.orderNumber || "").trim()) params.order_number = String(f.orderNumber).trim();
@@ -256,7 +252,8 @@ const OrderManagement = () => {
   };
 
   const hasActiveFilters = Boolean(
-    fromDate || toDate || status || vendorId || zoneId || sellingMode || debtStatus || orderNumber
+    fromDate || toDate || status || vendorId || sellingMode || debtStatus || orderNumber
+    || shipLocation.zone || shipLocation.state || shipLocation.town
   );
 
   const clearFilters = () => {
@@ -264,19 +261,19 @@ const OrderManagement = () => {
     setToDate("");
     setStatus("");
     setVendorId("");
-    setZoneId("");
     setSellingMode("");
     setDebtStatus("");
     setOrderNumber("");
+    setShipLocation({ zone: "", state: "", town: "" });
     fetchOrders(1, {
       fromDate: "",
       toDate: "",
       status: "",
       vendorId: "",
-      zoneId: "",
       sellingMode: "",
       debtStatus: "",
       orderNumber: "",
+      shipLocation: { zone: "", state: "", town: "" },
     });
   };
 
@@ -341,7 +338,7 @@ const OrderManagement = () => {
         <div className="p-5 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-5 xl:gap-6">
             {/* Date range */}
-            <div className="md:col-span-2 xl:col-span-4">
+            <div className="md:col-span-2 xl:col-span-3">
               <label className="flex items-center gap-1.5 text-xs font-medium text-gray-600 mb-2">
                 <CalendarRange className="w-3.5 h-3.5" aria-hidden />
                 Date range
@@ -386,25 +383,17 @@ const OrderManagement = () => {
               </select>
             </div>
 
-            {/* Zone */}
-            <div className="md:col-span-1 xl:col-span-3">
-              <label className="flex items-center gap-1.5 text-xs font-medium text-gray-600 mb-2">
-                <MapPin className="w-3.5 h-3.5" aria-hidden />
-                Zone
-              </label>
-              <select
-                value={zoneId}
-                onChange={(e) => setZoneId(e.target.value)}
-                disabled={filterOptionsLoading}
-                className={selectClass}
-              >
-                <option value="">All zones</option>
-                {zones.map((z) => (
-                  <option key={z.id} value={String(z.id)}>
-                    {z.name || `Zone #${z.id}`}
-                  </option>
-                ))}
-              </select>
+            {/* Buyer ship location — before vendor */}
+            <div className="md:col-span-2 xl:col-span-4">
+              <p className="text-xs font-medium text-gray-600 mb-2">
+                Buyer ship location (zone / state / town)
+              </p>
+              <AdminLocationFilterBar
+                entity="buyer"
+                value={shipLocation}
+                onChange={setShipLocation}
+                className="gap-2"
+              />
             </div>
 
             {/* Vendor */}

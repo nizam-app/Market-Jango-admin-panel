@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import Swal from "sweetalert2";
 import { getRoles, createAdminUser } from "../../api/adminApi";
+import AdminLocationFilterBar from "../filters/AdminLocationFilterBar";
 
 const AddNewAdminSection = () => {
   const [form, setForm] = useState({
@@ -11,6 +12,7 @@ const AddNewAdminSection = () => {
     password: "",
     password_confirmation: "",
   });
+  const [assignedArea, setAssignedArea] = useState({ zone: "", state: "", town: "" });
 
   const [roles, setRoles] = useState([]);
   const [loadingRoles, setLoadingRoles] = useState(true);
@@ -92,6 +94,15 @@ const AddNewAdminSection = () => {
         payload.password = form.password;
         payload.password_confirmation = form.password_confirmation;
       }
+      if (assignedArea.zone.trim()) {
+        payload.assigned_zone = assignedArea.zone.trim();
+      }
+      if (assignedArea.state.trim()) {
+        payload.assigned_state = assignedArea.state.trim();
+      }
+      if (assignedArea.town.trim()) {
+        payload.assigned_town = assignedArea.town.trim();
+      }
 
       await createAdminUser(payload);
 
@@ -110,6 +121,7 @@ const AddNewAdminSection = () => {
         password: "",
         password_confirmation: "",
       });
+      setAssignedArea({ zone: "", state: "", town: "" });
     } catch (error) {
       console.error("Failed to create admin user", error);
 
@@ -257,6 +269,22 @@ const AddNewAdminSection = () => {
               minLength={8}
             />
           </div>
+        </div>
+
+        <div className="mb-6 rounded-xl border border-[#8AB3D3]/40 bg-[#F8FAFC] p-5">
+          <h2 className="text-lg font-medium text-[#003158] mb-1">
+            Assigned area (zone / state / town)
+          </h2>
+          <p className="text-sm text-gray-600 mb-4 max-w-2xl">
+            Optional. Leave empty for full access (e.g. Super Admin). For moderators,
+            set the zone, state, and/or town they may manage — the panel will only
+            show data in that scope.
+          </p>
+          <AdminLocationFilterBar
+            entity="buyer"
+            value={assignedArea}
+            onChange={setAssignedArea}
+          />
         </div>
 
         {/* permissions view */}

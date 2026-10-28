@@ -9,6 +9,7 @@ import { updateUserInfo } from "../api/userApi";
 import axiosClient from "../api/axiosClient";
 import AdminFollowPanel from "../components/admin/AdminFollowPanel";
 import AdminLocationFilterBar from "../components/filters/AdminLocationFilterBar";
+import { promptAdminStatusChange } from "../utils/adminStatusChangeDialog";
 
 const BuyerManagement = () => {
   const [buyers, setBuyers] = useState([]);
@@ -157,18 +158,15 @@ const BuyerManagement = () => {
 
   const handleUpdateStatus = async (buyer, newStatus) => {
     try {
-      const result = await Swal.fire({
-        title: "Change status?",
-        text: `Do you want to change status to "${newStatus}" for buyer "${buyer.user?.name}"?`,
-        icon: "question",
-        showCancelButton: true,
-        confirmButtonText: "Yes, update",
-        cancelButtonText: "Cancel",
+      const dialog = await promptAdminStatusChange({
+        title: "Change buyer status",
+        subjectLabel: buyer.user?.name || "Buyer",
+        newStatus,
+        requireNote: true,
       });
+      if (!dialog) return;
 
-      if (!result.isConfirmed) return;
-
-      const res = await buyerApi.updateBuyerStatus(buyer.id, newStatus);
+      const res = await buyerApi.updateBuyerStatus(buyer.id, newStatus, dialog);
 
       Swal.fire({
         icon: "success",

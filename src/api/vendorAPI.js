@@ -16,8 +16,13 @@ export function getActiveVendors(pageOrParams = 1) {
 }
 
 // Accept / Reject / Cancel vendor
-  export function updateVendorStatus(vendorId, status, note) {
-  const payload = note ? { status, note } : { status };
+export function updateVendorStatus(vendorId, status, extras = {}) {
+  const payload = {
+    status,
+    ...(extras.note ? { note: extras.note } : {}),
+    ...(extras.notify_in_app !== undefined ? { notify_in_app: extras.notify_in_app } : {}),
+    ...(extras.notify_sms !== undefined ? { notify_sms: extras.notify_sms } : {}),
+  };
   return axiosClient.put(`/vendor/status-update/${vendorId}`, payload);
 }
 

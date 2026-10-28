@@ -45,7 +45,13 @@ const RoleManagementSection = () => {
       });
     } catch (err) {
       console.error(err);
-      Swal.fire("Error", "Failed to load roles or permissions.", "error");
+      const status = err.response?.status;
+      const msg =
+        err.response?.data?.message ||
+        (status === 403
+          ? "You do not have permission to manage roles (admin_access_roles). Ask an Owner to grant access or re-login."
+          : "Failed to load roles or permissions.");
+      Swal.fire("Error", msg, "error");
     } finally {
       setLoading(false);
     }

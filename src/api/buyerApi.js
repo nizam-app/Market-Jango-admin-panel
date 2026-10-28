@@ -15,9 +15,12 @@ const buyerApi = {
   },
 
   // Update buyer status: Pending / Approved / Rejected
-  updateBuyerStatus: (buyerId, status) => {
+  updateBuyerStatus: (buyerId, status, extras = {}) => {
     return axiosClient.put(`/buyer/status-update/${buyerId}`, {
       status,
+      note: extras.note,
+      notify_in_app: extras.notify_in_app,
+      notify_sms: extras.notify_sms,
     });
   },
 };

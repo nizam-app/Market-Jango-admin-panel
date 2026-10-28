@@ -9,6 +9,7 @@ import {
   deleteAdminUser,
   getRoles,
 } from "../../api/adminApi";
+import AdminLocationFilterBar from "../filters/AdminLocationFilterBar";
 
 const AdminUserList = () => {
   const [activeDropdown, setActiveDropdown] = useState(null);
@@ -20,6 +21,10 @@ const AdminUserList = () => {
   const [page, setPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
   const [roleOptions, setRoleOptions] = useState([]);
+  const [searchKeyword, setSearchKeyword] = useState("");
+  const [filterRole, setFilterRole] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [locationFilter, setLocationFilter] = useState({ zone: "", state: "", town: "" });
 
   // edit modal state
   const [editUser, setEditUser] = useState(null);
@@ -94,11 +99,22 @@ const AdminUserList = () => {
   };
 
   // Admin list load
+  const buildListParams = () => {
+    const params = {};
+    if (searchKeyword.trim()) params.keyword = searchKeyword.trim();
+    if (filterRole) params.role = filterRole;
+    if (filterStatus) params.status = filterStatus;
+    if (locationFilter.zone) params.zone = locationFilter.zone;
+    if (locationFilter.state) params.state = locationFilter.state;
+    if (locationFilter.town) params.town = locationFilter.town;
+    return params;
+  };
+
   const loadAdmins = async (pageNumber = 1) => {
     try {
       setLoading(true);
       setError("");
-      const res = await getAdminUsers(pageNumber);
+      const res = await getAdminUsers(pageNumber, buildListParams());
 
       const pagination = res.data?.data || {};
       const list = pagination.data || [];
@@ -322,6 +338,58 @@ const AdminUserList = () => {
               </svg>
             </button>
           </Link>
+        </div>
+
+        <div className="px-5 py-4 border-b border-[#8AB3D3] space-y-3 bg-[#F8FAFC]">
+          <div className="flex flex-wrap gap-3 items-end">
+            <div className="flex-1 min-w-[200px]">
+              <label className="block text-xs text-gray-500 mb-1">Search</label>
+              <input
+                type="search"
+                value={searchKeyword}
+                onChange={(e) => setSearchKeyword(e.target.value)}
+                placeholder="Name, email, or phone"
+                className="w-full border border-[#8AB3D3] rounded-lg px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Role</label>
+              <select
+                value={filterRole}
+                onChange={(e) => setFilterRole(e.target.value)}
+                className="border border-[#8AB3D3] rounded-lg px-3 py-2 text-sm min-w-[140px]"
+              >
+                <option value="">All roles</option>
+                {roleOptions.map((r) => (
+                  <option key={r.id} value={r.name}>{r.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Status</label>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="border border-[#8AB3D3] rounded-lg px-3 py-2 text-sm min-w-[120px]"
+              >
+                <option value="">All</option>
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+            </div>
+            <button
+              type="button"
+              onClick={() => loadAdmins(1)}
+              className="bg-[#FF8C00] text-[#051522] font-medium px-4 py-2 rounded-lg text-sm"
+            >
+              Apply
+            </button>
+          </div>
+          <AdminLocationFilterBar
+            entity="buyer"
+            value={locationFilter}
+            onChange={setLocationFilter}
+          />
         </div>
 
         {/* Table */}
@@ -561,27 +629,28 @@ const AdminUserList = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
-                <input
-                  type="text"
-                  placeholder="Zone"
-                  value={editForm.assigned_zone}
-                  onChange={(e) => handleEditChange("assigned_zone", e.target.value)}
-                  className="mt-1 w-full border rounded-md px-3 py-2 text-sm"
-                />
-                <input
-                  type="text"
-                  placeholder="State"
-                  value={editForm.assigned_state}
-                  onChange={(e) => handleEditChange("assigned_state", e.target.value)}
-                  className="mt-1 w-full border rounded-md px-3 py-2 text-sm"
-                />
-                <input
-                  type="text"
-                  placeholder="Town"
-                  value={editForm.assigned_town}
-                  onChange={(e) => handleEditChange("assigned_town", e.target.value)}
-                  className="mt-1 w-full border rounded-md px-3 py-2 text-sm"
+              <div>
+                <label className="text-sm font-medium text-gray-700">
+                  Assigned area (zone / state / town)
+                </label>
+                <p className="text-xs text-gray-500 mt-0.5 mb-2">
+                  Empty = full access. Set scope for area-limited moderators.
+                </p>
+                <AdminLocationFilterBar
+                  entity="buyer"
+                  value={{
+                    zone: editForm.assigned_zone || "",
+                    state: editForm.assigned_state || "",
+                    town: editForm.assigned_town || "",
+                  }}
+                  onChange={(next) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      assigned_zone: next.zone || "",
+                      assigned_state: next.state || "",
+                      assigned_town: next.town || "",
+                    }))
+                  }
                 />
               </div>
               <label className="flex items-center gap-2 text-sm">

@@ -15,6 +15,7 @@ import {
   rejectPayout,
 } from "../../api/walletApi";
 import { getZones } from "../../api/adminApi";
+import AdminLocationFilterBar from "../filters/AdminLocationFilterBar";
 
 const BRAND = "#FF8C00";
 
@@ -82,6 +83,7 @@ export default function WalletsPayoutsTab({ zones: zonesProp = null } = {}) {
   const [walletSearchInput, setWalletSearchInput] = useState("");
   const [walletUserType, setWalletUserType] = useState("");
   const [walletZoneId, setWalletZoneId] = useState("");
+  const [walletGeo, setWalletGeo] = useState({ zone: "", state: "", town: "" });
   const [zonesList, setZonesList] = useState(Array.isArray(zonesProp) ? zonesProp : []);
 
   const [payoutRows, setPayoutRows] = useState([]);
@@ -124,6 +126,9 @@ export default function WalletsPayoutsTab({ zones: zonesProp = null } = {}) {
         search: walletSearch.trim() || undefined,
         user_type: walletUserType || undefined,
         zone_id: walletZoneId || undefined,
+        zone: walletGeo.zone || undefined,
+        state: walletGeo.state || undefined,
+        town: walletGeo.town || undefined,
       });
       const { overview: ov, list, meta } = parseWalletsResponse(res);
       setOverview(ov || {});
@@ -137,13 +142,18 @@ export default function WalletsPayoutsTab({ zones: zonesProp = null } = {}) {
     } finally {
       setWalletsLoading(false);
     }
-  }, [walletSearch, walletUserType, walletZoneId]);
+  }, [walletSearch, walletUserType, walletZoneId, walletGeo]);
 
   const loadPayouts = useCallback(async (page = 1) => {
     try {
       setPayoutLoading(true);
       setPayoutError("");
-      const res = await getPayouts({ page });
+      const res = await getPayouts({
+        page,
+        zone: walletGeo.zone || undefined,
+        state: walletGeo.state || undefined,
+        town: walletGeo.town || undefined,
+      });
       const { list, meta } = parsePayoutsResponse(res);
       setPayoutRows(list);
       setPayoutMeta(meta);
@@ -154,7 +164,7 @@ export default function WalletsPayoutsTab({ zones: zonesProp = null } = {}) {
     } finally {
       setPayoutLoading(false);
     }
-  }, []);
+  }, [walletGeo]);
 
   useEffect(() => {
     loadWallets(1);
@@ -174,6 +184,7 @@ export default function WalletsPayoutsTab({ zones: zonesProp = null } = {}) {
     setWalletSearch("");
     setWalletUserType("");
     setWalletZoneId("");
+    setWalletGeo({ zone: "", state: "", town: "" });
   };
 
   const handleTopup = async (w) => {
@@ -478,6 +489,9 @@ export default function WalletsPayoutsTab({ zones: zonesProp = null } = {}) {
           onSubmit={applyWalletFilters}
           className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm"
         >
+          <div className="mb-4">
+            <AdminLocationFilterBar entity="buyer" value={walletGeo} onChange={setWalletGeo} />
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
             <div className="sm:col-span-2">
               <label className="block text-xs font-medium text-gray-500 mb-1">
