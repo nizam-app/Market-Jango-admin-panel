@@ -22,6 +22,7 @@ import ShipmentManagement from "../pages/ShipmentManagement";
 import RouteManagement from "../pages/RouteManagement";
 import SubscriptionPlans from "../pages/SubscriptionPlans";
 import Notifications from "../pages/Notifications";
+import Communications from "../pages/Communications";
 import Rankings from "../pages/Rankings";
 import CategoryManagement from "../pages/CategoryManagement";
 import BusinessTypeManagement from "../pages/BusinessTypeManagement";
@@ -145,6 +146,10 @@ const Router = createBrowserRouter([
           {
             path: "notifications",
             Component: Notifications,
+          },
+          {
+            path: "communications",
+            Component: Communications,
           },
           {
             path: "rankings",

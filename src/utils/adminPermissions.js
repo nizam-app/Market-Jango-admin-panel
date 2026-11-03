@@ -19,6 +19,7 @@ export const ROUTE_PERMISSION = {
   "/outlet-management": "admin_access_outlets",
   "/subscription-plans": "admin_access_subscriptions",
   "/notifications": "admin_access_notifications",
+  "/communications": "admin_access_notifications",
   "/rankings": "admin_access_route_management",
   "/visibility-management": "admin_access_visibility",
   "/zone-management": "admin_access_zones",
