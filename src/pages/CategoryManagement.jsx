@@ -5,6 +5,7 @@ import Swal from "sweetalert2";
 import { Plus, Edit3, Trash2, Search, UploadCloud, Download } from "lucide-react";
 import categoryApi from "../api/categoryApi";
 import businessTypeApi from "../api/businessTypeApi";
+import AdminLocationFilterBar from "../components/filters/AdminLocationFilterBar";
 
 const BRAND = "#FF8C00";
 
@@ -57,6 +58,7 @@ const CategoryManagement = () => {
   const [parentOptions, setParentOptions] = useState([]);
   const [businessTypes, setBusinessTypes] = useState([]);
   const [filterBusinessTypeId, setFilterBusinessTypeId] = useState("");
+  const [filterCountry, setFilterCountry] = useState("");
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -65,6 +67,8 @@ const CategoryManagement = () => {
     slug: "",
     meta_title: "",
     status: "Active",
+    country: "",
+    vat_percent: "",
     image: null,
     imagePreview: null,
   });
@@ -77,6 +81,7 @@ const CategoryManagement = () => {
         per_page: PER_PAGE,
         search: search.trim() || undefined,
         business_type_id: filterBusinessTypeId || undefined,
+        country: filterCountry || undefined,
       });
       const data = res.data?.data;
       const items = Array.isArray(data?.items) ? data.items : [];
@@ -101,7 +106,7 @@ const CategoryManagement = () => {
 
   useEffect(() => {
     fetchCategories(page, searchQuery);
-  }, [page, searchQuery, filterBusinessTypeId]);
+  }, [page, searchQuery, filterBusinessTypeId, filterCountry]);
 
   useEffect(() => {
     businessTypeApi
@@ -184,6 +189,8 @@ const CategoryManagement = () => {
       slug: "",
       meta_title: "",
       status: "Active",
+      country: "",
+      vat_percent: "",
       image: null,
       imagePreview: null,
     });
@@ -200,6 +207,8 @@ const CategoryManagement = () => {
       slug: cat.slug || slugify(cat.name),
       meta_title: cat.meta_title || "",
       status: cat.status === "Inactive" ? "Inactive" : "Active",
+      country: cat.country || "",
+      vat_percent: cat.vat_percent != null && cat.vat_percent !== "" ? String(cat.vat_percent) : "",
       image: null,
       imagePreview: img,
     });
@@ -234,6 +243,12 @@ const CategoryManagement = () => {
       fd.append("parent_id", String(parent_id));
     }
     fd.append("status", status);
+    if (!parent_id && (form.country || "").trim()) {
+      fd.append("country", form.country.trim());
+    }
+    if ((form.vat_percent || "").trim() !== "") {
+      fd.append("vat_percent", String(form.vat_percent).trim());
+    }
     if (form.image) {
       fd.append("images[]", form.image);
     }
@@ -249,6 +264,10 @@ const CategoryManagement = () => {
     }
     if (!form.business_type_id) {
       Swal.fire({ icon: "warning", title: "Validation", text: "Business type is required.", confirmButtonColor: BRAND });
+      return;
+    }
+    if (!editingCategory && !form.parent_id && !(form.country || "").trim()) {
+      Swal.fire({ icon: "warning", title: "Validation", text: "Country is required for a new category.", confirmButtonColor: BRAND });
       return;
     }
     try {
@@ -432,6 +451,38 @@ const CategoryManagement = () => {
             />
           </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Country {form.parent_id ? "" : <span className="text-red-500">*</span>}
+              </label>
+              {form.parent_id ? (
+                <p className="text-sm text-gray-600 py-2">Uses the parent category country.</p>
+              ) : (
+                <AdminLocationFilterBar
+                  entity="buyer"
+                  countryOnly
+                  value={{ zone: form.country, state: "", town: "" }}
+                  onChange={(next) => setForm((f) => ({ ...f, country: next.zone }))}
+                />
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">VAT %</label>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="0.001"
+                value={form.vat_percent}
+                onChange={(e) => setForm((f) => ({ ...f, vat_percent: e.target.value }))}
+                placeholder="e.g. 18"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/50"
+              />
+              <p className="text-xs text-gray-500 mt-1">Applied to every product in this category. Vendors cannot change it.</p>
+            </div>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Business type <span className="text-red-500">*</span></label>
             <select
@@ -590,6 +641,18 @@ const CategoryManagement = () => {
                 ))}
               </select>
             </div>
+            <div className="min-w-[220px] max-w-xs">
+              <label className="block text-xs font-medium text-gray-600 mb-1">Filter by country</label>
+              <AdminLocationFilterBar
+                entity="buyer"
+                countryOnly
+                value={{ zone: filterCountry, state: "", town: "" }}
+                onChange={(next) => {
+                  setFilterCountry(next.zone || "");
+                  setPage(1);
+                }}
+              />
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -631,6 +694,8 @@ const CategoryManagement = () => {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Parent category</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Subcategory</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">2 sub category</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Country</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">VAT %</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Number of items</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-600 uppercase tracking-wider">Action</th>
               </tr>
@@ -638,11 +703,11 @@ const CategoryManagement = () => {
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-sm text-gray-500">Loading...</td>
+                  <td colSpan={11} className="px-4 py-12 text-center text-sm text-gray-500">Loading...</td>
                 </tr>
               ) : flatList.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-sm text-gray-500">
+                  <td colSpan={11} className="px-4 py-12 text-center text-sm text-gray-500">
                     {searchQuery.trim() || filterBusinessTypeId
                       ? "No categories match your search or filter."
                       : "No categories yet. Add one in the form above."}
@@ -674,6 +739,8 @@ const CategoryManagement = () => {
                     <td className="px-4 py-3 text-sm text-gray-600">{getParentName(cat)}</td>
                     <td className="px-4 py-3 text-sm text-gray-500">{getSubcategoryCount(cat.id)}</td>
                     <td className="px-4 py-3 text-sm text-gray-500">{getSecondLevelCount(cat.id)}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{cat.country || "—"}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{cat.vat_percent != null && cat.vat_percent !== "" ? `${cat.vat_percent}%` : "—"}</td>
                     <td className="px-4 py-3 text-sm text-gray-500">{cat.products_count ?? cat.items_count ?? 0}</td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-2">

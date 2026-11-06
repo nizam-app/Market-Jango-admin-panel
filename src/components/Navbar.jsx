@@ -70,6 +70,7 @@ const Navbar = () => {
     { navTitle: "Admin Management", path: "/admin-user" },
     { navTitle: "Settings", path: "/setting" },
     { navTitle: "Notifications", path: "/notifications" },
+    { navTitle: "Communications", path: "/communications" },
   ];
 
   const currentTitle =

@@ -79,7 +79,7 @@ const DriverListSection = () => {
 
         {!loading && !error && hasSearched && drivers.length === 0 && (
           <p className="text-center text-sm text-gray-500">
-            No drivers found for this route.
+            No drivers found for this route. Check the town or zone name.
           </p>
         )}
 

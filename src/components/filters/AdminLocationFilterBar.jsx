@@ -82,6 +82,8 @@ export default function AdminLocationFilterBar({
   value = {},
   onChange,
   className = "",
+  countryOnly = false,
+  zoneLabel = "Zone",
 }) {
   const [zones, setZones] = useState([]);
   const [states, setStates] = useState([]);
@@ -159,7 +161,7 @@ export default function AdminLocationFilterBar({
   return (
     <div className={`flex flex-wrap gap-3 items-end ${className}`}>
       <div>
-        <label className="block text-xs text-gray-500 mb-1">Zone</label>
+        <label className="block text-xs text-gray-500 mb-1">{countryOnly ? "Country" : zoneLabel}</label>
         <select
           className="border border-[#8AB3D3] rounded-lg px-3 py-2 text-sm min-w-[140px]"
           value={zone}
@@ -168,12 +170,13 @@ export default function AdminLocationFilterBar({
             emit({ zone: z, state: "", town: "" });
           }}
         >
-          <option value="">All zones</option>
+          <option value="">{countryOnly ? "All countries" : "All zones"}</option>
           {zones.map((z) => (
             <option key={z} value={z}>{z}</option>
           ))}
         </select>
       </div>
+      {!countryOnly && <>
       <div>
         <label className="block text-xs text-gray-500 mb-1">State</label>
         <select
@@ -205,6 +208,7 @@ export default function AdminLocationFilterBar({
           ))}
         </select>
       </div>
+      </>}
       {(zone || state || town) && (
         <button
           type="button"

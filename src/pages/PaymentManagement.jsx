@@ -67,7 +67,6 @@ const PaymentManagement = () => {
   });
 
   const [platformCommission, setPlatformCommission] = useState("");
-  const [taxRules, setTaxRules] = useState("");
   const [vendorProcessingPercent, setVendorProcessingPercent] = useState("10");
   const [buyerFlatFee, setBuyerFlatFee] = useState("0");
   const [transportFlatFee, setTransportFlatFee] = useState("0");
@@ -156,7 +155,6 @@ const PaymentManagement = () => {
             ? String(p.platform_commission)
             : ""
         );
-        setTaxRules(p.tax_rules ?? "");
         setVendorProcessingPercent(
           p.vendor_processing_percent != null ? String(p.vendor_processing_percent) : "10"
         );
@@ -214,7 +212,7 @@ const PaymentManagement = () => {
         driver_share_flat: driverShareFlat === "" ? 0 : Number(driverShareFlat),
         driver_platform_fee_percent:
           driverPlatformFeePercent === "" ? 0 : Number(driverPlatformFeePercent),
-        tax_rules: taxRules || null,
+        tax_rules: null,
       };
       const body = {
         zone_id: zone === "" ? null : parseInt(zone, 10),
@@ -284,7 +282,7 @@ const PaymentManagement = () => {
         driver_share_flat: driverShareFlat === "" ? 0 : Number(driverShareFlat),
         driver_platform_fee_percent:
           driverPlatformFeePercent === "" ? 0 : Number(driverPlatformFeePercent),
-        tax_rules: taxRules || null,
+        tax_rules: null,
       };
       await savePaymentSettings({
         zone_id: zone === "" ? null : parseInt(zone, 10),
@@ -730,18 +728,6 @@ const PaymentManagement = () => {
                     value={platformCommission}
                     onChange={(e) => setPlatformCommission(e.target.value)}
                     placeholder="e.g. 10"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/40"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Taxes (description / rule)
-                  </label>
-                  <input
-                    type="text"
-                    value={taxRules}
-                    onChange={(e) => setTaxRules(e.target.value)}
-                    placeholder="e.g. VAT 18% + local taxes"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/40"
                   />
                 </div>
