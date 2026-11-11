@@ -82,6 +82,9 @@ const ProductSection = () => {
         <div className="mb-4 flex flex-col gap-3">
           <AdminLocationFilterBar
             entity="product"
+            zoneLabel="Country"
+            stateLabel="District"
+            townLabel="Town"
             value={locationFilter}
             onChange={setLocationFilter}
           />

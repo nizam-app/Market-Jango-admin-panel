@@ -82,6 +82,8 @@ export default function OrderEditModal({ invoiceItemId, onClose, brand, onRefres
   const [qtyReason, setQtyReason] = useState({});
   const [statusPick, setStatusPick] = useState({});
   const [statusNote, setStatusNote] = useState({});
+  const [triggerMessage, setTriggerMessage] = useState({});
+  const [triggerAudience, setTriggerAudience] = useState({});
   const [assignPick, setAssignPick] = useState({});
   const [lineBusy, setLineBusy] = useState({});
   const [downloadBusy, setDownloadBusy] = useState(null);
@@ -294,11 +296,18 @@ export default function OrderEditModal({ invoiceItemId, onClose, brand, onRefres
       return;
     }
     const note = (statusNote[line.id] || "").trim();
+    const message = (triggerMessage[line.id] || "").trim();
+    const audience = triggerAudience[line.id] || "";
+    if (message && !audience) {
+      showToast("Choose who receives the trigger message.", true);
+      return;
+    }
     try {
       setBusy(line.id, true);
       await updateAllOrder(line.id, {
         status: st,
         ...(note ? { note } : {}),
+        ...(message ? { trigger_message: message, trigger_audience: audience } : {}),
       });
       showToast("Status updated.");
       await reloadContext();
@@ -690,6 +699,27 @@ export default function OrderEditModal({ invoiceItemId, onClose, brand, onRefres
                                     {s}
                                   </option>
                                 ))}
+                              </select>
+                              <input
+                                type="text"
+                                className={inputClass}
+                                disabled={busy || locked}
+                                placeholder="Trigger message (optional)"
+                                value={triggerMessage[line.id] ?? ""}
+                                onChange={(e) => setTriggerMessage((p) => ({ ...p, [line.id]: e.target.value }))}
+                              />
+                              <select
+                                className={selectClass}
+                                disabled={busy || locked}
+                                value={triggerAudience[line.id] ?? ""}
+                                onChange={(e) => setTriggerAudience((p) => ({ ...p, [line.id]: e.target.value }))}
+                              >
+                                <option value="">Trigger audience</option>
+                                <option value="buyer">Buyer</option>
+                                <option value="vendor">Vendor</option>
+                                <option value="driver">Driver</option>
+                                <option value="transport">Transport</option>
+                                <option value="all">All</option>
                               </select>
                               <input
                                 type="text"

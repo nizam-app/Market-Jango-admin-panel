@@ -9,6 +9,7 @@ import { updateUserInfo } from "../api/userApi";
 import axiosClient from "../api/axiosClient";
 import AdminFollowPanel from "../components/admin/AdminFollowPanel";
 import AdminLocationFilterBar from "../components/filters/AdminLocationFilterBar";
+import FailedDeliveriesPanel from "../components/orders/FailedDeliveriesPanel";
 
 const Transportmanagement = () => {
   const [transports, setTransports] = useState([]);
@@ -294,6 +295,9 @@ const Transportmanagement = () => {
       <h1 className="text-2xl font-semibold text-gray-800 mb-4">
         Transport Management
       </h1>
+      <div className="mb-4">
+        <FailedDeliveriesPanel />
+      </div>
 
       <AdminLocationFilterBar
         entity="transport"

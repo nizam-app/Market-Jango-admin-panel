@@ -84,6 +84,8 @@ export default function AdminLocationFilterBar({
   className = "",
   countryOnly = false,
   zoneLabel = "Zone",
+  stateLabel = "State",
+  townLabel = "Town",
 }) {
   const [zones, setZones] = useState([]);
   const [states, setStates] = useState([]);
@@ -178,7 +180,7 @@ export default function AdminLocationFilterBar({
       </div>
       {!countryOnly && <>
       <div>
-        <label className="block text-xs text-gray-500 mb-1">State</label>
+        <label className="block text-xs text-gray-500 mb-1">{stateLabel}</label>
         <select
           className="border border-[#8AB3D3] rounded-lg px-3 py-2 text-sm min-w-[140px]"
           value={state}
@@ -188,14 +190,14 @@ export default function AdminLocationFilterBar({
             emit({ state: st, town: "" });
           }}
         >
-          <option value="">All states</option>
+          <option value="">All</option>
           {states.map((s) => (
             <option key={s} value={s}>{s}</option>
           ))}
         </select>
       </div>
       <div>
-        <label className="block text-xs text-gray-500 mb-1">Town</label>
+        <label className="block text-xs text-gray-500 mb-1">{townLabel}</label>
         <select
           className="border border-[#8AB3D3] rounded-lg px-3 py-2 text-sm min-w-[140px]"
           value={town}

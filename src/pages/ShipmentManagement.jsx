@@ -102,6 +102,8 @@ function ShipmentDetailModal({ shipmentId, onClose, brand, onSaved }) {
   const [formPayment, setFormPayment] = useState("pending");
   const [formDriverId, setFormDriverId] = useState("");
   const [formFinalPrice, setFormFinalPrice] = useState("");
+  const [triggerMessage, setTriggerMessage] = useState("");
+  const [triggerAudience, setTriggerAudience] = useState("");
 
   const load = useCallback(async () => {
     if (shipmentId == null) return;
@@ -167,6 +169,15 @@ function ShipmentDetailModal({ shipmentId, onClose, brand, onSaved }) {
       return;
     }
     body.final_price = fpNum;
+    const message = triggerMessage.trim();
+    if (message && !triggerAudience) {
+      Swal.fire({ icon: "warning", title: "Choose who receives the trigger message", confirmButtonColor: brand });
+      return;
+    }
+    if (message) {
+      body.trigger_message = message;
+      body.trigger_audience = triggerAudience;
+    }
 
     try {
       setSaving(true);
@@ -396,6 +407,26 @@ function ShipmentDetailModal({ shipmentId, onClose, brand, onSaved }) {
                           {st}
                         </option>
                       ))}
+                    </select>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs text-gray-600 mb-1">Trigger message</label>
+                    <input
+                      value={triggerMessage}
+                      onChange={(e) => setTriggerMessage(e.target.value)}
+                      className={inputClass}
+                      placeholder="Optional message sent when this status is saved"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Trigger audience</label>
+                    <select value={triggerAudience} onChange={(e) => setTriggerAudience(e.target.value)} className={selectClass}>
+                      <option value="">None</option>
+                      <option value="buyer">Buyer</option>
+                      <option value="vendor">Vendor</option>
+                      <option value="driver">Driver</option>
+                      <option value="transport">Transport</option>
+                      <option value="all">All</option>
                     </select>
                   </div>
                   <div className="sm:col-span-2">

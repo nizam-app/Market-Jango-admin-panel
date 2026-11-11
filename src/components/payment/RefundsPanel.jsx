@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import Swal from "sweetalert2";
 import { Search, RefreshCw } from "lucide-react";
-import { getRefunds, approveRefund, rejectRefund } from "../../api/refundApi";
+import { getRefunds, approveRefund, rejectRefund, getRefundSettings, saveRefundSettings } from "../../api/refundApi";
 import { getZones } from "../../api/adminApi";
 
 const BRAND = "#FF8C00";
@@ -25,6 +25,7 @@ export default function RefundsPanel() {
   const [error, setError] = useState("");
 
   const [status, setStatus] = useState("pending");
+  const [type, setType] = useState("");
   const [vendorId, setVendorId] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [zoneId, setZoneId] = useState("");
@@ -32,8 +33,28 @@ export default function RefundsPanel() {
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [locationInput, setLocationInput] = useState("");
+  const [settings, setSettings] = useState(null);
   const [zones, setZones] = useState([]);
   const [zonesLoading, setZonesLoading] = useState(true);
+
+  useEffect(() => {
+    getRefundSettings()
+      .then((res) => setSettings(res.data?.data || null))
+      .catch(() => setSettings(null));
+  }, []);
+
+  const toggleSetting = async (key) => {
+    if (!settings) return;
+    const next = { ...settings, [key]: !settings[key] };
+    setSettings(next);
+    try {
+      const res = await saveRefundSettings(next);
+      setSettings(res.data?.data || next);
+    } catch (e) {
+      setSettings(settings);
+      Swal.fire({ icon: "error", title: "Could not save settings", text: e?.response?.data?.message || e.message });
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -61,6 +82,7 @@ export default function RefundsPanel() {
         setLoading(true);
         setError("");
         const params = { page, status };
+        if (type) params.type = type;
         if (vendorId.trim()) params.vendor_id = vendorId.trim();
         if (fromDate) params.from_date = fromDate;
         if (zoneId) params.zone_id = zoneId;
@@ -88,7 +110,7 @@ export default function RefundsPanel() {
         setLoading(false);
       }
     },
-    [status, vendorId, fromDate, zoneId, location, search]
+    [status, type, vendorId, fromDate, zoneId, location, search]
   );
 
   useEffect(() => {
@@ -198,6 +220,26 @@ export default function RefundsPanel() {
           </button>
         </div>
 
+        {settings && (
+          <div className="px-6 pb-4 flex flex-wrap gap-4 text-sm text-gray-700">
+            {[
+              ["return_requires_vendor_approval", "Return needs vendor approval"],
+              ["exchange_requires_vendor_approval", "Exchange needs vendor approval"],
+              ["replacement_requires_vendor_approval", "Replacement needs vendor approval"],
+              ["refund_auto_on_approval", "Refund wallet on approval"],
+            ].map(([key, label]) => (
+              <label key={key} className="inline-flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={!!settings[key]}
+                  onChange={() => toggleSetting(key)}
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+        )}
+
         <form onSubmit={applyFilters} className="p-6 space-y-4">
           <div className="flex flex-wrap gap-3 items-end">
             <div>
@@ -210,6 +252,19 @@ export default function RefundsPanel() {
                 <option value="pending">pending</option>
                 <option value="approved">approved</option>
                 <option value="rejected">rejected</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">Type</label>
+              <select
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              >
+                <option value="">all</option>
+                <option value="refund">refund</option>
+                <option value="exchange">exchange</option>
+                <option value="replacement">replacement</option>
               </select>
             </div>
             <div>
@@ -290,6 +345,9 @@ export default function RefundsPanel() {
                   ID
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">
+                  Type
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">
                   Order
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">
@@ -318,13 +376,13 @@ export default function RefundsPanel() {
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-sm text-gray-500">
+                  <td colSpan={10} className="px-4 py-12 text-center text-sm text-gray-500">
                     Loading…
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-sm text-gray-500">
+                  <td colSpan={10} className="px-4 py-12 text-center text-sm text-gray-500">
                     No refunds found.
                   </td>
                 </tr>
@@ -332,8 +390,10 @@ export default function RefundsPanel() {
                 rows.map((r) => (
                   <tr key={r.id} className="hover:bg-gray-50/50">
                     <td className="px-4 py-3 text-sm text-gray-900">{r.id}</td>
+                    <td className="px-4 py-3 text-sm text-gray-700">{r.type || "refund"}</td>
                     <td className="px-4 py-3 text-sm text-gray-700">
                       {r.invoice?.order_number || r.invoice_id}
+                      {r.linked_invoice_id ? ` · new order #${r.linked_invoice_id}` : ""}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600">
                       {r.user?.name || "—"}

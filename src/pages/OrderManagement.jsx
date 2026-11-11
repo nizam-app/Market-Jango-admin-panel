@@ -13,6 +13,7 @@ import { getAllOrders, getOrderItemStatuses, parseAllOrdersResponse } from "../a
 import axiosClient from "../api/axiosClient";
 import { getActiveVendors } from "../api/vendorAPI";
 import OrderEditModal from "../components/orders/OrderEditModal";
+import FailedDeliveriesPanel from "../components/orders/FailedDeliveriesPanel";
 import AdminLocationFilterBar from "../components/filters/AdminLocationFilterBar";
 
 const BRAND = "#FF8C00";
@@ -285,6 +286,7 @@ const OrderManagement = () => {
 
   return (
     <div className="px-4 sm:px-6 py-5 max-w-[1600px] mx-auto space-y-6">
+      <FailedDeliveriesPanel />
       {/* Page header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="flex gap-4">

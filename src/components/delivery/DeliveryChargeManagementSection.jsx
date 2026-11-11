@@ -55,6 +55,8 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
     flat_base_charge: '',
     flat_enabled: true,
     urgent_flat_fee: '',
+    return_fee: '',
+    redelivery_fee: '',
     distance_km: '',
     status: 'Active',
     currency: 'USD',
@@ -314,6 +316,8 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
       flat_base_charge: route.flat_base_charge ?? route.flat_base_price ?? '',
       flat_enabled: route.flat_enabled !== false,
       urgent_flat_fee: route.urgent_flat_fee ?? '',
+      return_fee: route.return_fee ?? '',
+      redelivery_fee: route.redelivery_fee ?? '',
       distance_km: route.distance_km ?? '',
       status: route.status || 'Active',
       currency: route.currency || 'USD',
@@ -359,6 +363,8 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
         flat_base_charge: '',
         flat_enabled: true,
         urgent_flat_fee: '',
+        return_fee: '',
+        redelivery_fee: '',
         distance_km: '',
         status: 'Active',
         currency: 'USD',
@@ -383,6 +389,8 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
   const buildDeliveryChargePayload = () => {
     const flatBase = parseFloat(deliveryChargeForm.flat_base_charge);
     const urgentFee = parseFloat(deliveryChargeForm.urgent_flat_fee);
+    const returnFee = parseFloat(deliveryChargeForm.return_fee);
+    const redeliveryFee = parseFloat(deliveryChargeForm.redelivery_fee);
     const distanceKmRaw = deliveryChargeForm.distance_km;
     const distanceKm =
       distanceKmRaw === '' || distanceKmRaw == null
@@ -402,6 +410,8 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
       weight_enabled: !!deliveryChargeForm.weight_enabled,
       cube_enabled: !!deliveryChargeForm.cube_enabled,
       urgent_flat_fee: Number.isNaN(urgentFee) ? 0 : urgentFee,
+      return_fee: Number.isNaN(returnFee) ? 0 : returnFee,
+      redelivery_fee: Number.isNaN(redeliveryFee) ? 0 : redeliveryFee,
       distance_km: distanceKm,
       status: deliveryChargeForm.status || 'Active',
       currency: deliveryChargeForm.currency || null,
@@ -662,6 +672,8 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
                     <th style={{ textAlign: 'left', padding: '12px 14px', borderBottom: '1px solid #f0f0f3', color: '#666', fontSize: 13 }}>Delivery timeline</th>
                     <th style={{ textAlign: 'left', padding: '12px 14px', borderBottom: '1px solid #f0f0f3', color: '#666', fontSize: 13 }}>Flat base price</th>
                     <th style={{ textAlign: 'left', padding: '12px 14px', borderBottom: '1px solid #f0f0f3', color: '#666', fontSize: 13 }}>Urgent fee</th>
+                    <th style={{ textAlign: 'left', padding: '12px 14px', borderBottom: '1px solid #f0f0f3', color: '#666', fontSize: 13 }}>Return fee</th>
+                    <th style={{ textAlign: 'left', padding: '12px 14px', borderBottom: '1px solid #f0f0f3', color: '#666', fontSize: 13 }}>Redelivery fee</th>
                     <th style={{ textAlign: 'left', padding: '12px 14px', borderBottom: '1px solid #f0f0f3', color: '#666', fontSize: 13 }}>Distance (km)</th>
                     <th style={{ textAlign: 'left', padding: '12px 14px', borderBottom: '1px solid #f0f0f3', color: '#666', fontSize: 13 }}>Weight base range</th>
                     <th style={{ textAlign: 'left', padding: '12px 14px', borderBottom: '1px solid #f0f0f3', color: '#666', fontSize: 13 }}>Distance base range</th>
@@ -679,6 +691,8 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
                       <td style={{ padding: '12px 14px', borderBottom: '1px solid #fbfbfc', fontSize: 13 }}>{row.delivery_timeline || '—'}</td>
                       <td style={{ padding: '12px 14px', borderBottom: '1px solid #fbfbfc' }}>{row.flat_base_price != null ? `${row.flat_base_price} ${row.currency || 'USD'}` : '—'}</td>
                       <td style={{ padding: '12px 14px', borderBottom: '1px solid #fbfbfc' }}>{row.urgent_flat_fee != null && row.urgent_flat_fee !== '' ? `${row.urgent_flat_fee} ${row.currency || 'USD'}` : '—'}</td>
+                      <td style={{ padding: '12px 14px', borderBottom: '1px solid #fbfbfc' }}>{row.return_fee != null && row.return_fee !== '' ? `${row.return_fee} ${row.currency || 'USD'}` : '—'}</td>
+                      <td style={{ padding: '12px 14px', borderBottom: '1px solid #fbfbfc' }}>{row.redelivery_fee != null && row.redelivery_fee !== '' ? `${row.redelivery_fee} ${row.currency || 'USD'}` : '—'}</td>
                       <td style={{ padding: '12px 14px', borderBottom: '1px solid #fbfbfc' }}>{row.distance_km != null && row.distance_km !== '' ? row.distance_km : '—'}</td>
                       <td style={{ padding: '12px 14px', borderBottom: '1px solid #fbfbfc', fontSize: 13 }}>{row.weight_base_range || '—'}</td>
                       <td style={{ padding: '12px 14px', borderBottom: '1px solid #fbfbfc', fontSize: 13 }}>{row.distance_base_range || '—'}</td>
@@ -903,6 +917,30 @@ const DeliveryChargeManagementSection = ({ defaultTab = 'dashboard', standalone 
                         step="0.01"
                         value={deliveryChargeForm.urgent_flat_fee}
                         onChange={(e) => setDeliveryChargeForm({ ...deliveryChargeForm, urgent_flat_fee: e.target.value })}
+                        placeholder="0"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-600 mb-1">Return fee</label>
+                      <input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={deliveryChargeForm.return_fee}
+                        onChange={(e) => setDeliveryChargeForm({ ...deliveryChargeForm, return_fee: e.target.value })}
+                        placeholder="0"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-600 mb-1">Redelivery fee</label>
+                      <input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={deliveryChargeForm.redelivery_fee}
+                        onChange={(e) => setDeliveryChargeForm({ ...deliveryChargeForm, redelivery_fee: e.target.value })}
                         placeholder="0"
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                       />

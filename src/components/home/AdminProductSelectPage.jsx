@@ -238,6 +238,9 @@ const AdminProductSelectPage = () => {
       <AdminLocationFilterBar
         entity="product"
         className="mb-6"
+        zoneLabel="Country"
+        stateLabel="District"
+        townLabel="Town"
         value={locationFilter}
         onChange={setLocationFilter}
       />
