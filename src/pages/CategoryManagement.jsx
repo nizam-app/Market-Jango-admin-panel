@@ -69,6 +69,8 @@ const CategoryManagement = () => {
     status: "Active",
     country: "",
     vat_percent: "",
+    sort_order: "",
+    show_on_home: true,
     image: null,
     imagePreview: null,
   });
@@ -191,6 +193,8 @@ const CategoryManagement = () => {
       status: "Active",
       country: "",
       vat_percent: "",
+      sort_order: "",
+      show_on_home: true,
       image: null,
       imagePreview: null,
     });
@@ -209,6 +213,8 @@ const CategoryManagement = () => {
       status: cat.status === "Inactive" ? "Inactive" : "Active",
       country: cat.country || "",
       vat_percent: cat.vat_percent != null && cat.vat_percent !== "" ? String(cat.vat_percent) : "",
+      sort_order: cat.sort_order ?? "",
+      show_on_home: cat.show_on_home !== false && cat.show_on_home !== 0 && cat.show_on_home !== "0",
       image: null,
       imagePreview: img,
     });
@@ -249,6 +255,10 @@ const CategoryManagement = () => {
     if ((form.vat_percent || "").trim() !== "") {
       fd.append("vat_percent", String(form.vat_percent).trim());
     }
+    if (String(form.sort_order ?? "").trim() !== "") {
+      fd.append("sort_order", String(form.sort_order).trim());
+    }
+    fd.append("show_on_home", form.show_on_home ? "1" : "0");
     if (form.image) {
       fd.append("images[]", form.image);
     }
@@ -537,6 +547,27 @@ const CategoryManagement = () => {
                 <option value="Active">Active</option>
                 <option value="Inactive">Inactive</option>
               </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Sort number</label>
+              <input
+                type="number"
+                min="0"
+                value={form.sort_order}
+                onChange={(e) => setForm((f) => ({ ...f, sort_order: e.target.value }))}
+                placeholder="Lowest shows first"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF8C00]/50"
+              />
+            </div>
+            <div className="flex items-end">
+              <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                <input
+                  type="checkbox"
+                  checked={!!form.show_on_home}
+                  onChange={(e) => setForm((f) => ({ ...f, show_on_home: e.target.checked }))}
+                />
+                Show on home
+              </label>
             </div>
           </div>
 

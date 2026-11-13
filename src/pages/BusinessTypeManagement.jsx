@@ -34,6 +34,8 @@ const BusinessTypeManagement = () => {
     slug: "",
     description: "",
     status: "Active",
+    sort_order: "",
+    show_on_home: true,
     image: null,
   });
 
@@ -65,7 +67,7 @@ const BusinessTypeManagement = () => {
 
   const resetForm = () => {
     setEditing(null);
-    setForm({ name: "", slug: "", description: "", status: "Active", image: null });
+    setForm({ name: "", slug: "", description: "", status: "Active", sort_order: "", show_on_home: true, image: null });
   };
 
   const loadIntoForm = (row) => {
@@ -75,6 +77,8 @@ const BusinessTypeManagement = () => {
       slug: row.slug || "",
       description: row.description || "",
       status: row.status || "Active",
+      sort_order: row.sort_order ?? "",
+      show_on_home: row.show_on_home !== false && row.show_on_home !== 0 && row.show_on_home !== "0",
       image: null,
     });
   };
@@ -85,6 +89,8 @@ const BusinessTypeManagement = () => {
     fd.append("slug", (form.slug || slugify(form.name)).trim());
     fd.append("description", form.description || "");
     fd.append("status", form.status);
+    fd.append("sort_order", form.sort_order === "" || form.sort_order == null ? "" : String(form.sort_order));
+    fd.append("show_on_home", form.show_on_home ? "1" : "0");
     if (form.image) fd.append("image", form.image);
     return fd;
   };
@@ -174,6 +180,27 @@ const BusinessTypeManagement = () => {
           </select>
         </div>
         <div>
+          <label className="block text-sm font-medium mb-1">Sort number</label>
+          <input
+            type="number"
+            min="0"
+            className="w-full border rounded-lg px-3 py-2"
+            value={form.sort_order}
+            onChange={(e) => setForm((f) => ({ ...f, sort_order: e.target.value }))}
+            placeholder="Lowest shows first"
+          />
+        </div>
+        <div className="flex items-end">
+          <label className="inline-flex items-center gap-2 text-sm font-medium">
+            <input
+              type="checkbox"
+              checked={!!form.show_on_home}
+              onChange={(e) => setForm((f) => ({ ...f, show_on_home: e.target.checked }))}
+            />
+            Show on home
+          </label>
+        </div>
+        <div>
           <label className="block text-sm font-medium mb-1">Image</label>
           <input type="file" accept="image/*" onChange={(e) => setForm((f) => ({ ...f, image: e.target.files?.[0] || null }))} />
         </div>
@@ -217,6 +244,8 @@ const BusinessTypeManagement = () => {
                   <th className="py-2 pr-3">Slug</th>
                   <th className="py-2 pr-3">Categories</th>
                   <th className="py-2 pr-3">Vendors</th>
+                  <th className="py-2 pr-3">Sort</th>
+                  <th className="py-2 pr-3">Home</th>
                   <th className="py-2 pr-3">Status</th>
                   <th className="py-2 pr-3">Actions</th>
                 </tr>
@@ -228,6 +257,8 @@ const BusinessTypeManagement = () => {
                     <td className="py-3 pr-3">{row.slug}</td>
                     <td className="py-3 pr-3">{row.categories_count ?? 0}</td>
                     <td className="py-3 pr-3">{row.vendors_count ?? 0}</td>
+                    <td className="py-3 pr-3">{row.sort_order ?? "—"}</td>
+                    <td className="py-3 pr-3">{row.show_on_home === false || row.show_on_home === 0 ? "Hidden" : "Shown"}</td>
                     <td className="py-3 pr-3">{row.status}</td>
                     <td className="py-3 pr-3">
                       <div className="flex gap-2">

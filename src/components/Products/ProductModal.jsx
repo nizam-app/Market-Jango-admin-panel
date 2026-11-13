@@ -148,6 +148,7 @@ const normalizeColor = (c) => {
 
 const ProductModal = ({ product, closeModal, onStatusChange }) => {
   const [saving, setSaving] = useState(false);
+  const [homeScreen, setHomeScreen] = useState(!!product?.home_screen);
 
   const attributeGroups = useMemo(
     () => buildAttributeGroups(product),
@@ -198,7 +199,10 @@ const ProductModal = ({ product, closeModal, onStatusChange }) => {
 
     try {
       setSaving(true);
-      await updateProductStatus(product.id, is_active, dialog);
+      await updateProductStatus(product.id, is_active, {
+        ...dialog,
+        ...(is_active === STATUS.APPROVED ? { home_screen: homeScreen } : {}),
+      });
 
       await Swal.fire({
         icon: "success",
@@ -396,6 +400,14 @@ const ProductModal = ({ product, closeModal, onStatusChange }) => {
               </div>
             </div>
 
+            <label className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-[#343C6A]">
+              <input
+                type="checkbox"
+                checked={homeScreen}
+                onChange={(e) => setHomeScreen(e.target.checked)}
+              />
+              Home screen
+            </label>
             <div className="flex space-x-4">
               <button
                 disabled={saving}

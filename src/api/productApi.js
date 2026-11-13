@@ -25,5 +25,6 @@ export const updateProductStatus = (productId, is_active, extras = {}) => {
     rejection_reason: extras.note,
     notify_in_app: extras.notify_in_app,
     notify_sms: extras.notify_sms,
+    ...(extras.home_screen === undefined ? {} : { home_screen: extras.home_screen ? 1 : 0 }),
   });
 };
