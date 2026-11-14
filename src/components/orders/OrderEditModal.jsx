@@ -19,6 +19,11 @@ import {
   unassignAdminOrderOutlet,
 } from "../../api/outletApi";
 import { messageFromDownloadError, saveBlobResponseAsDownload } from "../../utils/blobDownload";
+import {
+  approveRefund,
+  disputeFailedDelivery,
+  setFailedDeliveryResponsibility,
+} from "../../api/refundApi";
 
 function sellingModeLabel(mode) {
   const m = String(mode || "").toLowerCase().replace(/_/g, "-");
@@ -283,6 +288,86 @@ export default function OrderEditModal({ invoiceItemId, onClose, brand, onRefres
       onRefreshTable?.();
     } catch (e) {
       showToast(e?.response?.data?.message || e.message || "Assign failed", true);
+    } finally {
+      setBusy(line.id, false);
+    }
+  };
+
+  const [resolution, setResolution] = useState({});
+
+  const setResolutionField = (lineId, field, value) => {
+    setResolution((prev) => {
+      const current = prev[lineId] || { area: "", action: "", party: "" };
+      return {
+        ...prev,
+        [lineId]: {
+          ...current,
+          [field]: value,
+          ...(field === "area" ? { action: "", party: "" } : {}),
+          ...(field === "action" ? { party: "" } : {}),
+        },
+      };
+    });
+  };
+
+  const resolutionActions = (line, area) => {
+    if (area === "processing") {
+      return (Array.isArray(line.allowed_next_statuses) ? line.allowed_next_statuses : []).map((status) => ({
+        value: status,
+        label: status,
+      }));
+    }
+    if (area === "cancellation") return [{ value: "cancel", label: "Cancel line" }];
+    if (area === "delivery") {
+      return [
+        { value: "responsibility", label: "Set responsibility" },
+        { value: "dispute", label: "Dispute" },
+      ];
+    }
+    if (area === "return") return [{ value: "approve", label: "Approve request" }];
+    return [];
+  };
+
+  const handleResolution = async (line) => {
+    const pick = resolution[line.id] || {};
+    if (!pick.area || !pick.action) {
+      showToast("Choose the order action.", true);
+      return;
+    }
+    if (pick.area === "cancellation") {
+      await handleCancelLine(line);
+      return;
+    }
+    try {
+      setBusy(line.id, true);
+      if (pick.area === "processing") {
+        await updateAllOrder(line.id, { status: pick.action });
+      } else if (pick.area === "delivery") {
+        if (!line.failed_delivery_case_id) {
+          showToast("This line has no open failed-delivery case.", true);
+          return;
+        }
+        if (pick.action === "dispute") {
+          await disputeFailedDelivery(line.failed_delivery_case_id);
+        } else {
+          if (!pick.party) {
+            showToast("Choose who is responsible.", true);
+            return;
+          }
+          await setFailedDeliveryResponsibility(line.failed_delivery_case_id, pick.party);
+        }
+      } else if (pick.area === "return") {
+        if (!line.pending_refund_id) {
+          showToast("This line has no pending return request.", true);
+          return;
+        }
+        await approveRefund(line.pending_refund_id, "");
+      }
+      showToast("Order action saved.");
+      await reloadContext();
+      onRefreshTable?.();
+    } catch (e) {
+      showToast(e?.response?.data?.message || e.message || "Action failed", true);
     } finally {
       setBusy(line.id, false);
     }
@@ -677,6 +762,59 @@ export default function OrderEditModal({ invoiceItemId, onClose, brand, onRefres
                               Assign
                             </button>
                           </div>
+                        </div>
+
+                        {/* Dependent resolution. These call the existing status, cancel, failed-delivery, and refund APIs. */}
+                        <div className="rounded-lg border border-red-100 bg-red-50/50 p-3 space-y-2">
+                          <p className="text-xs font-semibold text-red-700">Order resolution</p>
+                          <select
+                            className={selectClass}
+                            disabled={busy || locked}
+                            value={(resolution[line.id] || {}).area || ""}
+                            onChange={(e) => setResolutionField(line.id, "area", e.target.value)}
+                          >
+                            <option value="">Choose a group</option>
+                            <option value="processing">Order processing</option>
+                            <option value="cancellation">Cancellation</option>
+                            <option value="delivery">Failed delivery</option>
+                            <option value="return">Return, refund, exchange, replacement</option>
+                          </select>
+                          <select
+                            className={selectClass}
+                            disabled={busy || locked || !(resolution[line.id] || {}).area}
+                            value={(resolution[line.id] || {}).action || ""}
+                            onChange={(e) => setResolutionField(line.id, "action", e.target.value)}
+                          >
+                            <option value="">Choose an action</option>
+                            {resolutionActions(line, (resolution[line.id] || {}).area).map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                          {(resolution[line.id] || {}).area === "delivery" &&
+                            (resolution[line.id] || {}).action === "responsibility" && (
+                              <select
+                                className={selectClass}
+                                disabled={busy || locked}
+                                value={(resolution[line.id] || {}).party || ""}
+                                onChange={(e) => setResolutionField(line.id, "party", e.target.value)}
+                              >
+                                <option value="">Who is responsible</option>
+                                <option value="buyer">Buyer</option>
+                                <option value="driver">Driver (buyer is not charged)</option>
+                                <option value="vendor">Vendor (wallet is charged once)</option>
+                              </select>
+                            )}
+                          <button
+                            type="button"
+                            disabled={busy || locked}
+                            onClick={() => handleResolution(line)}
+                            className="text-sm font-medium px-4 py-2 rounded-xl text-white disabled:opacity-50"
+                            style={{ backgroundColor: "#F44336" }}
+                          >
+                            Apply
+                          </button>
                         </div>
 
                         {/* Next status */}
